@@ -1,9 +1,10 @@
 <?php
 
+use App\Models\Agent;
+use App\Models\SyncProject;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
-use App\Models\Agent;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -29,3 +30,25 @@ Schedule::call(function () {
 
 // HTTP uptime checks for all active site monitors.
 Schedule::command('monitor:sites')->everyFiveMinutes()->name('monitor:sites');
+
+// Prune uptime check history older than 30 days (288 checks/day per monitor).
+Schedule::call(function () {
+    \App\Models\SiteMonitorCheck::where('checked_at', '<', now()->subDays(30))->delete();
+})->daily()->name('site-monitor-checks:prune');
+
+// Dynamic scheduling: each active SyncProject with a runner gets its own schedule.
+// Wrapped in try/catch so a missing DB table during migrations doesn't break boot.
+try {
+    SyncProject::where('is_active', true)
+        ->whereNotNull('runner_script_path')
+        ->whereNotNull('runner_schedule')
+        ->get()
+        ->each(function (SyncProject $p) {
+            Schedule::command("sync:run {$p->slug}")
+                ->cron($p->runner_schedule)
+                ->name("sync:{$p->slug}")
+                ->withoutOverlapping(120);
+        });
+} catch (\Throwable) {
+    // DB not ready yet (e.g. first deploy before migrations run).
+}

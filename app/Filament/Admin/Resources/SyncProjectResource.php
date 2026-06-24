@@ -12,6 +12,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Artisan;
 
 class SyncProjectResource extends Resource
 {
@@ -51,11 +52,22 @@ class SyncProjectResource extends Resource
                         ->searchable()
                         ->preload()
                         ->nullable(),
-                    Forms\Components\TextInput::make('host')
-                        ->label('Servidor onde corre')
-                        ->placeholder('Ex: 89.117.58.229 ou empresa (local)')
-                        ->columnSpanFull(),
                     Forms\Components\Toggle::make('is_active')->label('Ativo')->default(true),
+                ]),
+            Forms\Components\Section::make('Runner local')
+                ->description('Configuração para executar o script directamente neste servidor (gestao.ateneya.com).')
+                ->columns(2)
+                ->schema([
+                    Forms\Components\TextInput::make('runner_script_path')
+                        ->label('Caminho do script')
+                        ->placeholder('syncer/wintouch_woo/main.py')
+                        ->helperText('Relativo à raiz do projecto backup-manager.')
+                        ->columnSpanFull(),
+                    Forms\Components\TextInput::make('runner_schedule')
+                        ->label('Schedule (cron)')
+                        ->placeholder('0 */3 * * *')
+                        ->helperText('Expressão cron para execução automática. Ex: cada 3h = "0 */3 * * *". Deixa em branco para não agendar.')
+                        ->columnSpanFull(),
                 ]),
             Forms\Components\Textarea::make('notes')->label('Notas')->columnSpanFull(),
         ]);
@@ -88,6 +100,22 @@ class SyncProjectResource extends Resource
                 Tables\Columns\IconColumn::make('is_active')->label('Ativo')->boolean(),
             ])
             ->actions([
+                Tables\Actions\Action::make('run_now')
+                    ->label('Correr agora')
+                    ->icon('heroicon-o-play')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Correr sincronizador')
+                    ->modalDescription(fn (SyncProject $record) => "Vai executar \"{$record->name}\" agora em background. Podes acompanhar o resultado no histórico de runs.")
+                    ->visible(fn (SyncProject $record) => filled($record->runner_script_path))
+                    ->action(function (SyncProject $record) {
+                        Artisan::queue("sync:run {$record->slug}");
+                        Notification::make()
+                            ->title('Sincronizador iniciado')
+                            ->body("O sync \"{$record->name}\" foi colocado em fila. Resultado disponível em breve no histórico.")
+                            ->success()
+                            ->send();
+                    }),
                 Tables\Actions\Action::make('generateToken')
                     ->label('Gerar token')
                     ->icon('heroicon-o-key')

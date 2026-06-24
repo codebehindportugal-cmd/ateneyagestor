@@ -23,6 +23,7 @@ class Client extends Authenticatable implements FilamentUser
         'password',
         'notes',
         'is_active',
+        'is_internal',
     ];
 
     protected $hidden = [
@@ -36,6 +37,7 @@ class Client extends Authenticatable implements FilamentUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'is_internal' => 'boolean',
         ];
     }
 

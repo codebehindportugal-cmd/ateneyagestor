@@ -39,6 +39,13 @@ class SiteMonitorResource extends Resource
                     ->searchable()
                     ->preload()
                     ->nullable(),
+                Forms\Components\Select::make('server_id')
+                    ->label('Servidor associado')
+                    ->relationship('server', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->nullable()
+                    ->helperText('Opcional — associa ao servidor que serve este site.'),
                 Forms\Components\TextInput::make('name')
                     ->label('Nome')
                     ->required()
@@ -74,6 +81,10 @@ class SiteMonitorResource extends Resource
                     ->label('Cliente')
                     ->placeholder('-')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('server.name')
+                    ->label('Servidor')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('last_http_code')
                     ->label('HTTP')
                     ->placeholder('—')
@@ -112,6 +123,11 @@ class SiteMonitorResource extends Resource
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Estado')
                     ->options(MonitorStatus::class),
+                Tables\Filters\SelectFilter::make('server_id')
+                    ->label('Servidor')
+                    ->relationship('server', 'name')
+                    ->searchable()
+                    ->preload(),
                 Tables\Filters\TernaryFilter::make('is_active')->label('Ativo'),
             ])
             ->actions([
@@ -148,7 +164,9 @@ class SiteMonitorResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            \App\Filament\Admin\Resources\SiteMonitorResource\RelationManagers\ChecksRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

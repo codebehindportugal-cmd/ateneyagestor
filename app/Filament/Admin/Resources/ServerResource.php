@@ -240,6 +240,7 @@ class ServerResource extends Resource
     {
         return [
             \App\Filament\Admin\Resources\ServerResource\RelationManagers\BackupRunsRelationManager::class,
+            \App\Filament\Admin\Resources\ServerResource\RelationManagers\SiteMonitorsRelationManager::class,
         ];
     }
 

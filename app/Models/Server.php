@@ -71,6 +71,11 @@ class Server extends Model
         return $this->hasOne(BackupRun::class)->latestOfMany('started_at');
     }
 
+    public function siteMonitors(): HasMany
+    {
+        return $this->hasMany(SiteMonitor::class);
+    }
+
     /**
      * The shape agent_sync.py expects from GET /api/agent/config -- METADATA
      * ONLY, never secrets. Null/empty fields are dropped so the Pi-side

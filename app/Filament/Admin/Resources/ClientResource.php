@@ -50,6 +50,11 @@ class ClientResource extends Resource
                         ->label('Conta ativa')
                         ->default(true)
                         ->helperText('Desativa para bloquear o login no portal sem apagar o cliente.'),
+                    Forms\Components\Toggle::make('is_internal')
+                        ->label('Projecto interno')
+                        ->default(false)
+                        ->helperText('Marca como projecto interno da empresa (Horta da Maria, Ateneya, etc.) em vez de cliente externo.')
+                        ->columnSpanFull(),
                 ]),
             Forms\Components\Textarea::make('notes')->label('Notas internas')->columnSpanFull(),
         ]);
@@ -70,9 +75,20 @@ class ClientResource extends Resource
                 Tables\Columns\TextColumn::make('phone')->label('Telefone')->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('servers_count')->label('Servidores')->counts('servers'),
                 Tables\Columns\IconColumn::make('is_active')->label('Ativo')->boolean(),
+                Tables\Columns\IconColumn::make('is_internal')->label('Interno')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-building-office')
+                    ->falseIcon(null)
+                    ->trueColor('info')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_active')->label('Ativo'),
+                Tables\Filters\TernaryFilter::make('is_internal')
+                    ->label('Tipo')
+                    ->trueLabel('Só internos')
+                    ->falseLabel('Só clientes externos')
+                    ->placeholder('Todos'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

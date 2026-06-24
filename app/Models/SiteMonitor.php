@@ -6,6 +6,7 @@ use App\Enums\MonitorStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SiteMonitor extends Model
 {
@@ -13,6 +14,7 @@ class SiteMonitor extends Model
 
     protected $fillable = [
         'client_id',
+        'server_id',
         'name',
         'url',
         'is_active',
@@ -37,6 +39,23 @@ class SiteMonitor extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function server(): BelongsTo
+    {
+        return $this->belongsTo(Server::class);
+    }
+
+    public function checks(): HasMany
+    {
+        return $this->hasMany(SiteMonitorCheck::class);
+    }
+
+    public function recentChecks(): HasMany
+    {
+        return $this->hasMany(SiteMonitorCheck::class)
+            ->latest('checked_at')
+            ->limit(288); // last 24h at 5-min intervals
     }
 
     public function downtimeDuration(): ?string

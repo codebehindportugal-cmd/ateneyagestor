@@ -21,6 +21,8 @@ class SyncProject extends Model
         'site_url',
         'client_id',
         'host',
+        'runner_script_path',
+        'runner_schedule',
         'is_active',
         'status',
         'last_run_at',

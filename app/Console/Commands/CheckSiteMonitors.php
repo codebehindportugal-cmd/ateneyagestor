@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\MonitorStatus;
 use App\Models\SiteMonitor;
+use App\Models\SiteMonitorCheck;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 
@@ -51,26 +52,46 @@ class CheckSiteMonitors extends Command
             $isUp   = $response->successful() || $response->redirect();
             $status = $isUp ? MonitorStatus::Up : MonitorStatus::Down;
 
+            $error = $isUp ? null : "HTTP {$response->status()}";
+
             $monitor->update([
-                'status'          => $status,
-                'last_http_code'  => $response->status(),
-                'last_response_ms'=> $ms,
-                'last_error'      => $isUp ? null : "HTTP {$response->status()}",
-                'last_checked_at' => now(),
-                'went_down_at'    => ($status === MonitorStatus::Down && ! $wasDown) ? now() : $monitor->went_down_at,
+                'status'           => $status,
+                'last_http_code'   => $response->status(),
+                'last_response_ms' => $ms,
+                'last_error'       => $error,
+                'last_checked_at'  => now(),
+                'went_down_at'     => ($status === MonitorStatus::Down && ! $wasDown) ? now() : $monitor->went_down_at,
+            ]);
+
+            SiteMonitorCheck::create([
+                'site_monitor_id' => $monitor->id,
+                'status'          => $status->value,
+                'http_code'       => $response->status(),
+                'response_ms'     => $ms,
+                'error'           => $error,
+                'checked_at'      => now(),
             ]);
 
             $icon = $isUp ? '✓' : '✗';
             $this->line(" {$icon} {$monitor->name} — HTTP {$response->status()} ({$ms}ms)");
         } catch (\Exception $e) {
-            $ms = (int) ((microtime(true) - $start) * 1000);
+            $ms    = (int) ((microtime(true) - $start) * 1000);
+            $error = substr($e->getMessage(), 0, 500);
 
             $monitor->update([
-                'status'          => MonitorStatus::Down,
-                'last_error'      => substr($e->getMessage(), 0, 500),
-                'last_response_ms'=> $ms,
-                'last_checked_at' => now(),
-                'went_down_at'    => $wasDown ? $monitor->went_down_at : now(),
+                'status'           => MonitorStatus::Down,
+                'last_error'       => $error,
+                'last_response_ms' => $ms,
+                'last_checked_at'  => now(),
+                'went_down_at'     => $wasDown ? $monitor->went_down_at : now(),
+            ]);
+
+            SiteMonitorCheck::create([
+                'site_monitor_id' => $monitor->id,
+                'status'          => MonitorStatus::Down->value,
+                'response_ms'     => $ms,
+                'error'           => $error,
+                'checked_at'      => now(),
             ]);
 
             $this->line(" ✗ {$monitor->name} — {$e->getMessage()}");

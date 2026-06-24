@@ -67,30 +67,31 @@ class RunSyncProject extends Command
             $process->run(function (string $type, string $buffer) {
                 $this->getOutput()->write($buffer);
             });
-        } catch (\Exception $e) {
+
+            $output   = $process->getOutput() . $process->getErrorOutput();
+            $exitCode = $process->getExitCode();
+
+            [$products, $orders, $errors] = $this->parseStats($output);
+
+            $enumStatus = ($exitCode === 0 && $errors === 0) ? SyncStatus::Success : SyncStatus::Failed;
+            $status     = $enumStatus === SyncStatus::Success ? 'ok' : 'error';
+            $error      = $exitCode !== 0 ? "Exit code {$exitCode}" : null;
+
+            if ($errors > 0) {
+                $error = ($error ? $error . ' | ' : '') . "{$errors} erros na sincronização";
+            }
+
+            $this->finishRun($run, $project, $enumStatus, $status, $error, $products, $orders, $errors, $output);
+
+            $icon = $enumStatus === SyncStatus::Success ? '✓' : '✗';
+            $this->info("[sync:{$slug}] {$icon} {$status} — produtos:{$products} encomendas:{$orders} erros:{$errors}");
+
+            return $exitCode === 0 ? 0 : 1;
+        } catch (\Throwable $e) {
             $this->finishRun($run, $project, SyncStatus::Failed, 'error', $e->getMessage(), 0, 0, 0);
+            $this->error("[sync:{$slug}] Excepção: " . $e->getMessage());
             return 1;
         }
-
-        $output   = $process->getOutput() . $process->getErrorOutput();
-        $exitCode = $process->getExitCode();
-
-        [$products, $orders, $errors] = $this->parseStats($output);
-
-        $enumStatus = ($exitCode === 0 && $errors === 0) ? SyncStatus::Success : SyncStatus::Failed;
-        $status     = $enumStatus === SyncStatus::Success ? 'ok' : 'error';
-        $error      = $exitCode !== 0 ? "Exit code {$exitCode}" : null;
-
-        if ($errors > 0) {
-            $error = ($error ? $error . ' | ' : '') . "{$errors} erros na sincronização";
-        }
-
-        $this->finishRun($run, $project, $enumStatus, $status, $error, $products, $orders, $errors, $output);
-
-        $icon = $status === 'ok' ? '✓' : '✗';
-        $this->info("[sync:{$slug}] {$icon} {$status} — produtos:{$products} encomendas:{$orders} erros:{$errors}");
-
-        return $exitCode === 0 ? 0 : 1;
     }
 
     private function finishRun(

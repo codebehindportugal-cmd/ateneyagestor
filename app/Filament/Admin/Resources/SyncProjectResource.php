@@ -106,14 +106,18 @@ class SyncProjectResource extends Resource
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('Correr sincronizador')
-                    ->modalDescription(fn (SyncProject $record) => "Vai executar \"{$record->name}\" agora em background. Podes acompanhar o resultado no histórico de runs.")
+                    ->modalDescription(fn (SyncProject $record) => "Vai executar \"{$record->name}\" agora. Aguarda o resultado (pode demorar alguns minutos).")
                     ->visible(fn (SyncProject $record) => filled($record->runner_script_path))
                     ->action(function (SyncProject $record) {
-                        Artisan::queue("sync:run {$record->slug}");
+                        $exitCode = Artisan::call("sync:run {$record->slug}");
+                        $record->refresh();
+                        $isOk = $record->status === 'ok';
                         Notification::make()
-                            ->title('Sincronizador iniciado')
-                            ->body("O sync \"{$record->name}\" foi colocado em fila. Resultado disponível em breve no histórico.")
-                            ->success()
+                            ->title($isOk ? 'Sync concluído com sucesso' : 'Sync terminou com erro')
+                            ->body($record->status === 'error'
+                                ? 'Verifica o histórico para ver o detalhe do erro.'
+                                : "Estado: {$record->status}")
+                            ->color($isOk ? 'success' : 'danger')
                             ->send();
                     }),
                 Tables\Actions\Action::make('generateToken')

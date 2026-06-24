@@ -34,15 +34,14 @@ class SyncRunsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('finished_at')->label('Fim')->dateTime('d/m/Y H:i'),
             ])
             ->actions([
-                Tables\Actions\Action::make('viewLog')
-                    ->label('Ver log')
-                    ->icon('heroicon-o-document-text')
+                Tables\Actions\Action::make('viewDetails')
+                    ->label('Detalhes')
+                    ->icon('heroicon-o-document-magnifying-glass')
                     ->color('gray')
-                    ->modalContent(fn ($record) => view('filament.sync-log-modal', ['log' => $record->log]))
-                    ->modalHeading(fn ($record) => 'Log — '.$record->started_at?->format('d/m/Y H:i'))
+                    ->modalContent(fn ($record) => view('filament.sync-run-details-modal', ['run' => $record]))
+                    ->modalHeading(fn ($record) => 'Detalhes — '.$record->started_at?->format('d/m/Y H:i'))
                     ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Fechar')
-                    ->visible(fn ($record) => ! empty($record->log)),
+                    ->modalCancelActionLabel('Fechar'),
             ])
             ->defaultSort('started_at', 'desc');
     }

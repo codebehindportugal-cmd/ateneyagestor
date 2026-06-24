@@ -59,15 +59,14 @@ class SyncRunResource extends Resource
                     )),
             ])
             ->actions([
-                Tables\Actions\Action::make('viewLog')
-                    ->label('Log')
-                    ->icon('heroicon-o-document-text')
+                Tables\Actions\Action::make('viewDetails')
+                    ->label('Detalhes')
+                    ->icon('heroicon-o-document-magnifying-glass')
                     ->color('gray')
-                    ->modalContent(fn ($record) => view('filament.sync-log-modal', ['log' => $record->log]))
+                    ->modalContent(fn ($record) => view('filament.sync-run-details-modal', ['run' => $record]))
                     ->modalHeading(fn ($record) => ($record->syncProject->name ?? 'Sync').' — '.$record->started_at?->format('d/m/Y H:i'))
                     ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Fechar')
-                    ->visible(fn ($record) => ! empty($record->log)),
+                    ->modalCancelActionLabel('Fechar'),
             ])
             ->defaultSort('started_at', 'desc');
     }

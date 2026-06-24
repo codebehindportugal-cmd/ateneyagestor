@@ -43,12 +43,28 @@ class BackupRunResource extends Resource
                     ->formatStateUsing(fn (BackupStatus $state) => $state->label()),
                 Tables\Columns\TextColumn::make('started_at')->label('Inicio')->dateTime('d/m/Y H:i')->sortable(),
                 Tables\Columns\TextColumn::make('finished_at')->label('Fim')->dateTime('d/m/Y H:i'),
+                Tables\Columns\TextColumn::make('size_bytes')
+                    ->label('Tamanho')
+                    ->formatStateUsing(fn ($state) => $state ? (
+                        $state >= 1048576
+                            ? round($state / 1048576, 1) . ' MB'
+                            : round($state / 1024, 1) . ' KB'
+                    ) : '-')
+                    ->placeholder('-'),
+                Tables\Columns\TextColumn::make('nas_path')->label('NAS')->limit(50)->placeholder('—')->toggleable(),
+                Tables\Columns\TextColumn::make('triggered_by')->label('Origem')->badge()
+                    ->color(fn ($state) => match ($state) {
+                        'filament' => 'info',
+                        'command'  => 'gray',
+                        default    => 'gray',
+                    })->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('error')->label('Erro')->limit(60)->wrap()->toggleable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')->label('Estado')->options([
                     BackupStatus::Success->value => BackupStatus::Success->label(),
-                    BackupStatus::Failed->value => BackupStatus::Failed->label(),
+                    BackupStatus::Failed->value  => BackupStatus::Failed->label(),
+                    BackupStatus::Running->value => BackupStatus::Running->label(),
                 ]),
             ])
             ->actions([])

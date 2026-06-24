@@ -2,9 +2,11 @@
 
 namespace App\Filament\Admin\Resources;
 
+use App\Enums\BackupStatus;
 use App\Enums\ServerType;
 use App\Filament\Admin\Resources\ServerResource\Pages;
 use App\Models\Server;
+use App\Services\BackupService;
 use App\Services\SshService;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -13,6 +15,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Collection;
 
 class ServerResource extends Resource
 {
@@ -226,11 +229,61 @@ class ServerResource extends Resource
                             }
                         })
                         ->visible(fn (Server $record) => filled($record->ssh_key_path)),
+                    Tables\Actions\Action::make('backup_now')
+                        ->label('Fazer backup')
+                        ->icon('heroicon-o-archive-box-arrow-down')
+                        ->color('info')
+                        ->requiresConfirmation()
+                        ->modalHeading('Fazer backup agora')
+                        ->modalDescription(fn (Server $record) => "Vai criar um backup de \"{$record->name}\" agora e enviar para o NAS. Pode demorar alguns minutos.")
+                        ->visible(fn (Server $record) => $record->is_active && filled($record->ssh_key_path ?? config('backup.ssh_key')))
+                        ->action(function (Server $record, BackupService $backup) {
+                            $run = $backup->backup($record, 'filament');
+
+                            if ($run->status === BackupStatus::Success) {
+                                Notification::make()
+                                    ->title('Backup concluído')
+                                    ->body("✓ {$record->name} — " . ($run->nas_path ?? 'sem NAS configurado'))
+                                    ->success()
+                                    ->persistent()
+                                    ->send();
+                            } else {
+                                Notification::make()
+                                    ->title('Backup falhou')
+                                    ->body($run->error ?? 'Erro desconhecido')
+                                    ->danger()
+                                    ->persistent()
+                                    ->send();
+                            }
+                        }),
                     Tables\Actions\EditAction::make(),
                 ]),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\BulkAction::make('backup_selected')
+                        ->label('Fazer backup dos seleccionados')
+                        ->icon('heroicon-o-archive-box-arrow-down')
+                        ->color('info')
+                        ->requiresConfirmation()
+                        ->modalHeading('Fazer backup dos servidores seleccionados')
+                        ->modalDescription('Vai criar backups em sequência para todos os servidores seleccionados.')
+                        ->action(function (Collection $records, BackupService $backup) {
+                            $ok     = 0;
+                            $failed = 0;
+
+                            foreach ($records as $server) {
+                                $run = $backup->backup($server, 'filament');
+                                $run->status === BackupStatus::Success ? $ok++ : $failed++;
+                            }
+
+                            Notification::make()
+                                ->title('Backups concluídos')
+                                ->body("✓ {$ok} sucesso   ✗ {$failed} falhou")
+                                ->color($failed > 0 ? 'warning' : 'success')
+                                ->persistent()
+                                ->send();
+                        }),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);

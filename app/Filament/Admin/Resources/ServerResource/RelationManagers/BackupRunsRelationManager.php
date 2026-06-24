@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources\ServerResource\RelationManagers;
 
+use App\Enums\BackupStatus;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -14,7 +15,6 @@ class BackupRunsRelationManager extends RelationManager
 
     public function canCreate(): bool
     {
-        // Runs are only ever created by the agent API, never by hand here.
         return false;
     }
 
@@ -23,12 +23,50 @@ class BackupRunsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('id')
             ->columns([
-                Tables\Columns\TextColumn::make('status')->label('Estado')->badge()
-                    ->color(fn ($record) => $record->status?->color())
-                    ->formatStateUsing(fn ($record) => $record->status?->label()),
-                Tables\Columns\TextColumn::make('started_at')->label('Inicio')->dateTime('d/m/Y H:i')->sortable(),
-                Tables\Columns\TextColumn::make('finished_at')->label('Fim')->dateTime('d/m/Y H:i'),
-                Tables\Columns\TextColumn::make('error')->label('Erro')->limit(60)->wrap()->toggleable(),
+                Tables\Columns\TextColumn::make('status')
+                    ->label('Estado')
+                    ->badge()
+                    ->color(fn (BackupStatus $state) => $state->color())
+                    ->formatStateUsing(fn (BackupStatus $state) => $state->label()),
+                Tables\Columns\TextColumn::make('started_at')
+                    ->label('Início')
+                    ->dateTime('d/m/Y H:i')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('finished_at')
+                    ->label('Fim')
+                    ->dateTime('H:i'),
+                Tables\Columns\TextColumn::make('size_bytes')
+                    ->label('Tamanho')
+                    ->formatStateUsing(fn ($state) => $state ? (
+                        $state >= 1048576
+                            ? round($state / 1048576, 1) . ' MB'
+                            : round($state / 1024, 1) . ' KB'
+                    ) : '-')
+                    ->placeholder('-'),
+                Tables\Columns\TextColumn::make('file_count')
+                    ->label('Ficheiros')
+                    ->placeholder('-'),
+                Tables\Columns\TextColumn::make('nas_path')
+                    ->label('Caminho NAS')
+                    ->limit(60)
+                    ->placeholder('—')
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('triggered_by')
+                    ->label('Origem')
+                    ->badge()
+                    ->color(fn ($state) => match ($state) {
+                        'filament' => 'info',
+                        'command'  => 'gray',
+                        default    => 'gray',
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('error')
+                    ->label('Erro')
+                    ->limit(80)
+                    ->wrap()
+                    ->color('danger')
+                    ->placeholder('-')
+                    ->toggleable(),
             ])
             ->defaultSort('started_at', 'desc');
     }

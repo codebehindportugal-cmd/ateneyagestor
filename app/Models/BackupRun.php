@@ -18,6 +18,11 @@ class BackupRun extends Model
         'error',
         'started_at',
         'finished_at',
+        'nas_path',
+        'size_bytes',
+        'file_count',
+        'log',
+        'triggered_by',
     ];
 
     protected function casts(): array

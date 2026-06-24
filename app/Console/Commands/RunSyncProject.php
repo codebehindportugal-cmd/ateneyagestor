@@ -57,13 +57,13 @@ class RunSyncProject extends Command
 
         $this->info("[sync:{$slug}] A iniciar — {$scriptPath}");
 
-        $scriptDir = dirname($scriptPath);
-        $python    = $this->detectPython($scriptDir);
-        $cmd       = [$python, $scriptPath];
-
-        $process = new Process($cmd, $scriptDir, null, null, 3600);
-
         try {
+            $scriptDir = dirname($scriptPath);
+            $python    = $this->detectPython($scriptDir);
+            $cmd       = [$python, $scriptPath];
+
+            $process = new Process($cmd, $scriptDir, null, null, 3600);
+
             $process->run(function (string $type, string $buffer) {
                 $this->getOutput()->write($buffer);
             });
@@ -123,9 +123,11 @@ class RunSyncProject extends Command
 
     private function detectPython(string $dir): string
     {
-        // Prefer the project's own venv
+        // is_link() checks the symlink itself (not its target) — safe under open_basedir.
+        // venv/bin/python3 is typically a symlink to the system Python; file_exists()
+        // would follow it outside open_basedir and throw an E_WARNING.
         foreach (["{$dir}/venv/bin/python3", "{$dir}/.venv/bin/python3"] as $candidate) {
-            if (file_exists($candidate)) {
+            if (is_link($candidate) || file_exists($candidate)) {
                 return $candidate;
             }
         }

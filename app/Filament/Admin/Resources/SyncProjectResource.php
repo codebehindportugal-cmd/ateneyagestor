@@ -109,16 +109,25 @@ class SyncProjectResource extends Resource
                     ->modalDescription(fn (SyncProject $record) => "Vai executar \"{$record->name}\" agora. Aguarda o resultado (pode demorar alguns minutos).")
                     ->visible(fn (SyncProject $record) => filled($record->runner_script_path))
                     ->action(function (SyncProject $record) {
-                        $exitCode = Artisan::call("sync:run {$record->slug}");
-                        $record->refresh();
-                        $isOk = $record->status === 'ok';
-                        Notification::make()
-                            ->title($isOk ? 'Sync concluído com sucesso' : 'Sync terminou com erro')
-                            ->body($record->status === 'error'
-                                ? 'Verifica o histórico para ver o detalhe do erro.'
-                                : "Estado: {$record->status}")
-                            ->color($isOk ? 'success' : 'danger')
-                            ->send();
+                        try {
+                            Artisan::call("sync:run {$record->slug}");
+                            $record->refresh();
+                            $isOk = $record->status === 'ok';
+                            Notification::make()
+                                ->title($isOk ? 'Sync concluído com sucesso' : 'Sync terminou com erro')
+                                ->body($record->status === 'error'
+                                    ? 'Verifica o histórico para ver o detalhe do erro.'
+                                    : "Estado: {$record->status}")
+                                ->color($isOk ? 'success' : 'danger')
+                                ->send();
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('Erro ao executar sync')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->persistent()
+                                ->send();
+                        }
                     }),
                 Tables\Actions\Action::make('generateToken')
                     ->label('Gerar token')

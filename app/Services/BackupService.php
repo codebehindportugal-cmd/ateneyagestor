@@ -154,9 +154,14 @@ class BackupService
         }
     }
 
-    private function backupWordPress(SFTP $sftp, Server $server, string $tmpDir, callable $log): array
+    private function backupWordPress(SFTP $sftp, Server $server, string $tmpDir, callable $log, ?string $wpRootOverride = null): array
     {
-        $wpRoot = rtrim($server->wp_root, '/');
+        $wpRoot = $wpRootOverride ? rtrim($wpRootOverride, '/') : rtrim($server->wp_root ?? '', '/');
+
+        if (! $wpRoot) {
+            throw new \RuntimeException("wp_root não configurado para {$server->name}. Configura o caminho WordPress na ficha do servidor.");
+        }
+
         $log("WordPress root: {$wpRoot}");
 
         // Extract DB credentials from wp-config.php
@@ -271,27 +276,88 @@ class BackupService
             throw new \RuntimeException("Servidor Plesk sem domínio configurado.");
         }
 
-        $log("Plesk backup do domínio: {$domain}");
+        // Check if real Plesk CLI is available
+        $hasPleskBackup = trim($sftp->exec("test -x /usr/local/psa/bin/pleskbackup && echo yes || echo no"));
 
+        if ($hasPleskBackup === 'yes') {
+            return $this->backupPleskNative($sftp, $server, $tmpDir, $log);
+        }
+
+        // No Plesk CLI — server is a plain VPS. Auto-detect WordPress at standard paths.
+        $log("pleskbackup não encontrado — a detectar WordPress para domínio {$domain}...");
+
+        return $this->backupWordPressAutoDetect($sftp, $server, $domain, $tmpDir, $log);
+    }
+
+    private function backupPleskNative(SFTP $sftp, Server $server, string $tmpDir, callable $log): array
+    {
+        $domain     = $server->domain;
         $backupFile = "{$tmpDir}/plesk-{$domain}.tar";
-        $output     = $sftp->exec(
+
+        $log("Plesk backup (nativo) do domínio: {$domain}");
+
+        $output = $sftp->exec(
             "/usr/local/psa/bin/pleskbackup domains {$domain} --skip-logs --output-file={$backupFile} 2>&1",
             3600
         );
 
-        if (! str_contains($output, 'SUCCESS') && ! str_contains($output, 'created')) {
-            $log("Output pleskbackup: " . substr($output, 0, 500));
-        }
-
-        // Verify file exists
         $check = trim($sftp->exec("test -f {$backupFile} && echo ok || echo missing"));
         if ($check !== 'ok') {
-            throw new \RuntimeException("pleskbackup não criou o ficheiro esperado em {$backupFile}. Output: " . substr($output, 0, 300));
+            throw new \RuntimeException(
+                "pleskbackup não criou o ficheiro. Output: " . substr($output, 0, 300)
+            );
         }
 
-        $log("pleskbackup concluído.");
+        $log("pleskbackup nativo concluído.");
 
         return [$backupFile];
+    }
+
+    private function backupWordPressAutoDetect(
+        SFTP $sftp,
+        Server $server,
+        string $domain,
+        string $tmpDir,
+        callable $log
+    ): array {
+        // Try wp_root from DB first, then standard paths
+        $candidates = array_filter([
+            $server->wp_root,
+            "/var/www/{$domain}",
+            "/var/www/{$domain}/public_html",
+            "/var/www/html",
+        ]);
+
+        $wpRoot = null;
+        foreach ($candidates as $candidate) {
+            $check = trim($sftp->exec("test -f {$candidate}/wp-config.php && echo yes || echo no"));
+            if ($check === 'yes') {
+                $wpRoot = rtrim($candidate, '/');
+                break;
+            }
+        }
+
+        if (! $wpRoot) {
+            // Last resort: Apache DocumentRoot
+            $docRoot = trim($sftp->exec(
+                "grep -r 'DocumentRoot' /etc/apache2/sites-enabled/{$domain}*.conf 2>/dev/null | awk '{print \$2}' | head -1"
+            ));
+            if ($docRoot && trim($sftp->exec("test -f {$docRoot}/wp-config.php && echo yes || echo no")) === 'yes') {
+                $wpRoot = rtrim($docRoot, '/');
+            }
+        }
+
+        if (! $wpRoot) {
+            throw new \RuntimeException(
+                "Não foi possível encontrar o WordPress para {$domain}. " .
+                "Configura wp_root na ficha do servidor."
+            );
+        }
+
+        $log("WordPress encontrado em: {$wpRoot}");
+
+        // Reuse WordPress backup logic
+        return $this->backupWordPress($sftp, $server, $tmpDir, $log, $wpRoot);
     }
 
     // ---------------------------------------------------------------------------

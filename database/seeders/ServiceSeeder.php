@@ -35,7 +35,7 @@ class ServiceSeeder extends Seeder
             ['client_email' => 'info@jacfaria.com', 'name' => 'Domínio jacfaria.com', 'type' => 'domain', 'domain' => 'jacfaria.com', 'billing_cycle' => 'annual', 'amount_cents' => 1200, 'renewal_date' => '2027-05-01', 'registrar' => 'Eurodns'],
 
             // Fruta Alvor
-            ['client_email' => 'info@frutaalvor.com', 'name' => 'Domínio frutaalvor.com', 'type' => 'domain', 'domain' => 'frutaalvor.com', 'billing_cycle' => 'annual', 'amount_cents' => 1200, 'renewal_date' => '2027-08-01', 'registrar' => 'Eurodns'],
+            ['client_email' => 'info@frutaalvor.com', 'name' => 'Domínio frutalvor.com', 'type' => 'domain', 'domain' => 'frutalvor.com', 'billing_cycle' => 'annual', 'amount_cents' => 1200, 'renewal_date' => '2027-08-01', 'registrar' => 'Eurodns'],
 
             // Brital Flor
             ['client_email' => 'info@britalflor.com', 'name' => 'Domínio britalflor.com', 'type' => 'domain', 'domain' => 'britalflor.com', 'billing_cycle' => 'annual', 'amount_cents' => 1200, 'renewal_date' => '2027-09-01', 'registrar' => 'Eurodns'],

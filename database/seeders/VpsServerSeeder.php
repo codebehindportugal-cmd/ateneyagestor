@@ -62,7 +62,7 @@ class VpsServerSeeder extends Seeder
             ['client' => $jacfaria,   'name' => 'jacfaria-com',          'host' => '89.117.58.85',   'domain' => 'jacfaria.com'],
             ['client' => $horacioleal,'name' => 'horaciovleal-com',      'host' => '89.117.58.85',   'domain' => 'horaciovleal.com'],
             ['client' => $britalflor, 'name' => 'britalflor-com',        'host' => '89.117.58.85',   'domain' => 'britalflor.com'],
-            ['client' => $frutaalvor, 'name' => 'frutaalvor-com',        'host' => '89.117.58.85',   'domain' => 'frutaalvor.com'],
+            ['client' => $frutaalvor, 'name' => 'frutaalvor-com',        'host' => '89.117.58.85',   'domain' => 'frutalvor.com'],
 
             // Horta da Maria — Plesk próprio
             ['client' => $hortamaria, 'name' => 'hortadamaria-main',     'host' => '207.180.216.208', 'domain' => 'hortadamaria.com'],
@@ -75,7 +75,7 @@ class VpsServerSeeder extends Seeder
             ['client' => $britalflor, 'name' => 'britalflor-vps2',       'host' => '158.220.105.131', 'domain' => 'britalflor.com'],
 
             // Loja Amster
-            ['client' => $amster,     'name' => 'loja-amster',           'host' => '89.117.60.53',   'domain' => 'amster.pt'],
+            ['client' => $amster,     'name' => 'loja-amster',           'host' => '89.117.60.53',   'domain' => 'lojaamster.com'],
 
             // Contabo A — 89.117.58.229
             ['client' => $frutasparaempresas, 'name' => 'frutasparaempresas-com', 'host' => '89.117.58.229', 'domain' => 'frutasparaempresas.com'],

@@ -38,16 +38,21 @@ class Server extends Model
         'ssh_key_path',
         'plesk_api_key',
         'wp_root',
+        'ping_status',
+        'ping_last_checked_at',
+        'ping_response_ms',
+        'ping_error',
     ];
 
     protected function casts(): array
     {
         return [
-            'type' => ServerType::class,
-            'is_active' => 'boolean',
-            'storage_paths' => 'array',
-            'db_override' => 'array',
-            'plesk_backup_args' => 'array',
+            'type'                 => ServerType::class,
+            'is_active'            => 'boolean',
+            'storage_paths'        => 'array',
+            'db_override'          => 'array',
+            'plesk_backup_args'    => 'array',
+            'ping_last_checked_at' => 'datetime',
         ];
     }
 

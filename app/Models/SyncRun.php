@@ -17,6 +17,7 @@ class SyncRun extends Model
         'products_synced',
         'orders_synced',
         'errors_count',
+        'error',
         'started_at',
         'finished_at',
         'log',

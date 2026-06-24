@@ -8,6 +8,7 @@ use App\Filament\Admin\Resources\ServerResource\Pages;
 use App\Models\Server;
 use App\Services\BackupService;
 use App\Services\SshService;
+use Illuminate\Support\Facades\Artisan;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -163,11 +164,33 @@ class ServerResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->poll('60s')
             ->columns([
+                Tables\Columns\TextColumn::make('ping_status')
+                    ->label('Estado')
+                    ->badge()
+                    ->color(fn (string $state) => match ($state) {
+                        'up'    => 'success',
+                        'down'  => 'danger',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state) => match ($state) {
+                        'up'    => 'Online',
+                        'down'  => 'Offline',
+                        default => '?',
+                    })
+                    ->tooltip(fn (Server $record) => $record->ping_last_checked_at
+                        ? 'Verificado ' . $record->ping_last_checked_at->diffForHumans()
+                        : 'Nunca verificado'),
                 Tables\Columns\TextColumn::make('name')->label('Nome')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('client.name')->label('Cliente')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('type')->label('Tipo')->badge(),
                 Tables\Columns\TextColumn::make('host')->label('Host'),
+                Tables\Columns\TextColumn::make('ping_response_ms')
+                    ->label('Latência')
+                    ->placeholder('—')
+                    ->formatStateUsing(fn (?int $state) => $state ? "{$state} ms" : '—')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('agent.name')->label('Agente')->toggleable(),
                 Tables\Columns\TextColumn::make('latestBackupRun.status')
                     ->label('Ultimo backup')
@@ -187,6 +210,23 @@ class ServerResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
+                    Tables\Actions\Action::make('check_now')
+                        ->label('Verificar estado')
+                        ->icon('heroicon-o-signal')
+                        ->color('gray')
+                        ->action(function (Server $record) {
+                            Artisan::call('server:check', ['--id' => $record->id]);
+                            $record->refresh();
+                            $label = match ($record->ping_status) {
+                                'up'    => 'Online (' . $record->ping_response_ms . ' ms)',
+                                'down'  => 'Offline — ' . $record->ping_error,
+                                default => 'Desconhecido',
+                            };
+                            Notification::make()
+                                ->title($record->name . ': ' . $label)
+                                ->color($record->ping_status === 'up' ? 'success' : 'danger')
+                                ->send();
+                        }),
                     Tables\Actions\Action::make('ssh_command')
                         ->label('Comandos SSH')
                         ->icon('heroicon-o-command-line')

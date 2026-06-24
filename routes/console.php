@@ -31,6 +31,9 @@ Schedule::call(function () {
 // HTTP uptime checks for all active site monitors.
 Schedule::command('monitor:sites')->everyFiveMinutes()->name('monitor:sites');
 
+// TCP connectivity check (SSH port) for all active servers.
+Schedule::command('server:check')->everyFiveMinutes()->name('server:check');
+
 // Prune uptime check history older than 30 days (288 checks/day per monitor).
 Schedule::call(function () {
     \App\Models\SiteMonitorCheck::where('checked_at', '<', now()->subDays(30))->delete();

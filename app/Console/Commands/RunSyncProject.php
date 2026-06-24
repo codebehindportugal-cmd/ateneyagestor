@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\SyncStatus;
 use App\Models\SyncProject;
 use App\Models\SyncRun;
 use Illuminate\Console\Command;
@@ -48,7 +49,7 @@ class RunSyncProject extends Command
 
         $run = SyncRun::create([
             'sync_project_id' => $project->id,
-            'status'          => 'running',
+            'status'          => SyncStatus::Running,
             'started_at'      => now(),
         ]);
 
@@ -67,7 +68,7 @@ class RunSyncProject extends Command
                 $this->getOutput()->write($buffer);
             });
         } catch (\Exception $e) {
-            $this->finishRun($run, $project, 'error', $e->getMessage(), 0, 0, 0);
+            $this->finishRun($run, $project, SyncStatus::Failed, 'error', $e->getMessage(), 0, 0, 0);
             return 1;
         }
 
@@ -76,14 +77,15 @@ class RunSyncProject extends Command
 
         [$products, $orders, $errors] = $this->parseStats($output);
 
-        $status = ($exitCode === 0 && $errors === 0) ? 'ok' : 'error';
-        $error  = $exitCode !== 0 ? "Exit code {$exitCode}" : null;
+        $enumStatus = ($exitCode === 0 && $errors === 0) ? SyncStatus::Success : SyncStatus::Failed;
+        $status     = $enumStatus === SyncStatus::Success ? 'ok' : 'error';
+        $error      = $exitCode !== 0 ? "Exit code {$exitCode}" : null;
 
         if ($errors > 0) {
             $error = ($error ? $error . ' | ' : '') . "{$errors} erros na sincronização";
         }
 
-        $this->finishRun($run, $project, $status, $error, $products, $orders, $errors, $output);
+        $this->finishRun($run, $project, $enumStatus, $status, $error, $products, $orders, $errors, $output);
 
         $icon = $status === 'ok' ? '✓' : '✗';
         $this->info("[sync:{$slug}] {$icon} {$status} — produtos:{$products} encomendas:{$orders} erros:{$errors}");
@@ -94,7 +96,8 @@ class RunSyncProject extends Command
     private function finishRun(
         SyncRun $run,
         SyncProject $project,
-        string $status,
+        SyncStatus $enumStatus,
+        string $projectStatus,
         ?string $error,
         int $products,
         int $orders,
@@ -102,17 +105,17 @@ class RunSyncProject extends Command
         string $log = ''
     ): void {
         $run->update([
-            'status'           => $status,
+            'status'           => $enumStatus,
             'products_synced'  => $products,
             'orders_synced'    => $orders,
             'errors_count'     => $errors,
             'error'            => $error,
-            'log'              => substr($log, -65000), // keep last ~64KB
+            'log'              => substr($log, -65000),
             'finished_at'      => now(),
         ]);
 
         $project->update([
-            'status'      => $status === 'running' ? 'error' : $status,
+            'status'      => $projectStatus,
             'last_run_at' => now(),
         ]);
     }

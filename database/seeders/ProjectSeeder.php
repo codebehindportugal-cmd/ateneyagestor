@@ -16,9 +16,11 @@ class ProjectSeeder extends Seeder
         $client = fn (string $email)  => Client::where('email', $email)->value('id');
 
         // Garantir que existe um servidor para o Backup Manager (gestao.ateneya.com)
+        $internalClient = Client::where('email', 'interno@codebehind.pt')->first();
         $backupManagerServer = Server::firstOrCreate(
             ['name' => 'gestao-ateneya-com'],
             [
+                'client_id' => $internalClient?->id,
                 'host'      => '144.91.100.40',
                 'domain'    => 'gestao.ateneya.com',
                 'type'      => 'plesk',

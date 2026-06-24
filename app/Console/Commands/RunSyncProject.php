@@ -123,12 +123,13 @@ class RunSyncProject extends Command
 
     private function detectPython(string $dir): string
     {
-        // is_link() checks the symlink itself (not its target) — safe under open_basedir.
-        // venv/bin/python3 is typically a symlink to the system Python; file_exists()
-        // would follow it outside open_basedir and throw an E_WARNING.
-        foreach (["{$dir}/venv/bin/python3", "{$dir}/.venv/bin/python3"] as $candidate) {
-            if (is_link($candidate) || file_exists($candidate)) {
-                return $candidate;
+        // file_exists() and is_link() both follow symlinks for open_basedir checks.
+        // venv/bin/python3 is a symlink → /usr/bin/python3 (outside allowed path) → E_WARNING.
+        // Check for the bin/ DIRECTORY instead: it's a real dir, not a symlink, so
+        // is_dir() works safely. The spawned Process has no open_basedir restriction.
+        foreach (["{$dir}/venv", "{$dir}/.venv"] as $venvDir) {
+            if (is_dir("{$venvDir}/bin")) {
+                return "{$venvDir}/bin/python3";
             }
         }
         return '/usr/bin/python3';

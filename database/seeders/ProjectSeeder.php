@@ -235,7 +235,7 @@ class ProjectSeeder extends Seeder
                 'server_id'   => $server('taxi.codebehind.pt'),
                 'type'        => 'wordpress',
                 'status'      => 'active',
-                'url'         => 'https://taxi.codebehind.pt',
+                'url'         => 'https://taxis.codebehind.pt',
                 'notes'       => null,
             ],
         ];

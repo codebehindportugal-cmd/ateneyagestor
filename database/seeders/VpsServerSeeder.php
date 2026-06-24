@@ -45,7 +45,8 @@ class VpsServerSeeder extends Seeder
 
         $servers = [
             // Contabo D — 45.10.154.155
-            ['client' => $codebehind, 'name' => 'taxi-codebehind-pt',   'host' => '45.10.154.155', 'domain' => 'taxi.codebehind.pt'],
+            // Laravel app em /var/www/taxicloudtecVF1 — domínio taxis.codebehind.pt
+            ['client' => $codebehind, 'name' => 'taxi-codebehind-pt',   'host' => '45.10.154.155', 'domain' => 'taxis.codebehind.pt', 'type' => 'vps_laravel', 'app_path' => '/var/www/taxicloudtecVF1'],
             ['client' => $alorfisconta,'name' => 'alorfisconta-com',     'host' => '45.10.154.155', 'domain' => 'alorfisconta.com'],
 
             // Contabo C — 185.213.25.187
@@ -84,15 +85,17 @@ class VpsServerSeeder extends Seeder
         foreach ($servers as $s) {
             Server::firstOrCreate(
                 ['name' => $s['name']],
-                [
-                    'client_id' => $s['client']->id,
-                    'type' => 'plesk',
-                    'host' => $s['host'],
-                    'port' => 22,
-                    'user' => 'root',
-                    'domain' => $s['domain'],
-                    'is_active' => true,
-                ]
+                array_filter([
+                    'client_id'     => $s['client']->id,
+                    'type'          => $s['type'] ?? 'plesk',
+                    'host'          => $s['host'],
+                    'port'          => 22,
+                    'user'          => 'root',
+                    'domain'        => $s['domain'],
+                    'app_path'      => $s['app_path'] ?? null,
+                    'storage_paths' => $s['storage_paths'] ?? null,
+                    'is_active'     => true,
+                ], fn ($v) => ! is_null($v))
             );
         }
 

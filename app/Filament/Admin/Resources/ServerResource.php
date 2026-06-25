@@ -6,7 +6,9 @@ use App\Enums\BackupStatus;
 use App\Enums\ServerType;
 use App\Filament\Admin\Resources\ServerResource\Pages;
 use App\Models\Server;
+use App\Enums\SecurityStatus;
 use App\Services\BackupService;
+use App\Services\SecurityScanService;
 use App\Services\SshService;
 use Illuminate\Support\Facades\Artisan;
 use Filament\Forms;
@@ -296,6 +298,31 @@ class ServerResource extends Resource
                                     ->send();
                             }
                         }),
+                    Tables\Actions\Action::make('scan_security')
+                        ->label('Scan de segurança')
+                        ->icon('heroicon-o-shield-exclamation')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Lançar scan de segurança')
+                        ->modalDescription(fn (Server $record) => "Vai correr uma análise de segurança em \"{$record->name}\" via SSH. Pode demorar 1-2 minutos.")
+                        ->visible(fn (Server $record) => $record->is_active && filled($record->ssh_key_path ?? config('backup.ssh_key')))
+                        ->action(function (Server $record, SecurityScanService $scanner) {
+                            $scan = $scanner->scan($record, 'filament');
+
+                            $body = match ($scan->status) {
+                                SecurityStatus::Clean    => "✓ Nenhum problema encontrado.",
+                                SecurityStatus::Warning  => "⚠ {$scan->findings_count} achado(s) — ver relatório para detalhes.",
+                                SecurityStatus::Critical => "✗ {$scan->findings_count} achado(s) CRÍTICO(S) — ver relatório imediatamente.",
+                                default                  => $scan->error ?? 'Erro desconhecido.',
+                            };
+
+                            Notification::make()
+                                ->title("Segurança: {$record->name}")
+                                ->body($body)
+                                ->color($scan->status->color())
+                                ->persistent()
+                                ->send();
+                        }),
                     Tables\Actions\EditAction::make(),
                 ]),
             ])
@@ -334,6 +361,7 @@ class ServerResource extends Resource
         return [
             \App\Filament\Admin\Resources\ServerResource\RelationManagers\BackupRunsRelationManager::class,
             \App\Filament\Admin\Resources\ServerResource\RelationManagers\SiteMonitorsRelationManager::class,
+            \App\Filament\Admin\Resources\ServerResource\RelationManagers\SecurityScansRelationManager::class,
         ];
     }
 

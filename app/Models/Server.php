@@ -81,6 +81,16 @@ class Server extends Model
         return $this->hasMany(SiteMonitor::class);
     }
 
+    public function securityScans(): HasMany
+    {
+        return $this->hasMany(SecurityScan::class)->latest('started_at');
+    }
+
+    public function latestSecurityScan(): HasOne
+    {
+        return $this->hasOne(SecurityScan::class)->latestOfMany('started_at');
+    }
+
     /**
      * The shape agent_sync.py expects from GET /api/agent/config -- METADATA
      * ONLY, never secrets. Null/empty fields are dropped so the Pi-side

@@ -46,6 +46,12 @@ Schedule::command('backup:run --all')
     ->name('backup:run-all')
     ->withoutOverlapping(120);
 
+// Weekly security scan of all active servers (every Monday at 04:00).
+Schedule::command('security:scan --all')
+    ->weeklyOn(1, '04:00')
+    ->name('security:scan-all')
+    ->withoutOverlapping(120);
+
 // Dynamic scheduling: each active SyncProject with a runner gets its own schedule.
 // Wrapped in try/catch so a missing DB table during migrations doesn't break boot.
 try {

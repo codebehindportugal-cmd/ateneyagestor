@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources;
 
 use App\Filament\Admin\Resources\ClientResource\Pages;
 use App\Filament\Admin\Resources\ClientResource\RelationManagers\CredentialsRelationManager;
+use App\Filament\Admin\Resources\ClientResource\RelationManagers\DocumentsRelationManager;
 use App\Filament\Admin\Resources\ClientResource\RelationManagers\ServicesRelationManager;
 use App\Models\Client;
 use Filament\Forms;
@@ -105,6 +106,7 @@ class ClientResource extends Resource
         return [
             ServicesRelationManager::class,
             CredentialsRelationManager::class,
+            DocumentsRelationManager::class,
         ];
     }
 

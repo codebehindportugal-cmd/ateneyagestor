@@ -3,15 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\AccountingDocument;
+use App\Models\Client;
+use App\Models\ClientDocument;
 use App\Models\Setting;
-use Illuminate\Http\Request;
+use App\Services\ClientDocumentService;
 use Illuminate\Support\Facades\Storage;
 
 class AccountantViewController extends Controller
 {
+    // ── Global accountant view (AccountingDocuments) ──────────────────────────
+
     public function index(string $token)
     {
-        $this->validateToken($token);
+        $this->validateGlobalToken($token);
 
         $documents = AccountingDocument::orderByDesc('date')->get();
 
@@ -35,11 +39,11 @@ class AccountantViewController extends Controller
 
     public function download(string $token, int $id)
     {
-        $this->validateToken($token);
+        $this->validateGlobalToken($token);
 
         $doc = AccountingDocument::findOrFail($id);
 
-        if (!$doc->file_path || !Storage::disk('public')->exists($doc->file_path)) {
+        if (! $doc->file_path || ! Storage::disk('public')->exists($doc->file_path)) {
             abort(404, 'Ficheiro não encontrado.');
         }
 
@@ -49,12 +53,64 @@ class AccountantViewController extends Controller
         );
     }
 
-    private function validateToken(string $token): void
+    // ── Per-client accountant view (ClientDocuments) ─────────────────────────
+
+    public function clientIndex(string $token)
+    {
+        $client = $this->validateClientToken($token);
+
+        $documents = $client->documents()->with('uploader')->get();
+
+        $grouped = $documents
+            ->groupBy('type')
+            ->sortKeys();
+
+        return view('accountant.client-documents', compact(
+            'token', 'client', 'documents', 'grouped'
+        ));
+    }
+
+    public function clientDocument(string $token, ClientDocument $document)
+    {
+        $client = $this->validateClientToken($token);
+
+        if ($document->client_id !== $client->id) {
+            abort(403, 'Acesso não autorizado.');
+        }
+
+        return app(ClientDocumentService::class)->stream($document, inline: true);
+    }
+
+    public function clientDownload(string $token, ClientDocument $document)
+    {
+        $client = $this->validateClientToken($token);
+
+        if ($document->client_id !== $client->id) {
+            abort(403, 'Acesso não autorizado.');
+        }
+
+        return app(ClientDocumentService::class)->stream($document, inline: false);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private function validateGlobalToken(string $token): void
     {
         $stored = Setting::get('accountant_token');
 
-        if (!$stored || !hash_equals($stored, $token)) {
+        if (! $stored || ! hash_equals($stored, $token)) {
             abort(403, 'Acesso não autorizado. URL inválido ou revogado.');
         }
+    }
+
+    private function validateClientToken(string $token): Client
+    {
+        $client = Client::where('accountant_token', $token)->first();
+
+        if (! $client) {
+            abort(403, 'Acesso não autorizado. URL inválido ou revogado.');
+        }
+
+        return $client;
     }
 }

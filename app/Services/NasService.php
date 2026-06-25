@@ -31,9 +31,10 @@ class NasService
 
     /**
      * Upload a local file to NAS under basePath/subDir/.
+     * $remoteFilename overrides the basename of $localFile on the remote side.
      * Returns the full remote path of the uploaded file.
      */
-    public function upload(string $localFile, string $subDir): string
+    public function upload(string $localFile, string $subDir, ?string $remoteFilename = null): string
     {
         if (! $this->isConfigured()) {
             throw new \RuntimeException(
@@ -42,7 +43,7 @@ class NasService
         }
 
         $remoteDir  = $this->basePath . '/' . ltrim($subDir, '/');
-        $remoteFile = $remoteDir . '/' . basename($localFile);
+        $remoteFile = $remoteDir . '/' . ($remoteFilename ?? basename($localFile));
 
         // Ensure remote directory exists
         $this->ssh("mkdir -p " . escapeshellarg($remoteDir));
@@ -51,6 +52,34 @@ class NasService
         $this->scp($localFile, "{$this->user}@{$this->host}:{$remoteFile}");
 
         return $remoteFile;
+    }
+
+    /**
+     * Download a file from NAS to a local temp file. Returns the local temp path.
+     * Caller is responsible for deleting the temp file after use.
+     */
+    public function downloadToTemp(string $remotePath): string
+    {
+        if (! $this->isConfigured()) {
+            throw new \RuntimeException('NAS não configurado.');
+        }
+
+        $tmpFile = sys_get_temp_dir() . '/nasdl-' . uniqid() . '_' . basename($remotePath);
+        $this->scpFrom("{$this->user}@{$this->host}:{$remotePath}", $tmpFile);
+
+        return $tmpFile;
+    }
+
+    /**
+     * Delete a file on the NAS.
+     */
+    public function deleteFile(string $remotePath): void
+    {
+        if (! $this->isConfigured()) {
+            return;
+        }
+
+        $this->ssh("rm -f " . escapeshellarg($remotePath));
     }
 
     /**
@@ -114,6 +143,32 @@ class NasService
         }
 
         return $process->getOutput();
+    }
+
+    private function scpFrom(string $remote, string $localFile): void
+    {
+        $cmd = ['scp', '-P', (string) $this->port, '-i', $this->keyPath,
+            '-o', 'StrictHostKeyChecking=no',
+            '-o', 'BatchMode=yes',
+            '-o', 'ConnectTimeout=30',
+        ];
+
+        if ($this->proxyCmd) {
+            $cmd[] = '-o';
+            $cmd[] = "ProxyCommand={$this->proxyCmd}";
+        }
+
+        $cmd[] = $remote;
+        $cmd[] = $localFile;
+
+        $process = new Process($cmd, timeout: 120);
+        $process->run();
+
+        if (! $process->isSuccessful()) {
+            throw new \RuntimeException(
+                "SCP download do NAS falhou: " . $process->getErrorOutput()
+            );
+        }
     }
 
     private function scp(string $localFile, string $remote): void

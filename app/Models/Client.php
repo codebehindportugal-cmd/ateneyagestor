@@ -6,6 +6,7 @@ use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\ClientDocument;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -24,6 +25,7 @@ class Client extends Authenticatable implements FilamentUser
         'notes',
         'is_active',
         'is_internal',
+        'accountant_token',
     ];
 
     protected $hidden = [
@@ -76,5 +78,10 @@ class Client extends Authenticatable implements FilamentUser
     public function credentials(): HasMany
     {
         return $this->hasMany(Credential::class);
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(ClientDocument::class)->latest();
     }
 }

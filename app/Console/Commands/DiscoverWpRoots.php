@@ -88,9 +88,10 @@ class DiscoverWpRoots extends Command
             throw new \RuntimeException("Autenticação SSH falhou em {$server->host}.");
         }
 
-        // Exclude wp-content subdirectories (wp-config.php copies placed by cache plugins)
+        // Search all common web roots: Plesk (/var/www/vhosts), generic (/var/www/{domain}),
+        // cPanel (/home). Exclude wp-content copies placed by cache/backup plugins.
         $raw = (string) $sftp->exec(
-            "find /var/www/vhosts -name 'wp-config.php' -not -path '*/wp-content/*' 2>/dev/null | head -10"
+            "find /var/www /home -name 'wp-config.php' -not -path '*/wp-content/*' 2>/dev/null | head -15"
         );
         $sftp->disconnect();
 

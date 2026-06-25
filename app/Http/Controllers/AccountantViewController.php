@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AccountingDocument;
+use App\Models\Brand;
 use App\Models\Client;
 use App\Models\ClientDocument;
 use App\Models\Setting;
@@ -17,24 +18,34 @@ class AccountantViewController extends Controller
     {
         $this->validateGlobalToken($token);
 
-        $documents = AccountingDocument::orderByDesc('date')->get();
+        $documents = AccountingDocument::with('brand.parent')->orderByDesc('date')->get();
 
-        $grouped = $documents
-            ->groupBy('year')
-            ->sortKeysDesc()
-            ->map(fn ($yearDocs) => $yearDocs->groupBy('month')->sortKeysDesc());
-
-        $yearTotals = $documents->groupBy('year')->map(fn ($docs) => [
-            'count'  => $docs->count(),
-            'amount' => $docs->sum('amount_cents') / 100,
-        ]);
+        $brandGroups = $documents
+            ->groupBy(fn ($d) => $d->brand_id ?? 0)
+            ->sortBy(fn ($docs, $brandId) => $brandId === 0
+                ? 'ZZZZ'
+                : ($docs->first()->brand?->full_name ?? 'ZZZZ')
+            )
+            ->map(fn ($brandDocs, $brandId) => [
+                'brand'      => $brandId ? $brandDocs->first()->brand : null,
+                'grouped'    => $brandDocs->groupBy('year')->sortKeysDesc()
+                                    ->map(fn ($yearDocs) => $yearDocs->groupBy('month')->sortKeysDesc()),
+                'yearTotals' => $brandDocs->groupBy('year')->map(fn ($docs) => [
+                    'count'  => $docs->count(),
+                    'amount' => $docs->sum('amount_cents') / 100,
+                ]),
+                'total'      => [
+                    'count'  => $brandDocs->count(),
+                    'amount' => $brandDocs->sum('amount_cents') / 100,
+                ],
+            ]);
 
         $grandTotal = [
             'count'  => $documents->count(),
             'amount' => $documents->sum('amount_cents') / 100,
         ];
 
-        return view('accountant.index', compact('token', 'grouped', 'yearTotals', 'grandTotal'));
+        return view('accountant.index', compact('token', 'brandGroups', 'grandTotal'));
     }
 
     public function download(string $token, int $id)

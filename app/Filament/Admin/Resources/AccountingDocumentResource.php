@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources;
 
 use App\Filament\Admin\Resources\AccountingDocumentResource\Pages;
 use App\Models\AccountingDocument;
+use App\Models\Brand;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -49,6 +50,13 @@ class AccountingDocumentResource extends Resource
             Forms\Components\Section::make('Valor & Categoria')
                 ->columns(3)
                 ->schema([
+                    Forms\Components\Select::make('brand_id')
+                        ->label('Marca / Empresa')
+                        ->options(fn () => Brand::selectOptions())
+                        ->searchable()
+                        ->placeholder('Geral (sem marca específica)')
+                        ->columnSpanFull(),
+
                     Forms\Components\TextInput::make('amount_cents')
                         ->label('Valor (EUR)')
                         ->numeric()
@@ -131,6 +139,13 @@ class AccountingDocumentResource extends Resource
                     ->sortable('amount_cents')
                     ->alignEnd(),
 
+                Tables\Columns\TextColumn::make('brand.name')
+                    ->label('Marca')
+                    ->badge()
+                    ->color('primary')
+                    ->placeholder('—')
+                    ->toggleable(),
+
                 Tables\Columns\IconColumn::make('file_path')
                     ->label('Ficheiro')
                     ->boolean()
@@ -163,6 +178,10 @@ class AccountingDocumentResource extends Resource
                 Tables\Filters\SelectFilter::make('category')
                     ->label('Categoria')
                     ->options(AccountingDocument::categories()),
+
+                Tables\Filters\SelectFilter::make('brand_id')
+                    ->label('Marca')
+                    ->options(fn () => Brand::selectOptions()),
             ])
             ->actions([
                 Tables\Actions\Action::make('download')

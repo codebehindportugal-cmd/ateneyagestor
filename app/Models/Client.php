@@ -5,8 +5,10 @@ namespace App\Models;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Brand;
 use App\Models\ClientDocument;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -26,6 +28,7 @@ class Client extends Authenticatable implements FilamentUser
         'is_active',
         'is_internal',
         'accountant_token',
+        'brand_id',
     ];
 
     protected $hidden = [
@@ -83,5 +86,10 @@ class Client extends Authenticatable implements FilamentUser
     public function documents(): HasMany
     {
         return $this->hasMany(ClientDocument::class)->latest();
+    }
+
+    public function brand(): BelongsTo
+    {
+        return $this->belongsTo(Brand::class);
     }
 }

@@ -6,6 +6,7 @@ use App\Filament\Admin\Resources\ClientResource\Pages;
 use App\Filament\Admin\Resources\ClientResource\RelationManagers\CredentialsRelationManager;
 use App\Filament\Admin\Resources\ClientResource\RelationManagers\DocumentsRelationManager;
 use App\Filament\Admin\Resources\ClientResource\RelationManagers\ServicesRelationManager;
+use App\Models\Brand;
 use App\Models\Client;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -32,6 +33,7 @@ class ClientResource extends Resource
                 ->columns(2)
                 ->schema([
                     Forms\Components\TextInput::make('name')->label('Nome')->required(),
+
                     Forms\Components\TextInput::make('company')->label('Empresa'),
                     Forms\Components\TextInput::make('email')->label('Email')->email()->required()->unique(ignoreRecord: true),
                     Forms\Components\TextInput::make('phone')->label('Telefone'),
@@ -58,6 +60,16 @@ class ClientResource extends Resource
                         ->columnSpanFull(),
                 ]),
             Forms\Components\Textarea::make('notes')->label('Notas internas')->columnSpanFull(),
+
+            Forms\Components\Section::make('Marca / Grupo')
+                ->schema([
+                    Forms\Components\Select::make('brand_id')
+                        ->label('Marca associada')
+                        ->options(fn () => Brand::selectOptions())
+                        ->searchable()
+                        ->placeholder('Sem marca específica'),
+                ])
+                ->collapsed(),
         ]);
     }
 
@@ -74,6 +86,12 @@ class ClientResource extends Resource
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('email')->label('Email')->searchable()->toggleable(),
                 Tables\Columns\TextColumn::make('phone')->label('Telefone')->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('brand.name')
+                    ->label('Marca')
+                    ->badge()
+                    ->color('primary')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('servers_count')->label('Servidores')->counts('servers'),
                 Tables\Columns\IconColumn::make('is_active')->label('Ativo')->boolean(),
                 Tables\Columns\IconColumn::make('is_internal')->label('Interno')
@@ -84,6 +102,9 @@ class ClientResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('brand_id')
+                    ->label('Marca')
+                    ->options(fn () => Brand::selectOptions()),
                 Tables\Filters\TernaryFilter::make('is_active')->label('Ativo'),
                 Tables\Filters\TernaryFilter::make('is_internal')
                     ->label('Tipo')

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AccountingDocument extends Model
 {
@@ -19,6 +20,7 @@ class AccountingDocument extends Model
         'month',
         'category',
         'notes',
+        'brand_id',
         'file_path',
         'file_name',
     ];
@@ -43,6 +45,11 @@ class AccountingDocument extends Model
                 $model->month = $model->date->month;
             }
         });
+    }
+
+    public function brand(): BelongsTo
+    {
+        return $this->belongsTo(Brand::class);
     }
 
     public function getAmountAttribute(): float

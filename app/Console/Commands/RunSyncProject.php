@@ -62,6 +62,14 @@ class RunSyncProject extends Command
             $python    = $this->detectPython($scriptDir);
             $cmd       = [$python, $scriptPath];
 
+            // Ensure the Python script's logs/ directory exists and is writable.
+            // If a previous root-cron run created it, the web user can't write — but
+            // mkdir here at least handles the "doesn't exist yet" case gracefully.
+            $logsDir = $scriptDir . '/logs';
+            if (! is_dir($logsDir)) {
+                mkdir($logsDir, 0775, true);
+            }
+
             $process = new Process($cmd, $scriptDir, null, null, 3600);
 
             $process->run(function (string $type, string $buffer) {

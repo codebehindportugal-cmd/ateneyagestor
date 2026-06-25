@@ -39,6 +39,13 @@ Schedule::call(function () {
     \App\Models\SiteMonitorCheck::where('checked_at', '<', now()->subDays(30))->delete();
 })->daily()->name('site-monitor-checks:prune');
 
+// Daily backup of all active servers at 03:00. withoutOverlapping(120) ensures a long
+// run never causes a double execution if the cron fires again before it finishes.
+Schedule::command('backup:run --all')
+    ->dailyAt('03:00')
+    ->name('backup:run-all')
+    ->withoutOverlapping(120);
+
 // Dynamic scheduling: each active SyncProject with a runner gets its own schedule.
 // Wrapped in try/catch so a missing DB table during migrations doesn't break boot.
 try {

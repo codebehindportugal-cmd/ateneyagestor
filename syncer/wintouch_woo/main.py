@@ -42,7 +42,18 @@ def run_order_sync(woo: WooClient, wintouch: WintouchClient) -> int:
 def main() -> dict:
     cfg = get_settings()
     log_level = getattr(cfg, "logging", {}).get("level", "INFO")
-    setup_logging(log_level)
+    try:
+        setup_logging(log_level)
+    except PermissionError as e:
+        # logs/ dir exists but is owned by root (created by a previous root-cron run).
+        # Fall back to stderr so the sync still runs. Fix: chown the logs dir on the server.
+        import logging
+        logging.basicConfig(
+            level=getattr(logging, log_level, logging.INFO),
+            stream=sys.stderr,
+            format="%(asctime)s %(levelname)s %(message)s",
+        )
+        logging.warning(f"Não foi possível abrir ficheiro de log ({e}). A usar stderr.")
 
     woo = WooClient(cfg.woocommerce)
     win = WintouchClient(cfg.wintouch, cfg.sync.batch_size)

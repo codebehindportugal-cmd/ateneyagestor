@@ -320,11 +320,16 @@ class BackupService
         string $tmpDir,
         callable $log
     ): array {
-        // Try wp_root from DB first, then standard paths
+        // Try wp_root from DB first, then Plesk standard, then generic paths.
+        // Plesk always puts sites under /var/www/vhosts/{domain}/httpdocs.
+        $wwwDomain = str_starts_with($domain, 'www.') ? $domain : "www.{$domain}";
         $candidates = array_filter([
             $server->wp_root,
-            "/var/www/{$domain}",
+            "/var/www/vhosts/{$domain}/httpdocs",
+            "/var/www/vhosts/{$wwwDomain}/httpdocs",
             "/var/www/{$domain}/public_html",
+            "/var/www/{$domain}",
+            "/home/{$domain}/public_html",
             "/var/www/html",
         ]);
 
@@ -338,9 +343,22 @@ class BackupService
         }
 
         if (! $wpRoot) {
+            // Plesk: search all vhosts for a wp-config.php whose path contains the domain stem.
+            // Handles domain mismatches (e.g. DB has alorfisconta.com but vhost is alvorfisconta.pt).
+            $stem = preg_replace('/\.[a-z]{2,}$/', '', preg_replace('/^www\./', '', $domain));
+            $found = trim($sftp->exec(
+                "find /var/www/vhosts -name 'wp-config.php' -path '*{$stem}*' -maxdepth 4 2>/dev/null | head -1"
+            ));
+            if ($found) {
+                $wpRoot = rtrim(dirname($found), '/');
+            }
+        }
+
+        if (! $wpRoot) {
             // Last resort: Apache DocumentRoot
             $docRoot = trim($sftp->exec(
-                "grep -r 'DocumentRoot' /etc/apache2/sites-enabled/{$domain}*.conf 2>/dev/null | awk '{print \$2}' | head -1"
+                "grep -rh 'DocumentRoot' /etc/apache2/conf.d/vhosts/{$domain}*.conf" .
+                " /etc/apache2/sites-enabled/{$domain}*.conf 2>/dev/null | awk '{print \$2}' | head -1"
             ));
             if ($docRoot && trim($sftp->exec("test -f {$docRoot}/wp-config.php && echo yes || echo no")) === 'yes') {
                 $wpRoot = rtrim($docRoot, '/');
@@ -350,7 +368,7 @@ class BackupService
         if (! $wpRoot) {
             throw new \RuntimeException(
                 "Não foi possível encontrar o WordPress para {$domain}. " .
-                "Configura wp_root na ficha do servidor."
+                "Configura wp_root na ficha do servidor (painel → Servidores → editar)."
             );
         }
 

@@ -63,7 +63,7 @@ try {
             Schedule::command("sync:run {$p->slug}")
                 ->cron($p->runner_schedule)
                 ->name("sync:{$p->slug}")
-                ->withoutOverlapping(120);
+                ->withoutOverlapping(240); // 4h — syncs can run for 2h on large catalogues
         });
 } catch (\Throwable) {
     // DB not ready yet (e.g. first deploy before migrations run).

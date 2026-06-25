@@ -70,7 +70,7 @@ class RunSyncProject extends Command
                 mkdir($logsDir, 0775, true);
             }
 
-            $process = new Process($cmd, $scriptDir, null, null, 3600);
+            $process = new Process($cmd, $scriptDir, null, null, 7200); // 2 hours — full catalogue sync can exceed 1 hour
 
             $process->run(function (string $type, string $buffer) {
                 $this->getOutput()->write($buffer);

@@ -84,8 +84,8 @@ class DocumentsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('storage_type')
                     ->label('Armazenamento')
                     ->badge()
-                    ->formatStateUsing(fn (string $s) => strtoupper($s))
-                    ->color(fn (string $s) => $s === 'nas' ? 'success' : 'gray'),
+                    ->formatStateUsing(fn (string $state) => strtoupper($state))
+                    ->color(fn (string $state) => $state === 'nas' ? 'success' : 'gray'),
 
                 Tables\Columns\TextColumn::make('uploader.name')
                     ->label('Carregado por')

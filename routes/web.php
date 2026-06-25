@@ -11,6 +11,10 @@ Route::get('/', function () {
     return redirect('/admin/login');
 });
 
+// Laravel's auth middleware redirects unauthenticated users to route('login').
+// Filament owns the actual login page, so we just alias it here.
+Route::get('/login', fn () => redirect('/admin/login'))->name('login');
+
 // More-specific routes first to avoid {token} swallowing 'cliente'.
 
 // ── Per-client accountant portal (ClientDocuments) ────────────────────────────
@@ -27,7 +31,7 @@ Route::get('/contabilista/{token}', [AccountantViewController::class, 'index'])
 Route::get('/contabilista/{token}/download/{id}', [AccountantViewController::class, 'download'])
     ->name('contabilista.download');
 
-// ── Admin: download / preview client documents (requires Filament auth) ──────────
-Route::middleware(['web', \Filament\Http\Middleware\Authenticate::class])
+// ── Admin: download / preview client documents (requires auth) ────────────────────
+Route::middleware('auth:web')
     ->get('/admin/client-documents/{document}', [ClientDocumentController::class, 'show'])
     ->name('admin.client-documents.show');

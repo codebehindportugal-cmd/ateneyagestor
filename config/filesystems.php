@@ -23,6 +23,14 @@ return [
             'throw' => false,
         ],
 
+        'nas_documents' => [
+            'driver' => 'local',
+            'root' => env('NAS_DOCUMENTS_PATH', storage_path('app/clientes')),
+            'url' => env('APP_URL').'/documentos',
+            'visibility' => 'private',
+            'throw' => false,
+        ],
+
     ],
 
     'links' => [

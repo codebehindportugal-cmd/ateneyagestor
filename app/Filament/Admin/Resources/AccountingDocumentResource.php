@@ -38,11 +38,34 @@ class AccountingDocumentResource extends Resource
                         ->maxLength(255)
                         ->columnSpanFull(),
 
+                    Forms\Components\Select::make('tipo')
+                        ->label('Tipo de documento')
+                        ->options(AccountingDocument::tipos())
+                        ->default('fatura')
+                        ->required(),
+
+                    Forms\Components\Select::make('estado')
+                        ->label('Estado')
+                        ->options(AccountingDocument::estados())
+                        ->default('pendente')
+                        ->required(),
+
+                    Forms\Components\DatePicker::make('date')
+                        ->label('Data')
+                        ->required()
+                        ->default(now())
+                        ->displayFormat('d/m/Y'),
+
                     Forms\Components\TextInput::make('invoice_number')
-                        ->label('Número de fatura')
+                        ->label('Número de documento')
                         ->maxLength(100)
                         ->placeholder('Ex: FT 2024/001')
                         ->hint('Preenchido automaticamente pelo QR code'),
+
+                    Forms\Components\TextInput::make('fornecedor')
+                        ->label('Fornecedor')
+                        ->maxLength(255)
+                        ->placeholder('Nome do fornecedor'),
 
                     Forms\Components\TextInput::make('supplier_nif')
                         ->label('NIF do Emitente')
@@ -50,11 +73,12 @@ class AccountingDocumentResource extends Resource
                         ->placeholder('Ex: 500000000')
                         ->hint('NIF extraído do QR code AT'),
 
-                    Forms\Components\DatePicker::make('date')
-                        ->label('Data')
-                        ->required()
-                        ->default(now())
-                        ->displayFormat('d/m/Y'),
+                    Forms\Components\TextInput::make('atcud')
+                        ->label('ATCUD')
+                        ->maxLength(100)
+                        ->placeholder('Ex: 0:12345')
+                        ->hint('Código ATCUD do QR code AT')
+                        ->fontFamily('mono'),
                 ]),
 
             Forms\Components\Section::make('Valor & Categoria')
@@ -68,7 +92,7 @@ class AccountingDocumentResource extends Resource
                         ->columnSpanFull(),
 
                     Forms\Components\TextInput::make('amount_cents')
-                        ->label('Valor (EUR)')
+                        ->label('Total (c/ IVA)')
                         ->numeric()
                         ->prefix('€')
                         ->required()
@@ -79,6 +103,19 @@ class AccountingDocumentResource extends Resource
                                 $c->state($state !== null ? number_format($state / 100, 2, '.', '') : null)
                         )
                         ->dehydrateStateUsing(fn ($state) => (int) round((float) $state * 100)),
+
+                    Forms\Components\TextInput::make('iva_cents')
+                        ->label('Total IVA')
+                        ->numeric()
+                        ->prefix('€')
+                        ->minValue(0)
+                        ->step(0.01)
+                        ->afterStateHydrated(
+                            fn (Forms\Components\TextInput $c, $state) =>
+                                $c->state($state !== null ? number_format($state / 100, 2, '.', '') : null)
+                        )
+                        ->dehydrateStateUsing(fn ($state) => (int) round((float) $state * 100))
+                        ->hint('IVA extraído do QR code AT'),
 
                     Forms\Components\Select::make('category')
                         ->label('Categoria')
@@ -127,15 +164,33 @@ class AccountingDocumentResource extends Resource
                     ->date('d/m/Y')
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('tipo')
+                    ->label('Tipo')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state) => AccountingDocument::tipos()[$state] ?? $state)
+                    ->color(fn (string $state) => match ($state) {
+                        'fatura'       => 'info',
+                        'recibo'       => 'success',
+                        'nota_credito' => 'warning',
+                        default        => 'gray',
+                    }),
+
                 Tables\Columns\TextColumn::make('title')
                     ->label('Título')
                     ->searchable()
-                    ->limit(40),
+                    ->limit(35),
 
                 Tables\Columns\TextColumn::make('invoice_number')
-                    ->label('Nº Fatura')
+                    ->label('Nº Doc.')
                     ->searchable()
                     ->placeholder('-'),
+
+                Tables\Columns\TextColumn::make('fornecedor')
+                    ->label('Fornecedor')
+                    ->searchable()
+                    ->placeholder('-')
+                    ->limit(25)
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('supplier_nif')
                     ->label('NIF Emitente')
@@ -144,14 +199,26 @@ class AccountingDocumentResource extends Resource
                     ->fontFamily('mono')
                     ->toggleable(isToggledHiddenByDefault: true),
 
+                Tables\Columns\TextColumn::make('estado')
+                    ->label('Estado')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state) => AccountingDocument::estados()[$state] ?? $state)
+                    ->color(fn (string $state) => match ($state) {
+                        'pendente'  => 'warning',
+                        'aprovado'  => 'info',
+                        'pago'      => 'success',
+                        default     => 'gray',
+                    }),
+
                 Tables\Columns\TextColumn::make('category')
                     ->label('Categoria')
                     ->badge()
                     ->formatStateUsing(fn (string $state) => AccountingDocument::categories()[$state] ?? $state)
-                    ->color('info'),
+                    ->color('gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('amount')
-                    ->label('Valor')
+                    ->label('Total')
                     ->money('EUR')
                     ->sortable('amount_cents')
                     ->alignEnd(),
@@ -191,6 +258,14 @@ class AccountingDocumentResource extends Resource
                         }
                         return $months;
                     }),
+
+                Tables\Filters\SelectFilter::make('tipo')
+                    ->label('Tipo')
+                    ->options(AccountingDocument::tipos()),
+
+                Tables\Filters\SelectFilter::make('estado')
+                    ->label('Estado')
+                    ->options(AccountingDocument::estados()),
 
                 Tables\Filters\SelectFilter::make('category')
                     ->label('Categoria')

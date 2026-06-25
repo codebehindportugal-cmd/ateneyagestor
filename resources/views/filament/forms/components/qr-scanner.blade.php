@@ -429,7 +429,9 @@ function qrScanner() {
             if (this.result.invoice_number) this.wire.set('data.invoice_number', this.result.invoice_number);
             if (this.result.date)           this.wire.set('data.date', this.result.date);
             if (this.result.amount)         this.wire.set('data.amount_cents', this.result.amount);
+            if (this.result.iva)            this.wire.set('data.iva_cents', this.result.iva);
             if (this.result.nif)            this.wire.set('data.supplier_nif', this.result.nif);
+            if (this.result.atcud)          this.wire.set('data.atcud', this.result.atcud);
 
             this.closeScanner();
         },

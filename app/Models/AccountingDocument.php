@@ -11,10 +11,15 @@ class AccountingDocument extends Model
     use HasFactory;
 
     protected $fillable = [
+        'tipo',
         'title',
         'invoice_number',
+        'fornecedor',
         'supplier_nif',
+        'atcud',
+        'estado',
         'amount_cents',
+        'iva_cents',
         'currency',
         'date',
         'year',
@@ -31,9 +36,34 @@ class AccountingDocument extends Model
         return [
             'date'         => 'date',
             'amount_cents' => 'integer',
+            'iva_cents'    => 'integer',
             'year'         => 'integer',
             'month'        => 'integer',
         ];
+    }
+
+    public static function tipos(): array
+    {
+        return [
+            'fatura'       => 'Fatura',
+            'recibo'       => 'Recibo',
+            'nota_credito' => 'Nota de Crédito',
+            'outro'        => 'Outro',
+        ];
+    }
+
+    public static function estados(): array
+    {
+        return [
+            'pendente'  => 'Pendente',
+            'aprovado'  => 'Aprovado',
+            'pago'      => 'Pago',
+        ];
+    }
+
+    public function getIvaAttribute(): float
+    {
+        return $this->iva_cents / 100;
     }
 
     protected static function boot(): void

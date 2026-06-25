@@ -87,38 +87,70 @@
                                             <table class="w-full text-sm">
                                                 <thead>
                                                     <tr class="text-xs text-gray-400 uppercase tracking-wide">
-                                                        <th class="px-5 py-2 text-left font-medium">Título</th>
-                                                        <th class="px-5 py-2 text-left font-medium">Nº Fatura</th>
-                                                        <th class="px-5 py-2 text-left font-medium">Data</th>
-                                                        <th class="px-5 py-2 text-left font-medium">Categoria</th>
-                                                        <th class="px-5 py-2 text-right font-medium">Valor</th>
-                                                        <th class="px-5 py-2 text-center font-medium no-print">Ficheiro</th>
+                                                        <th class="px-4 py-2 text-left font-medium">Tipo</th>
+                                                        <th class="px-4 py-2 text-left font-medium">Nº Documento</th>
+                                                        <th class="px-4 py-2 text-left font-medium">Fornecedor</th>
+                                                        <th class="px-4 py-2 text-left font-medium">Data</th>
+                                                        <th class="px-4 py-2 text-right font-medium">Total s/ IVA</th>
+                                                        <th class="px-4 py-2 text-right font-medium">IVA</th>
+                                                        <th class="px-4 py-2 text-right font-medium">Total</th>
+                                                        <th class="px-4 py-2 text-center font-medium">Estado</th>
+                                                        <th class="px-4 py-2 text-center font-medium no-print">Ficheiro</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody class="divide-y divide-gray-100">
                                                     @foreach($docs->sortByDesc('date') as $doc)
+                                                        @php
+                                                            $totalComIva  = $doc->amount;
+                                                            $iva          = $doc->iva;
+                                                            $totalSemIva  = $totalComIva - $iva;
+                                                        @endphp
                                                         <tr class="hover:bg-gray-50 transition-colors">
-                                                            <td class="px-5 py-3 font-medium text-gray-900">
-                                                                {{ $doc->title }}
-                                                                @if($doc->notes)
-                                                                    <p class="text-xs text-gray-400 font-normal mt-0.5">{{ $doc->notes }}</p>
-                                                                @endif
-                                                            </td>
-                                                            <td class="px-5 py-3 text-gray-500 font-mono text-xs">
-                                                                {{ $doc->invoice_number ?? '—' }}
-                                                            </td>
-                                                            <td class="px-5 py-3 text-gray-600 whitespace-nowrap">
-                                                                {{ $doc->date->format('d/m/Y') }}
-                                                            </td>
-                                                            <td class="px-5 py-3">
-                                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
-                                                                    {{ $doc->category_label }}
+                                                            <td class="px-4 py-3">
+                                                                @php $tipos = \App\Models\AccountingDocument::tipos(); @endphp
+                                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                                                                    {{ $tipos[$doc->tipo ?? 'fatura'] ?? ucfirst($doc->tipo ?? 'fatura') }}
                                                                 </span>
                                                             </td>
-                                                            <td class="px-5 py-3 text-right font-mono font-semibold text-gray-800 whitespace-nowrap">
-                                                                {{ number_format($doc->amount, 2, ',', '.') }} €
+                                                            <td class="px-4 py-3 text-gray-500 font-mono text-xs whitespace-nowrap">
+                                                                {{ $doc->invoice_number ?? '—' }}
+                                                                @if($doc->atcud)
+                                                                    <p class="text-gray-300 mt-0.5">{{ $doc->atcud }}</p>
+                                                                @endif
                                                             </td>
-                                                            <td class="px-5 py-3 text-center no-print">
+                                                            <td class="px-4 py-3 text-gray-700 text-sm">
+                                                                {{ $doc->fornecedor ?? $doc->title }}
+                                                                @if($doc->supplier_nif)
+                                                                    <p class="text-xs text-gray-400 font-mono">NIF {{ $doc->supplier_nif }}</p>
+                                                                @endif
+                                                                @if($doc->notes)
+                                                                    <p class="text-xs text-gray-400 mt-0.5">{{ $doc->notes }}</p>
+                                                                @endif
+                                                            </td>
+                                                            <td class="px-4 py-3 text-gray-600 whitespace-nowrap text-sm">
+                                                                {{ $doc->date->format('d/m/Y') }}
+                                                            </td>
+                                                            <td class="px-4 py-3 text-right font-mono text-gray-700 whitespace-nowrap text-sm">
+                                                                {{ number_format($totalSemIva, 2, ',', '.') }} €
+                                                            </td>
+                                                            <td class="px-4 py-3 text-right font-mono text-gray-500 whitespace-nowrap text-sm">
+                                                                {{ number_format($iva, 2, ',', '.') }} €
+                                                            </td>
+                                                            <td class="px-4 py-3 text-right font-mono font-semibold text-gray-800 whitespace-nowrap">
+                                                                {{ number_format($totalComIva, 2, ',', '.') }} €
+                                                            </td>
+                                                            <td class="px-4 py-3 text-center">
+                                                                @php
+                                                                    $estadoColors = ['pendente' => 'yellow', 'aprovado' => 'blue', 'pago' => 'green'];
+                                                                    $estadoNames  = \App\Models\AccountingDocument::estados();
+                                                                    $estadoKey    = $doc->estado ?? 'pendente';
+                                                                    $color        = $estadoColors[$estadoKey] ?? 'gray';
+                                                                @endphp
+                                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-{{ $color }}-50 text-{{ $color }}-700">
+                                                                    {{ $estadoNames[$estadoKey] ?? ucfirst($estadoKey) }}
+                                                                </span>
+                                                            </td>
+                                                            <td class="px-4 py-3 text-center no-print">
                                                                 @if($doc->file_path)
                                                                     <a href="{{ route('contabilista.download', ['token' => $token, 'id' => $doc->id]) }}"
                                                                        class="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-xs font-medium"
@@ -138,13 +170,13 @@
                                                 {{-- Month subtotal --}}
                                                 <tfoot>
                                                     <tr class="bg-gray-50 border-t-2 border-gray-200">
-                                                        <td colspan="4" class="px-5 py-2 text-xs text-gray-500 font-medium">
+                                                        <td colspan="6" class="px-4 py-2 text-xs text-gray-500 font-medium">
                                                             Total {{ \App\Models\AccountingDocument::monthName($month) }}
                                                         </td>
-                                                        <td class="px-5 py-2 text-right font-bold text-gray-800 font-mono">
+                                                        <td class="px-4 py-2 text-right font-bold text-gray-800 font-mono">
                                                             {{ number_format($monthTotal, 2, ',', '.') }} €
                                                         </td>
-                                                        <td class="no-print"></td>
+                                                        <td colspan="2" class="no-print"></td>
                                                     </tr>
                                                 </tfoot>
                                             </table>

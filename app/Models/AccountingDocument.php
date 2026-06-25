@@ -13,6 +13,7 @@ class AccountingDocument extends Model
     protected $fillable = [
         'title',
         'invoice_number',
+        'supplier_nif',
         'amount_cents',
         'currency',
         'date',

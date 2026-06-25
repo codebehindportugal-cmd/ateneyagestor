@@ -26,8 +26,11 @@ class AccountingDocumentResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
+            Forms\Components\View::make('filament.forms.components.qr-scanner')
+                ->columnSpan('full'),
+
             Forms\Components\Section::make('Identificação')
-                ->columns(2)
+                ->columns(3)
                 ->schema([
                     Forms\Components\TextInput::make('title')
                         ->label('Título / Descrição')
@@ -38,7 +41,14 @@ class AccountingDocumentResource extends Resource
                     Forms\Components\TextInput::make('invoice_number')
                         ->label('Número de fatura')
                         ->maxLength(100)
-                        ->placeholder('Ex: FT 2024/001'),
+                        ->placeholder('Ex: FT 2024/001')
+                        ->hint('Preenchido automaticamente pelo QR code'),
+
+                    Forms\Components\TextInput::make('supplier_nif')
+                        ->label('NIF do Emitente')
+                        ->maxLength(20)
+                        ->placeholder('Ex: 500000000')
+                        ->hint('NIF extraído do QR code AT'),
 
                     Forms\Components\DatePicker::make('date')
                         ->label('Data')
@@ -126,6 +136,13 @@ class AccountingDocumentResource extends Resource
                     ->label('Nº Fatura')
                     ->searchable()
                     ->placeholder('-'),
+
+                Tables\Columns\TextColumn::make('supplier_nif')
+                    ->label('NIF Emitente')
+                    ->searchable()
+                    ->placeholder('-')
+                    ->fontFamily('mono')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('category')
                     ->label('Categoria')

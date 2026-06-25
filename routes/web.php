@@ -27,7 +27,7 @@ Route::get('/contabilista/{token}', [AccountantViewController::class, 'index'])
 Route::get('/contabilista/{token}/download/{id}', [AccountantViewController::class, 'download'])
     ->name('contabilista.download');
 
-// ── Admin: download / preview client documents (requires auth) ─────────────────
-Route::middleware('auth')
+// ── Admin: download / preview client documents (requires Filament auth) ──────────
+Route::middleware(['web', \Filament\Http\Middleware\Authenticate::class])
     ->get('/admin/client-documents/{document}', [ClientDocumentController::class, 'show'])
     ->name('admin.client-documents.show');

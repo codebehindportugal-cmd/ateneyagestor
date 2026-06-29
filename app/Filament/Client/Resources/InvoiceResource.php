@@ -53,6 +53,11 @@ class InvoiceResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('number')->label('Número'),
+                Tables\Columns\TextColumn::make('brand.full_name')
+                    ->label('Marca')
+                    ->badge()
+                    ->color('primary')
+                    ->placeholder('-'),
                 Tables\Columns\TextColumn::make('hours')->label('Horas')->suffix('h')->placeholder('-'),
                 Tables\Columns\TextColumn::make('amount')->label('Valor')->money('EUR'),
                 Tables\Columns\TextColumn::make('status')->label('Estado')->badge()

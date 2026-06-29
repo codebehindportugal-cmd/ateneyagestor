@@ -36,12 +36,22 @@
         </div>
     @endif
 
+    @php
+        $liveLog = $run->liveLog();
+        $shownLog = $run->log ?: $liveLog;
+    @endphp
+
     {{-- Log completo --}}
     <div>
-        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Log</div>
-        @if ($run->log)
+        <div class="flex items-center justify-between mb-1">
+            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Log</div>
+            @if ($run->status === \App\Enums\SyncStatus::Running)
+                <div class="text-xs text-blue-500">Em curso - fecha e abre os detalhes para atualizar</div>
+            @endif
+        </div>
+        @if ($shownLog)
             <div class="overflow-auto max-h-64 rounded-lg bg-gray-950 p-4">
-                <pre class="text-xs text-green-400 whitespace-pre-wrap font-mono">{{ $run->log }}</pre>
+                <pre class="text-xs text-green-400 whitespace-pre-wrap font-mono">{{ $shownLog }}</pre>
             </div>
         @else
             <div class="rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-3">
@@ -62,8 +72,8 @@
     <div class="text-xs text-gray-400 dark:text-gray-500 flex gap-4">
         <span>Início: {{ $run->started_at?->format('d/m/Y H:i:s') ?? '—' }}</span>
         <span>Fim: {{ $run->finished_at?->format('d/m/Y H:i:s') ?? '—' }}</span>
-        @if ($run->started_at && $run->finished_at)
-            <span>Duração: {{ gmdate('H:i:s', $run->started_at->diffInSeconds($run->finished_at)) }}</span>
+        @if ($run->elapsedSeconds() !== null)
+            <span>Duração: {{ gmdate('H:i:s', $run->elapsedSeconds()) }}</span>
         @endif
     </div>
 

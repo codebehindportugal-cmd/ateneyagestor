@@ -26,9 +26,12 @@ class AccountingDocument extends Model
         'month',
         'category',
         'notes',
+        'products',
         'brand_id',
         'file_path',
         'file_name',
+        'image_paths',
+        'image_names',
     ];
 
     protected function casts(): array
@@ -39,6 +42,9 @@ class AccountingDocument extends Model
             'iva_cents'    => 'integer',
             'year'         => 'integer',
             'month'        => 'integer',
+            'products'     => 'array',
+            'image_paths'  => 'array',
+            'image_names'  => 'array',
         ];
     }
 
@@ -97,6 +103,7 @@ class AccountingDocument extends Model
     {
         return [
             'fornecedores'  => 'Fornecedores',
+            'gastos_empresa' => 'Gastos para empresa',
             'servicos'      => 'Serviços',
             'software'      => 'Software & Subscrições',
             'material'      => 'Material & Equipamento',

@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (! Schema::hasTable('accounting_documents') || Schema::hasColumn('accounting_documents', 'supplier_nif')) {
+            return;
+        }
+
         Schema::table('accounting_documents', function (Blueprint $table) {
             $table->string('supplier_nif', 20)->nullable()->after('invoice_number');
         });
@@ -15,6 +19,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (! Schema::hasTable('accounting_documents') || ! Schema::hasColumn('accounting_documents', 'supplier_nif')) {
+            return;
+        }
+
         Schema::table('accounting_documents', function (Blueprint $table) {
             $table->dropColumn('supplier_nif');
         });

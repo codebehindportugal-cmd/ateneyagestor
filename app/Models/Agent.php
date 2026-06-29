@@ -24,8 +24,23 @@ class Agent extends Model
     protected $fillable = [
         'name',
         'slug',
+        'agent_type',
         'status',
         'last_seen_at',
+        'computer_name',
+        'assigned_user_name',
+        'assigned_user_email',
+        'department',
+        'asset_tag',
+        'productivity_monitor_enabled',
+        'productivity_send_interval_seconds',
+        'productivity_sample_interval_seconds',
+        'productivity_idle_threshold_seconds',
+        'productivity_work_hours_enabled',
+        'productivity_work_start',
+        'productivity_work_end',
+        'productivity_work_weekdays',
+        'productivity_collect_domains',
         'backup_root',
         'retention_keep_days',
         'retention_keep_min_copies',
@@ -41,6 +56,10 @@ class Agent extends Model
     {
         return [
             'last_seen_at' => 'datetime',
+            'productivity_monitor_enabled' => 'boolean',
+            'productivity_work_hours_enabled' => 'boolean',
+            'productivity_work_weekdays' => 'array',
+            'productivity_collect_domains' => 'boolean',
             'notify_webhook_enabled' => 'boolean',
             'notify_sendmail_enabled' => 'boolean',
         ];
@@ -90,6 +109,11 @@ class Agent extends Model
     public function backupRuns(): HasMany
     {
         return $this->hasMany(BackupRun::class);
+    }
+
+    public function productivityEvents(): HasMany
+    {
+        return $this->hasMany(ProductivityEvent::class);
     }
 
     public function markOnline(): void

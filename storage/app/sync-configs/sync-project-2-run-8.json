@@ -1,0 +1,33 @@
+{
+    "wintouch": {
+        "base_url": "https://api.wintouchcloud.com",
+        "api_key": "bWFyY29yYXF1ZWwubGRhQGdtYWlsLmNvbSwyMjc0M2YxNC0zNjM4LTRkNGUtODkwNC03MDg0NjdmMjJlZWU=",
+        "login_email": "marcoraquel.lda@gmail.com",
+        "login_password": "#MRaquel2024!"
+    },
+    "woocommerce": {
+        "base_url": "https://marcoeraquel.pt",
+        "consumer_key": "ck_6f34a750a1b9debbba9e31473f23b6b05a46a1d1",
+        "consumer_secret": "cs_c015710ec28f1108ef09d534737251759dd8e75c",
+        "version": "wc/v3",
+        "admin_username": "admin_Codebehind",
+        "admin_app_password": "7Yeg OOJs EOff yej7 ZwQP T47D",
+        "images_base_url": "https://neoapp.blob.core.windows.net/marcoraquelldagmailcom-adbcbc19-1bda-4b31-a90d-5a9506c337bc/22743f14-3638-4d4e-8904-708467f22eee/images/"
+    },
+    "sync": {
+        "batch_size": 50,
+        "default_currency": "EUR",
+        "download_images": true
+    },
+    "logging": {
+        "level": "INFO"
+    },
+    "smtp": {
+        "user": "noreplay@ateneya.com",
+        "from": "noreplay@ateneya.com",
+        "password": "taDaJQBqBxTz6rr",
+        "to": "noreplay@ateneya.com",
+        "host": "smtp-pt.securemail.pro",
+        "port": 587
+    }
+}

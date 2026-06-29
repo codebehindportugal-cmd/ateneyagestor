@@ -13,6 +13,7 @@ class EditAgent extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            AgentResource::productivityInstallerAction(),
             Actions\DeleteAction::make(),
         ];
     }

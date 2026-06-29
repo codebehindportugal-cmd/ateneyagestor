@@ -8,34 +8,40 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('brands', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('logo_path')->nullable();
-            $table->string('color', 7)->nullable(); // hex, e.g. #3b82f6
-            $table->boolean('is_active')->default(true);
-            $table->foreignId('parent_brand_id')
-                ->nullable()
-                ->constrained('brands')
-                ->nullOnDelete();
-            $table->timestamps();
-        });
+        if (! Schema::hasTable('brands')) {
+            Schema::create('brands', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('logo_path')->nullable();
+                $table->string('color', 7)->nullable(); // hex, e.g. #3b82f6
+                $table->boolean('is_active')->default(true);
+                $table->foreignId('parent_brand_id')
+                    ->nullable()
+                    ->constrained('brands')
+                    ->nullOnDelete();
+                $table->timestamps();
+            });
+        }
 
-        Schema::table('clients', function (Blueprint $table) {
-            $table->foreignId('brand_id')
-                ->nullable()
-                ->constrained('brands')
-                ->nullOnDelete()
-                ->after('accountant_token');
-        });
+        if (Schema::hasTable('clients') && ! Schema::hasColumn('clients', 'brand_id')) {
+            Schema::table('clients', function (Blueprint $table) {
+                $table->foreignId('brand_id')
+                    ->nullable()
+                    ->constrained('brands')
+                    ->nullOnDelete()
+                    ->after('accountant_token');
+            });
+        }
 
-        Schema::table('accounting_documents', function (Blueprint $table) {
-            $table->foreignId('brand_id')
-                ->nullable()
-                ->constrained('brands')
-                ->nullOnDelete()
-                ->after('notes');
-        });
+        if (Schema::hasTable('accounting_documents') && ! Schema::hasColumn('accounting_documents', 'brand_id')) {
+            Schema::table('accounting_documents', function (Blueprint $table) {
+                $table->foreignId('brand_id')
+                    ->nullable()
+                    ->constrained('brands')
+                    ->nullOnDelete()
+                    ->after('notes');
+            });
+        }
     }
 
     public function down(): void

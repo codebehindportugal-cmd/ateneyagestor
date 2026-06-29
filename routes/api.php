@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AgentController;
+use App\Http\Controllers\Api\PaperInvoiceExtractionController;
+use App\Http\Controllers\Api\ProductivityController;
 use App\Http\Controllers\Api\SyncController;
 use Illuminate\Support\Facades\Route;
 
@@ -37,4 +39,11 @@ Route::middleware('auth:sanctum')->prefix('agent')->group(function () {
 */
 Route::middleware('auth:sanctum')->prefix('sync')->group(function () {
     Route::post('/runs', [SyncController::class, 'storeRun']);
+});
+
+Route::middleware('auth:sanctum')->post('/invoices/paper/extract', PaperInvoiceExtractionController::class);
+
+Route::middleware('auth:sanctum')->prefix('productivity')->group(function () {
+    Route::get('/config', [ProductivityController::class, 'config']);
+    Route::post('/events', [ProductivityController::class, 'storeEvents']);
 });

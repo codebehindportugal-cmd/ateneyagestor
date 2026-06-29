@@ -31,6 +31,7 @@ class SyncRunResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->poll('10s')
             ->columns([
                 Tables\Columns\TextColumn::make('syncProject.name')->label('Projeto')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('status')->label('Estado')->badge()
@@ -45,7 +46,11 @@ class SyncRunResource extends Resource
                 Tables\Columns\TextColumn::make('finished_at')->label('Duração')
                     ->formatStateUsing(fn ($state, $record) => $record->durationSeconds() !== null
                         ? gmdate('H:i:s', $record->durationSeconds())
-                        : '-'),
+                        : ($record->elapsedSeconds() !== null ? gmdate('H:i:s', $record->elapsedSeconds()) : '-')),
+                Tables\Columns\TextColumn::make('updated_at')->label('Atualizado')
+                    ->since()
+                    ->sortable()
+                    ->toggleable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('sync_project_id')

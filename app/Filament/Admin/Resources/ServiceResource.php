@@ -190,6 +190,7 @@ class ServiceResource extends Resource
                     ->action(function (Service $record, array $data) {
                         $invoice = Invoice::create([
                             'client_id'    => $record->client_id,
+                            'brand_id'     => $record->client?->brand_id,
                             'number'       => 'PFAT-' . now()->format('Y') . '-' . Str::upper(Str::random(4)),
                             'amount_cents' => $data['amount_cents'],
                             'currency'     => 'EUR',

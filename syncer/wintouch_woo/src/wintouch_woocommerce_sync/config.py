@@ -1,0 +1,65 @@
+import os
+import yaml
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, Union, Optional   # ← acrescentar Union
+
+@dataclass
+class WintouchConfig:
+    base_url: str
+    api_key: str
+    login_email: str
+    login_password: str
+
+@dataclass
+class WooConfig:
+    base_url: str
+    consumer_key: str
+    consumer_secret: str
+    version: str = "wc/v3"
+    admin_username: Optional[str] = None
+    admin_app_password: Optional[str] = None
+    images_base_url: Optional[str] = None
+
+@dataclass
+class SyncConfig:
+    batch_size: int = 50
+    default_currency: str = "EUR"
+    download_images: bool = True
+    
+@dataclass
+class SmtpConfig:
+    user: str       # login no servidor
+    from_: str      # cabeçalho do e-mail
+    password: str
+    to: str
+    host: str
+    port: int
+
+@dataclass
+class Settings:
+    wintouch: WintouchConfig
+    woocommerce: WooConfig
+    sync: SyncConfig
+    smtp: Optional[SmtpConfig] = None
+
+def load_yaml(path: Union[str, Path]) -> Dict[str, Any]:
+    path = Path(path)
+    with open(path, "r", encoding="utf-8") as fp:
+        if path.suffix.lower() == ".json":
+            return json.load(fp)
+        return yaml.safe_load(fp)
+
+def get_settings(path: Union[str, Path] = "config.yaml") -> Settings:
+    data = load_yaml(path)
+    smtp_data = data.get("smtp", {})
+    if "from" in smtp_data:
+        smtp_data["from_"] = smtp_data.pop("from")
+    smtp = SmtpConfig(**smtp_data) if any(smtp_data.values()) else None
+    return Settings(
+        wintouch=WintouchConfig(**data["wintouch"]),
+        woocommerce=WooConfig(**data["woocommerce"]),
+        sync=SyncConfig(**data.get("sync", {})),
+        smtp=smtp,
+    )

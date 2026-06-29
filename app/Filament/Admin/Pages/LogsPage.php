@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Pages;
 
 use App\Models\BackupRun;
+use App\Models\SyncProject;
 use App\Models\SyncRun;
 use Filament\Actions\Action;
 use Filament\Pages\Page;
@@ -27,7 +28,7 @@ class LogsPage extends Page
     {
         return [
             Action::make('refresh')
-                ->label('Actualizar')
+                ->label('Atualizar')
                 ->icon('heroicon-o-arrow-path')
                 ->action(fn () => null),
             Action::make('run_schedule')
@@ -47,6 +48,9 @@ class LogsPage extends Page
             'scheduleList' => $this->getScheduleList(),
             'backupErrors' => $this->getRecentBackupErrors(),
             'syncErrors'   => $this->getRecentSyncErrors(),
+            'syncRuns'     => $this->getRecentSyncRuns(),
+            'syncProjects' => $this->getSyncProjects(),
+            'logFiles'     => $this->getLogFiles(),
         ];
     }
 
@@ -92,5 +96,56 @@ class LogsPage extends Page
             ->orderByDesc('started_at')
             ->limit(20)
             ->get();
+    }
+
+    private function getRecentSyncRuns(): \Illuminate\Database\Eloquent\Collection
+    {
+        return SyncRun::with('syncProject')
+            ->orderByDesc('started_at')
+            ->limit(30)
+            ->get();
+    }
+
+    private function getSyncProjects(): \Illuminate\Database\Eloquent\Collection
+    {
+        return SyncProject::with('latestSyncRun')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function getLogFiles(): array
+    {
+        $paths = array_merge(
+            glob(storage_path('logs/*.log')) ?: [],
+            glob(base_path('syncer/*/logs/*.log')) ?: [],
+            glob(dirname(base_path()).DIRECTORY_SEPARATOR.'phc_woo_sync'.DIRECTORY_SEPARATOR.'*.log') ?: [],
+            glob(dirname(base_path()).DIRECTORY_SEPARATOR.'phc_woo_sync'.DIRECTORY_SEPARATOR.'logs'.DIRECTORY_SEPARATOR.'*.log') ?: [],
+        );
+
+        return collect($paths)
+            ->filter(fn (string $path) => is_file($path))
+            ->unique()
+            ->map(fn (string $path) => [
+                'name' => basename($path),
+                'path' => $path,
+                'size' => filesize($path) ?: 0,
+                'updated_at' => filemtime($path) ? now()->createFromTimestamp(filemtime($path)) : null,
+                'tail' => $this->tailFile($path),
+            ])
+            ->sortByDesc(fn (array $file) => $file['updated_at']?->timestamp ?? 0)
+            ->values()
+            ->all();
+    }
+
+    private function tailFile(string $path): string
+    {
+        $contents = @file_get_contents($path);
+
+        if ($contents === false) {
+            return '(não foi possível ler o ficheiro)';
+        }
+
+        return substr($contents, -12000);
     }
 }

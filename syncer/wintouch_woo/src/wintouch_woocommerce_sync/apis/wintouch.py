@@ -1,10 +1,10 @@
-import logging, requests, os
-import time
+import logging, requests, os, time
 from typing import Dict, Any, List, Iterator, Optional
 from ..models import Product, ProductImage
 from .woocommerce import WooClient
 import uuid
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 import base64
 from dateutil.parser import parse as parse_date  # (mantido se usares noutros sítios)
 import json
@@ -43,38 +43,69 @@ class WintouchClient:
         r.raise_for_status()
         return r.json().get("token")
 
-    def _request_with_retry(self, method: str, url: str, **kwargs) -> requests.Response:
-        """Retry on HTTP 429 respecting the Retry-After header (+ 2 s safety margin)."""
-        max_attempts = 3
-        last_response = None
-        for attempt in range(max_attempts):
-            r = self.session.request(method, url, **kwargs)
-            last_response = r
-            if r.status_code == 429:
-                retry_after = int(r.headers.get("Retry-After", 10))
-                wait = retry_after + 2
-                log.warning(
-                    "⏳ WinTouch rate limit (429) — aguardar %ds (tentativa %d/%d).",
-                    wait, attempt + 1, max_attempts,
-                )
-                if attempt < max_attempts - 1:
-                    time.sleep(wait)
-                    continue
-            r.raise_for_status()
-            return r
-        last_response.raise_for_status()
-        return last_response
-
     # ---------- HTTP helpers ----------
-    def _get(self, path: str, **params):
+    def _retry_after_seconds(self, value: Optional[str]) -> float:
+        if not value:
+            return 2.0
+
+        try:
+            return max(0.0, float(value))
+        except ValueError:
+            pass
+
+        try:
+            retry_at = parsedate_to_datetime(value)
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=timezone.utc)
+            return max(0.0, (retry_at - datetime.now(timezone.utc)).total_seconds())
+        except Exception:
+            return 2.0
+
+    def _request(self, method: str, path: str, timeout: int, **kwargs):
         url = f"{self.base}/{path.lstrip('/')}"
-        r = self._request_with_retry("GET", url, params=params or None, timeout=120)
+        attempts = 8
+
+        for attempt in range(1, attempts + 1):
+            r = self.session.request(method, url, timeout=timeout, **kwargs)
+
+            if r.status_code == 429:
+                wait = self._retry_after_seconds(r.headers.get("Retry-After")) + 2
+                log.warning(
+                    "Wintouch API rate limit (429) em %s %s. A aguardar %.1fs antes de repetir (%d/%d).",
+                    method.upper(),
+                    path,
+                    wait,
+                    attempt,
+                    attempts,
+                )
+                time.sleep(wait)
+                continue
+
+            if r.status_code in (500, 502, 503, 504) and attempt < attempts:
+                wait = min(30.0, 0.5 * (2 ** (attempt - 1)))
+                log.warning(
+                    "Wintouch API respondeu %s em %s %s. Retry em %.1fs (%d/%d).",
+                    r.status_code,
+                    method.upper(),
+                    path,
+                    wait,
+                    attempt,
+                    attempts,
+                )
+                time.sleep(wait)
+                continue
+
+            r.raise_for_status()
+            return r.json()
+
+        r.raise_for_status()
         return r.json()
+
+    def _get(self, path: str, **params):
+        return self._request("get", path, timeout=120, params=params or None)
 
     def _post(self, path: str, json):
-        url = f"{self.base}/{path.lstrip('/')}"
-        r = self._request_with_retry("POST", url, json=json, timeout=40)
-        return r.json()
+        return self._request("post", path, timeout=40, json=json)
 
     def _post_with_jwt_if_needed(self, path: str, payload: dict):
         try:
@@ -100,7 +131,7 @@ class WintouchClient:
 
     # ---------- Woo helpers ----------
     def mark_order_as_synced(self, woo_client: WooClient, order_id: int):
-        woo_client.wcapi.put(f"orders/{order_id}", {
+        woo_client._put(f"orders/{order_id}", {
             "meta_data": [
                 {"key": "wintouch_synced", "value": "true"}
             ]
@@ -189,9 +220,9 @@ class WintouchClient:
 
                     if woo_client:
                         # Mantido para compatibilidade (não é usado diretamente aqui)
-                        _woo_product = woo_client.wcapi.get(
-                            "products", params={"sku": p["Code"]}
-                        ).json()
+                        _woo_product = woo_client._get(
+                            "products", {"sku": p["Code"]}
+                        )
 
                     # ---------- IMAGENS ----------
                     try:
@@ -366,7 +397,7 @@ class WintouchClient:
                     log.info(
                         "⏩ Encomenda %s já sincronizada no WooCommerce.", order["id"]
                     )
-                    return None
+                    return False
 
             now = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
             doc_id = str(uuid.uuid4())
@@ -592,7 +623,10 @@ class WintouchClient:
                 "✅ Pedido %s marcado como sincronizado no WooCommerce.", order["id"]
             )
 
+            return True
+
         except Exception as e:
             log.exception(
                 "❌ Erro ao enviar encomenda %s: %s", order.get("id", "?"), e
             )
+            raise

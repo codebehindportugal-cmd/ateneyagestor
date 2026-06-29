@@ -10,8 +10,23 @@ class CreateAgent extends CreateRecord
 {
     protected static string $resource = AgentResource::class;
 
+    protected function getRedirectUrl(): string
+    {
+        return static::getResource()::getUrl('edit', ['record' => $this->record]);
+    }
+
     protected function afterCreate(): void
     {
+        if ($this->record->agent_type === 'productivity') {
+            Notification::make()
+                ->title('Computador criado')
+                ->body('Confirma os dados e usa "Download instalador" para gerar o ZIP ja com URL e chave API preenchidas.')
+                ->success()
+                ->send();
+
+            return;
+        }
+
         $plainTextToken = $this->record->createToken('agent_sync')->plainTextToken;
 
         Notification::make()

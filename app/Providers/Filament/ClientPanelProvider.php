@@ -9,6 +9,7 @@ use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Enums\MaxWidth;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -25,8 +26,19 @@ class ClientPanelProvider extends PanelProvider
             ->path('client')
             ->login()
             ->authGuard('client')
+            ->brandName('Gestão Ateneya')
+            ->brandLogo(asset('images/ateneya-logo.jpg'))
+            ->brandLogoHeight('2.5rem')
+            ->favicon(asset('images/ateneya-logo.jpg'))
+            ->sidebarCollapsibleOnDesktop()
+            ->maxContentWidth(MaxWidth::Full)
             ->colors([
-                'primary' => Color::Emerald,
+                'primary' => Color::Slate,
+                'info' => Color::Sky,
+                'success' => Color::Emerald,
+                'warning' => Color::Amber,
+                'danger' => Color::Rose,
+                'gray' => Color::Zinc,
             ])
             ->discoverResources(in: app_path('Filament/Client/Resources'), for: 'App\\Filament\\Client\\Resources')
             ->pages([

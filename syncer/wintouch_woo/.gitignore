@@ -1,11 +1,29 @@
-venv/
-.venv/
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-*.pyo
-logs/
-log/
-config.yaml
-*.egg-info/
-dist/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+
+# VS Code settings
+.vscode/
+
+# Pytest cache
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+coverage.xml
+
+# Logs
+*.log
+
+# Local credentials/config
 .env
+config.yaml

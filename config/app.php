@@ -2,7 +2,7 @@
 
 return [
 
-    'name' => env('APP_NAME', 'Backup Manager'),
+    'name' => env('APP_NAME', 'Gestão Ateneya'),
 
     'env' => env('APP_ENV', 'production'),
 

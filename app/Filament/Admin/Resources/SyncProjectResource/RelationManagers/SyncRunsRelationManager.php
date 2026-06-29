@@ -22,6 +22,7 @@ class SyncRunsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('id')
+            ->poll('10s')
             ->columns([
                 Tables\Columns\TextColumn::make('status')->label('Estado')->badge()
                     ->color(fn (SyncStatus $state) => $state->color())

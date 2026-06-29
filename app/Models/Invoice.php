@@ -13,6 +13,7 @@ class Invoice extends Model
 
     protected $fillable = [
         'client_id',
+        'brand_id',
         'number',
         'amount_cents',
         'currency',
@@ -37,6 +38,11 @@ class Invoice extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function brand(): BelongsTo
+    {
+        return $this->belongsTo(Brand::class);
     }
 
     public function getAmountAttribute(): float

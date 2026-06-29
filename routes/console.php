@@ -56,6 +56,7 @@ Schedule::command('security:scan --all')
 // Wrapped in try/catch so a missing DB table during migrations doesn't break boot.
 try {
     SyncProject::where('is_active', true)
+        ->where('runner_mode', 'local')
         ->whereNotNull('runner_script_path')
         ->whereNotNull('runner_schedule')
         ->get()

@@ -1,0 +1,29 @@
+{
+  "api_url": "https://gestao.ateneya.com",
+  "token": "",
+  "device_uid": "",
+  "agent": {
+    "id": null,
+    "name": "",
+    "computer_name": "",
+    "assigned_user_name": "",
+    "assigned_user_email": "",
+    "department": "",
+    "asset_tag": ""
+  },
+  "send_interval_seconds": 60,
+  "sample_interval_seconds": 5,
+  "idle_threshold_seconds": 300,
+  "work_hours": {
+    "enabled": true,
+    "start": "09:00",
+    "end": "18:00",
+    "weekdays": [1, 2, 3, 4, 5]
+  },
+  "privacy": {
+    "collect_window_titles": false,
+    "collect_domains": true,
+    "collect_screenshots": false,
+    "collect_keystrokes": false
+  }
+}

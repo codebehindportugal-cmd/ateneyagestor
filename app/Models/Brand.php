@@ -41,6 +41,11 @@ class Brand extends Model
         return $this->hasMany(AccountingDocument::class);
     }
 
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
     /** "Ateneya › Horta da Maria" or just "Ateneya" */
     public function getFullNameAttribute(): string
     {

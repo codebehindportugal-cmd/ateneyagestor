@@ -4,6 +4,8 @@ namespace App\Filament\Admin\Resources;
 
 use App\Enums\InvoiceStatus;
 use App\Filament\Admin\Resources\InvoiceResource\Pages;
+use App\Models\Brand;
+use App\Models\Client;
 use App\Models\Invoice;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -35,7 +37,22 @@ class InvoiceResource extends Resource
                         ->relationship('client', 'name')
                         ->searchable()
                         ->preload()
+                        ->live()
+                        ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                            if (filled($get('brand_id'))) {
+                                return;
+                            }
+
+                            $set('brand_id', Client::find($state)?->brand_id);
+                        })
                         ->required(),
+                    Forms\Components\Select::make('brand_id')
+                        ->label('Marca / Empresa')
+                        ->options(fn () => Brand::selectOptions())
+                        ->searchable()
+                        ->preload()
+                        ->required()
+                        ->helperText('Indica a marca Ateneya a que esta fatura pertence.'),
                     Forms\Components\TextInput::make('number')
                         ->label('Número')
                         ->required()
@@ -88,6 +105,11 @@ class InvoiceResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('number')->label('Número')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('client.name')->label('Cliente')->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('brand.full_name')
+                    ->label('Marca')
+                    ->badge()
+                    ->color('primary')
+                    ->placeholder('-'),
                 Tables\Columns\TextColumn::make('hours')->label('Horas')->suffix('h')->placeholder('-')->sortable(),
                 Tables\Columns\TextColumn::make('amount')->label('Valor')->money('EUR')->sortable('amount_cents'),
                 Tables\Columns\TextColumn::make('status')->label('Estado')->badge()
@@ -101,6 +123,9 @@ class InvoiceResource extends Resource
                     array_map(fn ($c) => $c->value, InvoiceStatus::cases()),
                     array_map(fn ($c) => $c->label(), InvoiceStatus::cases()),
                 )),
+                Tables\Filters\SelectFilter::make('brand_id')
+                    ->label('Marca')
+                    ->options(fn () => Brand::selectOptions()),
             ])
             ->actions([
                 Tables\Actions\Action::make('markPaid')

@@ -1,0 +1,30 @@
+wintouch:
+  base_url: "https://api.wintouchcloud.com"
+  api_key: ""
+  login_email: ""
+  login_password: ""
+
+woocommerce:
+  base_url: "https://example.pt"
+  consumer_key: ""
+  consumer_secret: ""
+  version: "wc/v3"
+  admin_username: ""
+  admin_app_password: ""
+
+sync:
+  batch_size: 50
+  default_currency: "EUR"
+  download_images: true
+
+logging:
+  level: "INFO"
+  file: "logs/sync-%Y%m%d.log"
+
+smtp:
+  user: ""
+  from: ""
+  password: ""
+  to: ""
+  host: ""
+  port: 587

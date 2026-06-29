@@ -33,9 +33,10 @@ class AccountingDocumentResource extends Resource
                 ->columns(3)
                 ->schema([
                     Forms\Components\TextInput::make('title')
-                        ->label('Título / Descrição')
+                        ->label('Finalidade / descrição')
                         ->required()
                         ->maxLength(255)
+                        ->helperText('Texto curto para o contabilista perceber para que e a fatura.')
                         ->columnSpanFull(),
 
                     Forms\Components\Select::make('tipo')
@@ -77,8 +78,7 @@ class AccountingDocumentResource extends Resource
                         ->label('ATCUD')
                         ->maxLength(100)
                         ->placeholder('Ex: 0:12345')
-                        ->hint('Código ATCUD do QR code AT')
-                        ->fontFamily('mono'),
+                        ->hint('Código ATCUD do QR code AT'),
                 ]),
 
             Forms\Components\Section::make('Valor & Categoria')
@@ -88,6 +88,9 @@ class AccountingDocumentResource extends Resource
                         ->label('Marca / Empresa')
                         ->options(fn () => Brand::selectOptions())
                         ->searchable()
+                        ->preload()
+                        ->required()
+                        ->helperText('Obrigatorio para o contabilista saber a que marca da Ateneya pertence.')
                         ->placeholder('Geral (sem marca específica)')
                         ->columnSpanFull(),
 
@@ -133,10 +136,10 @@ class AccountingDocumentResource extends Resource
             Forms\Components\Section::make('Ficheiro')
                 ->schema([
                     Forms\Components\FileUpload::make('file_path')
-                        ->label('PDF ou imagem')
+                        ->label('PDF da fatura')
                         ->disk('public')
                         ->directory('accounting-documents')
-                        ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(20480)
                         ->downloadable()
                         ->openable()
@@ -144,12 +147,78 @@ class AccountingDocumentResource extends Resource
                         ->helperText('Máximo 20 MB — PDF, JPG, PNG ou WebP.'),
                 ]),
 
+            Forms\Components\Section::make('Imagens')
+                ->schema([
+                    Forms\Components\FileUpload::make('image_paths')
+                        ->label('Fotos/imagens da fatura')
+                        ->disk('public')
+                        ->directory('accounting-document-images')
+                        ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+                        ->multiple()
+                        ->reorderable()
+                        ->downloadable()
+                        ->openable()
+                        ->storeFileNamesIn('image_names')
+                        ->maxSize(20480)
+                        ->helperText('Podes guardar varias fotos/screenhots da fatura.'),
+                ])
+                ->collapsed(false),
+
+            Forms\Components\Section::make('Produtos')
+                ->schema([
+                    Forms\Components\Repeater::make('products')
+                        ->label('Lista de produtos')
+                        ->schema([
+                            Forms\Components\TextInput::make('description')
+                                ->label('Descrição')
+                                ->required()
+                                ->columnSpan(4),
+                            Forms\Components\TextInput::make('quantity')
+                                ->label('Qtd.')
+                                ->numeric()
+                                ->default(1)
+                                ->minValue(0)
+                                ->step(0.01),
+                            Forms\Components\TextInput::make('unitPrice')
+                                ->label('Preço un.')
+                                ->numeric()
+                                ->prefix('€')
+                                ->minValue(0)
+                                ->step(0.01),
+                            Forms\Components\TextInput::make('vatRate')
+                                ->label('IVA %')
+                                ->numeric()
+                                ->minValue(0)
+                                ->step(0.01),
+                            Forms\Components\TextInput::make('lineTotal')
+                                ->label('Total linha')
+                                ->numeric()
+                                ->prefix('€')
+                                ->minValue(0)
+                                ->step(0.01),
+                            Forms\Components\TextInput::make('confidence')
+                                ->label('Conf.')
+                                ->numeric()
+                                ->minValue(0)
+                                ->maxValue(1)
+                                ->step(0.01)
+                                ->helperText('0 a 1'),
+                        ])
+                        ->columns(9)
+                        ->defaultItems(0)
+                        ->addActionLabel('Adicionar produto')
+                        ->reorderable()
+                        ->collapsible()
+                        ->columnSpanFull(),
+                ])
+                ->collapsed(false),
+
             Forms\Components\Section::make('Notas')
                 ->schema([
                     Forms\Components\Textarea::make('notes')
-                        ->label('Notas internas')
+                        ->label('Notas para o contabilista')
                         ->rows(3)
-                        ->placeholder('Observações adicionais para o contabilista...'),
+                        ->placeholder('Ex: compra para obra X, software da loja, material para stock...'),
                 ])
                 ->collapsed(),
         ]);
@@ -176,7 +245,7 @@ class AccountingDocumentResource extends Resource
                     }),
 
                 Tables\Columns\TextColumn::make('title')
-                    ->label('Título')
+                    ->label('Finalidade')
                     ->searchable()
                     ->limit(35),
 
@@ -237,6 +306,20 @@ class AccountingDocumentResource extends Resource
                     ->falseIcon('heroicon-o-x-mark')
                     ->trueColor('success')
                     ->falseColor('gray'),
+
+                Tables\Columns\TextColumn::make('products_count')
+                    ->label('Produtos')
+                    ->state(fn (AccountingDocument $record) => count($record->products ?? []))
+                    ->badge()
+                    ->color(fn (int $state) => $state > 0 ? 'success' : 'gray')
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('images_count')
+                    ->label('Imagens')
+                    ->state(fn (AccountingDocument $record) => count($record->image_paths ?? []))
+                    ->badge()
+                    ->color(fn (int $state) => $state > 0 ? 'success' : 'gray')
+                    ->toggleable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('year')

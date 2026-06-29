@@ -423,17 +423,75 @@ function qrScanner() {
         },
 
         applyToForm() {
-            if (!this.result || !this.wire) return;
+            if (!this.result) return;
 
-            // Fields map to Livewire data.* (Filament form state uses 'data' prefix)
-            if (this.result.invoice_number) this.wire.set('data.invoice_number', this.result.invoice_number);
-            if (this.result.date)           this.wire.set('data.date', this.result.date);
-            if (this.result.amount)         this.wire.set('data.amount_cents', this.result.amount);
-            if (this.result.iva)            this.wire.set('data.iva_cents', this.result.iva);
-            if (this.result.nif)            this.wire.set('data.supplier_nif', this.result.nif);
-            if (this.result.atcud)          this.wire.set('data.atcud', this.result.atcud);
+            const values = {
+                invoice_number: this.result.invoice_number,
+                date: this.result.date,
+                amount_cents: this.result.amount,
+                iva_cents: this.result.iva,
+                supplier_nif: this.result.nif,
+                atcud: this.result.atcud,
+                tipo: this.mapDocType(this.result.doc_type),
+            };
+
+            Object.entries(values).forEach(([field, value]) => {
+                if (value === null || value === undefined || value === '') return;
+                this.setField(field, value);
+            });
 
             this.closeScanner();
+        },
+
+        mapDocType(docType) {
+            if (docType === 'NC') return 'nota_credito';
+            if (docType === 'RC') return 'recibo';
+            return docType ? 'fatura' : null;
+        },
+
+        getWire() {
+            if (this.wire) return this.wire;
+            if (this.$wire) return this.$wire;
+
+            const root = this.$root?.closest?.('[wire\\:id]');
+            if (root && window.Livewire) {
+                return window.Livewire.find(root.getAttribute('wire:id'));
+            }
+
+            return null;
+        },
+
+        setField(field, value) {
+            const statePath = 'data.' + field;
+            const wire = this.getWire();
+
+            if (wire) {
+                if (typeof wire.set === 'function') {
+                    wire.set(statePath, value);
+                } else if (typeof wire.$set === 'function') {
+                    wire.$set(statePath, value);
+                }
+            }
+
+            this.setDomField(field, value);
+        },
+
+        setDomField(field, value) {
+            const selectors = [
+                `[name="data[${field}]"]`,
+                `[name="${field}"]`,
+                `[wire\\:model="data.${field}"]`,
+                `[wire\\:model\\.live="data.${field}"]`,
+                `[wire\\:model\\.blur="data.${field}"]`,
+                `[wire\\:model\\.defer="data.${field}"]`,
+            ];
+
+            const el = document.querySelector(selectors.join(','));
+            if (!el) return;
+
+            el.value = value;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
         },
     };
 }

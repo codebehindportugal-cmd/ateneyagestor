@@ -35,6 +35,7 @@ class SyncProjectSeeder extends Seeder
                 'site_url' => 'https://www.faustinoclemente.pt',
                 'client_id' => $faustinoClient->id,
                 'host' => 'vmi2463138.contaboserver.net (servidor do cliente)',
+                'runner_mode' => 'external',
                 'is_active' => true,
                 'notes' => 'Script phc_woo_sync. Corre no servidor do cliente. BD PHC: FClemente_16.',
             ]
@@ -48,10 +49,21 @@ class SyncProjectSeeder extends Seeder
                 'site_url' => 'https://marcoeraquel.pt',
                 'client_id' => $marcoRaquelClient->id,
                 'host' => 'servidor empresa (local / VPS Codebehind)',
+                'runner_mode' => 'local',
+                'runner_script_path' => 'syncer/wintouch_woo/main.py',
                 'is_active' => true,
                 'notes' => 'Script wintouch_woo_sync. Sincroniza produtos, encomendas e descontos.',
             ]
         );
+
+        $wintouch->update([
+            'runner_mode' => 'local',
+            'runner_script_path' => $wintouch->runner_script_path ?: 'syncer/wintouch_woo/main.py',
+        ]);
+
+        $phc->update([
+            'runner_mode' => 'external',
+        ]);
 
         $this->command?->info("SyncProject '{$phc->name}' pronto.");
         $this->command?->info("SyncProject '{$wintouch->name}' pronto.");

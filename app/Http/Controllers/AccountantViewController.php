@@ -7,6 +7,7 @@ use App\Models\Brand;
 use App\Models\Client;
 use App\Models\ClientDocument;
 use App\Models\Setting;
+use App\Models\SupplierInvoice;
 use App\Services\ClientDocumentService;
 use Illuminate\Support\Facades\Storage;
 
@@ -45,7 +46,23 @@ class AccountantViewController extends Controller
             'amount' => $documents->sum('amount_cents') / 100,
         ];
 
-        return view('accountant.index', compact('token', 'brandGroups', 'grandTotal'));
+        $supplierInvoices = SupplierInvoice::with('brand.parent', 'items')
+            ->where('status', 'confirmed')
+            ->orderByDesc('invoice_date')
+            ->get();
+
+        $supplierGrandTotal = [
+            'count' => $supplierInvoices->count(),
+            'amount' => $supplierInvoices->sum(fn (SupplierInvoice $invoice) => (float) $invoice->total),
+        ];
+
+        return view('accountant.index', compact(
+            'token',
+            'brandGroups',
+            'grandTotal',
+            'supplierInvoices',
+            'supplierGrandTotal'
+        ));
     }
 
     public function download(string $token, int $id)
@@ -62,6 +79,36 @@ class AccountantViewController extends Controller
             $doc->file_path,
             $doc->file_name ?? basename($doc->file_path)
         );
+    }
+
+    public function details(string $token, int $id)
+    {
+        $this->validateGlobalToken($token);
+
+        $doc = AccountingDocument::with('brand.parent')->findOrFail($id);
+
+        return view('accountant.details', compact('token', 'doc'));
+    }
+
+    public function supplierInvoiceDownload(string $token, SupplierInvoice $supplierInvoice, ?int $image = null)
+    {
+        $this->validateGlobalToken($token);
+        abort_unless($supplierInvoice->status === 'confirmed', 404);
+
+        $disk = Storage::disk(config('purchase_invoices.storage_disk', 'local'));
+        $path = $image === null
+            ? $supplierInvoice->original_file_path
+            : ($supplierInvoice->image_paths[$image] ?? null);
+
+        if (! $path || ! $disk->exists($path)) {
+            abort(404, 'Ficheiro nao encontrado.');
+        }
+
+        $name = $image === null
+            ? ($supplierInvoice->original_file_name ?: basename($path))
+            : (($supplierInvoice->image_names[$image] ?? null) ?: basename($path));
+
+        return $disk->download($path, $name);
     }
 
     // ── Per-client accountant view (ClientDocuments) ─────────────────────────

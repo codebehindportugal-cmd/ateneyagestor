@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
@@ -18,16 +18,80 @@
         <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
                 <h1 class="text-xl font-bold text-gray-900">Documentos para Contabilidade</h1>
-                <p class="text-xs text-gray-400 mt-0.5">Acesso só de leitura · gerado a {{ now()->format('d/m/Y \à\s H:i') }}</p>
+                <p class="text-xs text-gray-400 mt-0.5">Acesso sÃ³ de leitura Â· gerado a {{ now()->format('d/m/Y \Ã \s H:i') }}</p>
             </div>
             <div class="text-right">
-                <p class="text-sm font-semibold text-gray-700">{{ number_format($grandTotal['amount'], 2, ',', '.') }} €</p>
+                <p class="text-sm font-semibold text-gray-700">{{ number_format($grandTotal['amount'], 2, ',', '.') }} â‚¬</p>
                 <p class="text-xs text-gray-400">{{ $grandTotal['count'] }} documento(s) no total</p>
             </div>
         </div>
     </div>
 
     <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-10">
+
+        @if(($supplierInvoices ?? collect())->isNotEmpty())
+            <section>
+                <div class="flex flex-wrap items-center gap-3 mb-4">
+                    <span class="inline-block w-3 h-3 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                    <h2 class="text-lg font-bold text-gray-800">Faturas de fornecedores confirmadas</h2>
+                    <span class="ml-auto text-sm text-gray-500 bg-white border border-gray-200 rounded-full px-3 py-1 whitespace-nowrap">
+                        {{ $supplierGrandTotal['count'] }} fatura(s) Ã‚Â·
+                        <span class="font-semibold text-gray-700">{{ number_format($supplierGrandTotal['amount'], 2, ',', '.') }} Ã¢â€šÂ¬</span>
+                    </span>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-xs text-gray-400 uppercase tracking-wide bg-gray-50">
+                                    <th class="px-4 py-2 text-left font-medium">Marca</th>
+                                    <th class="px-4 py-2 text-left font-medium">Fornecedor</th>
+                                    <th class="px-4 py-2 text-left font-medium">NÃ‚Âº Documento</th>
+                                    <th class="px-4 py-2 text-left font-medium">Finalidade</th>
+                                    <th class="px-4 py-2 text-left font-medium">Categoria</th>
+                                    <th class="px-4 py-2 text-left font-medium">Data</th>
+                                    <th class="px-4 py-2 text-right font-medium">IVA</th>
+                                    <th class="px-4 py-2 text-right font-medium">Total</th>
+                                    <th class="px-4 py-2 text-center font-medium no-print">Ficheiros</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @foreach($supplierInvoices as $invoice)
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="px-4 py-3 text-gray-700">{{ $invoice->brand?->full_name ?? 'Ã¢â‚¬â€' }}</td>
+                                        <td class="px-4 py-3 text-gray-700">
+                                            {{ $invoice->supplier_name ?? 'Ã¢â‚¬â€' }}
+                                            @if($invoice->supplier_tax_number)
+                                                <p class="text-xs text-gray-400 font-mono">NIF {{ $invoice->supplier_tax_number }}</p>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-500 font-mono text-xs whitespace-nowrap">{{ $invoice->invoice_number ?? 'Ã¢â‚¬â€' }}</td>
+                                        <td class="px-4 py-3 text-gray-700 min-w-48">
+                                            <div class="font-medium">{{ $invoice->purpose }}</div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                                {{ $invoice->category_label }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{{ $invoice->invoice_date?->format('d/m/Y') ?? 'Ã¢â‚¬â€' }}</td>
+                                        <td class="px-4 py-3 text-right font-mono text-gray-500 whitespace-nowrap">{{ number_format((float) $invoice->tax_total, 2, ',', '.') }} Ã¢â€šÂ¬</td>
+                                        <td class="px-4 py-3 text-right font-mono font-semibold text-gray-800 whitespace-nowrap">{{ number_format((float) $invoice->total, 2, ',', '.') }} Ã¢â€šÂ¬</td>
+                                        <td class="px-4 py-3 text-center no-print">
+                                            <a href="{{ route('contabilista.supplier-invoices.download', ['token' => $token, 'supplierInvoice' => $invoice]) }}" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Download</a>
+                                            @foreach(($invoice->image_paths ?? []) as $index => $path)
+                                                <a href="{{ route('contabilista.supplier-invoices.download', ['token' => $token, 'supplierInvoice' => $invoice, 'image' => $index]) }}" class="ml-2 text-xs text-gray-500 hover:text-gray-700">Foto {{ $index + 1 }}</a>
+                                            @endforeach
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        @endif
 
         @forelse($brandGroups as $brandId => $brandData)
             @php
@@ -46,8 +110,8 @@
                         <span class="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{{ $brandParent }}</span>
                     @endif
                     <span class="ml-auto text-sm text-gray-500 bg-white border border-gray-200 rounded-full px-3 py-1 whitespace-nowrap">
-                        {{ $brandData['total']['count'] }} doc(s) ·
-                        <span class="font-semibold text-gray-700">{{ number_format($brandData['total']['amount'], 2, ',', '.') }} €</span>
+                        {{ $brandData['total']['count'] }} doc(s) Â·
+                        <span class="font-semibold text-gray-700">{{ number_format($brandData['total']['amount'], 2, ',', '.') }} â‚¬</span>
                     </span>
                 </div>
 
@@ -58,8 +122,8 @@
                             <div class="flex items-center justify-between mb-2 px-1">
                                 <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">{{ $year }}</h3>
                                 <span class="text-xs text-gray-400">
-                                    {{ $brandData['yearTotals'][$year]['count'] }} doc(s) ·
-                                    <span class="font-semibold text-gray-600">{{ number_format($brandData['yearTotals'][$year]['amount'], 2, ',', '.') }} €</span>
+                                    {{ $brandData['yearTotals'][$year]['count'] }} doc(s) Â·
+                                    <span class="font-semibold text-gray-600">{{ number_format($brandData['yearTotals'][$year]['amount'], 2, ',', '.') }} â‚¬</span>
                                 </span>
                             </div>
 
@@ -77,8 +141,8 @@
                                                 {{ \App\Models\AccountingDocument::monthName($month) }}
                                             </h4>
                                             <span class="text-sm text-gray-500">
-                                                {{ $monthCount }} doc(s) ·
-                                                <span class="font-semibold text-gray-700">{{ number_format($monthTotal, 2, ',', '.') }} €</span>
+                                                {{ $monthCount }} doc(s) Â·
+                                                <span class="font-semibold text-gray-700">{{ number_format($monthTotal, 2, ',', '.') }} â‚¬</span>
                                             </span>
                                         </div>
 
@@ -88,8 +152,9 @@
                                                 <thead>
                                                     <tr class="text-xs text-gray-400 uppercase tracking-wide">
                                                         <th class="px-4 py-2 text-left font-medium">Tipo</th>
-                                                        <th class="px-4 py-2 text-left font-medium">Nº Documento</th>
+                                                        <th class="px-4 py-2 text-left font-medium">NÂº Documento</th>
                                                         <th class="px-4 py-2 text-left font-medium">Fornecedor</th>
+                                                        <th class="px-4 py-2 text-left font-medium">Finalidade</th>
                                                         <th class="px-4 py-2 text-left font-medium">Data</th>
                                                         <th class="px-4 py-2 text-right font-medium">Total s/ IVA</th>
                                                         <th class="px-4 py-2 text-right font-medium">IVA</th>
@@ -113,7 +178,7 @@
                                                                 </span>
                                                             </td>
                                                             <td class="px-4 py-3 text-gray-500 font-mono text-xs whitespace-nowrap">
-                                                                {{ $doc->invoice_number ?? '—' }}
+                                                                {{ $doc->invoice_number ?? 'â€”' }}
                                                                 @if($doc->atcud)
                                                                     <p class="text-gray-300 mt-0.5">{{ $doc->atcud }}</p>
                                                                 @endif
@@ -123,21 +188,26 @@
                                                                 @if($doc->supplier_nif)
                                                                     <p class="text-xs text-gray-400 font-mono">NIF {{ $doc->supplier_nif }}</p>
                                                                 @endif
-                                                                @if($doc->notes)
-                                                                    <p class="text-xs text-gray-400 mt-0.5">{{ $doc->notes }}</p>
-                                                                @endif
+                                                            </td>
+                                                            <td class="px-4 py-3 text-gray-700 text-sm min-w-48">
+                                                                <div class="font-medium">{{ $doc->title }}</div>
+                                                                <div class="mt-1 flex flex-wrap gap-1">
+                                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                                                        {{ $doc->category_label }}
+                                                                    </span>
+                                                                </div>
                                                             </td>
                                                             <td class="px-4 py-3 text-gray-600 whitespace-nowrap text-sm">
                                                                 {{ $doc->date->format('d/m/Y') }}
                                                             </td>
                                                             <td class="px-4 py-3 text-right font-mono text-gray-700 whitespace-nowrap text-sm">
-                                                                {{ number_format($totalSemIva, 2, ',', '.') }} €
+                                                                {{ number_format($totalSemIva, 2, ',', '.') }} â‚¬
                                                             </td>
                                                             <td class="px-4 py-3 text-right font-mono text-gray-500 whitespace-nowrap text-sm">
-                                                                {{ number_format($iva, 2, ',', '.') }} €
+                                                                {{ number_format($iva, 2, ',', '.') }} â‚¬
                                                             </td>
                                                             <td class="px-4 py-3 text-right font-mono font-semibold text-gray-800 whitespace-nowrap">
-                                                                {{ number_format($totalComIva, 2, ',', '.') }} €
+                                                                {{ number_format($totalComIva, 2, ',', '.') }} â‚¬
                                                             </td>
                                                             <td class="px-4 py-3 text-center">
                                                                 @php
@@ -151,17 +221,33 @@
                                                                 </span>
                                                             </td>
                                                             <td class="px-4 py-3 text-center no-print">
+                                                                <a href="{{ route('contabilista.details', ['token' => $token, 'id' => $doc->id]) }}"
+                                                                   class="inline-flex items-center gap-1 text-gray-700 hover:text-gray-900 text-xs font-medium">
+                                                                    Detalhes
+                                                                </a>
                                                                 @if($doc->file_path)
                                                                     <a href="{{ route('contabilista.download', ['token' => $token, 'id' => $doc->id]) }}"
-                                                                       class="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-xs font-medium"
+                                                                       class="ml-2 inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-xs font-medium"
                                                                        target="_blank">
                                                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                                                                         </svg>
                                                                         Download
                                                                     </a>
-                                                                @else
-                                                                    <span class="text-gray-300 text-xs">—</span>
+                                                                @endif
+                                                                @if(! empty($doc->image_paths))
+                                                                    <div class="mt-1 flex flex-col items-center gap-1">
+                                                                        @foreach(array_values($doc->image_paths) as $index => $imagePath)
+                                                                            <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($imagePath) }}"
+                                                                               class="text-xs text-gray-500 hover:text-gray-700"
+                                                                               target="_blank">
+                                                                                Imagem {{ $index + 1 }}
+                                                                            </a>
+                                                                        @endforeach
+                                                                    </div>
+                                                                @endif
+                                                                @if(! $doc->file_path && empty($doc->image_paths))
+                                                                    <span class="text-gray-300 text-xs">â€”</span>
                                                                 @endif
                                                             </td>
                                                         </tr>
@@ -170,11 +256,11 @@
                                                 {{-- Month subtotal --}}
                                                 <tfoot>
                                                     <tr class="bg-gray-50 border-t-2 border-gray-200">
-                                                        <td colspan="6" class="px-4 py-2 text-xs text-gray-500 font-medium">
+                                                        <td colspan="7" class="px-4 py-2 text-xs text-gray-500 font-medium">
                                                             Total {{ \App\Models\AccountingDocument::monthName($month) }}
                                                         </td>
                                                         <td class="px-4 py-2 text-right font-bold text-gray-800 font-mono">
-                                                            {{ number_format($monthTotal, 2, ',', '.') }} €
+                                                            {{ number_format($monthTotal, 2, ',', '.') }} â‚¬
                                                         </td>
                                                         <td colspan="2" class="no-print"></td>
                                                     </tr>
@@ -194,13 +280,13 @@
                 <svg class="w-10 h-10 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
-                <p class="text-gray-400">Ainda não há documentos disponíveis.</p>
+                <p class="text-gray-400">Ainda nÃ£o hÃ¡ documentos disponÃ­veis.</p>
             </div>
         @endforelse
 
         {{-- Footer --}}
         <p class="text-center text-xs text-gray-300 pb-4">
-            Este acesso é pessoal e intransmissível · {{ config('app.name') }}
+            Este acesso Ã© pessoal e intransmissÃ­vel Â· {{ config('app.name') }}
         </p>
     </div>
 

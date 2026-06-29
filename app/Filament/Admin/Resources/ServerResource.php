@@ -32,6 +32,10 @@ class ServerResource extends Resource
 
     protected static ?string $pluralModelLabel = 'servidores';
 
+    protected static ?string $navigationGroup = 'Operação';
+
+    protected static ?int $navigationSort = 1;
+
     public static function form(Form $form): Form
     {
         return $form->schema([
@@ -89,7 +93,7 @@ class ServerResource extends Resource
                         ->label('Caminho do WordPress (wp_root)')
                         ->required(fn (Get $get) => $get('type') === ServerType::WordPress->value)
                         ->placeholder('/var/www/exemplo.com/public_html')
-                        ->helperText('Diretoria que contém o wp-config.php. As credenciais da BD são lidas do wp-config.php em tempo real.')
+                        ->helperText('Diretoria que contÃ©m o wp-config.php. As credenciais da BD sÃ£o lidas do wp-config.php em tempo real.')
                         ->columnSpanFull(),
                 ]),
 
@@ -138,12 +142,12 @@ class ServerResource extends Resource
                 ]),
 
             Forms\Components\Section::make('Acesso direto SSH (deste painel)')
-                ->description('Para conseguires correr comandos nos servidores diretamente deste painel. A chave fica no teu PC, não na base de dados.')
+                ->description('Para conseguires correr comandos nos servidores diretamente deste painel. A chave fica no teu PC, nÃ£o na base de dados.')
                 ->columns(2)
                 ->schema([
                     Forms\Components\TextInput::make('ssh_key_path')
                         ->label('Caminho da chave SSH privada')
-                        ->placeholder('C:/Users/André Mendes/.ssh/id_rsa')
+                        ->placeholder('C:/Users/AndrÃ© Mendes/.ssh/id_rsa')
                         ->helperText('Caminho no teu PC (Laragon) para a chave privada que tem acesso ao VPS.'),
                     Forms\Components\TextInput::make('plesk_api_key')
                         ->label('Plesk API Key')
@@ -189,9 +193,9 @@ class ServerResource extends Resource
                 Tables\Columns\TextColumn::make('type')->label('Tipo')->badge(),
                 Tables\Columns\TextColumn::make('host')->label('Host'),
                 Tables\Columns\TextColumn::make('ping_response_ms')
-                    ->label('Latência')
-                    ->placeholder('—')
-                    ->formatStateUsing(fn (?int $state) => $state ? "{$state} ms" : '—')
+                    ->label('LatÃªncia')
+                    ->placeholder('â€”')
+                    ->formatStateUsing(fn (?int $state) => $state ? "{$state} ms" : 'â€”')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('agent.name')->label('Agente')->toggleable(),
                 Tables\Columns\TextColumn::make('latestBackupRun.status')
@@ -221,7 +225,7 @@ class ServerResource extends Resource
                             $record->refresh();
                             $label = match ($record->ping_status) {
                                 'up'    => 'Online (' . $record->ping_response_ms . ' ms)',
-                                'down'  => 'Offline — ' . $record->ping_error,
+                                'down'  => 'Offline â€” ' . $record->ping_error,
                                 default => 'Desconhecido',
                             };
                             Notification::make()
@@ -235,7 +239,7 @@ class ServerResource extends Resource
                         ->color('gray')
                         ->form([
                             Forms\Components\Select::make('preset')
-                                ->label('Comando rápido')
+                                ->label('Comando rÃ¡pido')
                                 ->options(collect(SshService::PRESET_COMMANDS)->mapWithKeys(
                                     fn ($v, $k) => [$k => $v['label']]
                                 )->toArray())
@@ -244,7 +248,7 @@ class ServerResource extends Resource
                             Forms\Components\Textarea::make('custom_command')
                                 ->label('Ou escreve um comando')
                                 ->placeholder('apt list --upgradable 2>/dev/null')
-                                ->helperText('Se preenchido, ignora o comando rápido acima.'),
+                                ->helperText('Se preenchido, ignora o comando rÃ¡pido acima.'),
                         ])
                         ->action(function (Server $record, array $data, SshService $ssh) {
                             try {
@@ -284,8 +288,8 @@ class ServerResource extends Resource
 
                             if ($run->status === BackupStatus::Success) {
                                 Notification::make()
-                                    ->title('Backup concluído')
-                                    ->body("✓ {$record->name} — " . ($run->nas_path ?? 'sem NAS configurado'))
+                                    ->title('Backup concluÃ­do')
+                                    ->body("âœ“ {$record->name} â€” " . ($run->nas_path ?? 'sem NAS configurado'))
                                     ->success()
                                     ->persistent()
                                     ->send();
@@ -299,25 +303,25 @@ class ServerResource extends Resource
                             }
                         }),
                     Tables\Actions\Action::make('scan_security')
-                        ->label('Scan de segurança')
+                        ->label('Scan de seguranÃ§a')
                         ->icon('heroicon-o-shield-exclamation')
                         ->color('warning')
                         ->requiresConfirmation()
-                        ->modalHeading('Lançar scan de segurança')
-                        ->modalDescription(fn (Server $record) => "Vai correr uma análise de segurança em \"{$record->name}\" via SSH. Pode demorar 1-2 minutos.")
+                        ->modalHeading('LanÃ§ar scan de seguranÃ§a')
+                        ->modalDescription(fn (Server $record) => "Vai correr uma anÃ¡lise de seguranÃ§a em \"{$record->name}\" via SSH. Pode demorar 1-2 minutos.")
                         ->visible(fn (Server $record) => $record->is_active && filled($record->ssh_key_path ?? config('backup.ssh_key')))
                         ->action(function (Server $record, SecurityScanService $scanner) {
                             $scan = $scanner->scan($record, 'filament');
 
                             $body = match ($scan->status) {
-                                SecurityStatus::Clean    => "✓ Nenhum problema encontrado.",
-                                SecurityStatus::Warning  => "⚠ {$scan->findings_count} achado(s) — ver relatório para detalhes.",
-                                SecurityStatus::Critical => "✗ {$scan->findings_count} achado(s) CRÍTICO(S) — ver relatório imediatamente.",
+                                SecurityStatus::Clean    => "âœ“ Nenhum problema encontrado.",
+                                SecurityStatus::Warning  => "âš  {$scan->findings_count} achado(s) â€” ver relatÃ³rio para detalhes.",
+                                SecurityStatus::Critical => "âœ— {$scan->findings_count} achado(s) CRÃTICO(S) â€” ver relatÃ³rio imediatamente.",
                                 default                  => $scan->error ?? 'Erro desconhecido.',
                             };
 
                             Notification::make()
-                                ->title("Segurança: {$record->name}")
+                                ->title("SeguranÃ§a: {$record->name}")
                                 ->body($body)
                                 ->color($scan->status->color())
                                 ->persistent()
@@ -334,7 +338,7 @@ class ServerResource extends Resource
                         ->color('info')
                         ->requiresConfirmation()
                         ->modalHeading('Fazer backup dos servidores seleccionados')
-                        ->modalDescription('Vai criar backups em sequência para todos os servidores seleccionados.')
+                        ->modalDescription('Vai criar backups em sequÃªncia para todos os servidores seleccionados.')
                         ->action(function (Collection $records, BackupService $backup) {
                             $ok     = 0;
                             $failed = 0;
@@ -345,8 +349,8 @@ class ServerResource extends Resource
                             }
 
                             Notification::make()
-                                ->title('Backups concluídos')
-                                ->body("✓ {$ok} sucesso   ✗ {$failed} falhou")
+                                ->title('Backups concluÃ­dos')
+                                ->body("âœ“ {$ok} sucesso   âœ— {$failed} falhou")
                                 ->color($failed > 0 ? 'warning' : 'success')
                                 ->persistent()
                                 ->send();

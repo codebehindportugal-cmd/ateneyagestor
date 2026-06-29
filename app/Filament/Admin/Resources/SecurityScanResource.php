@@ -17,13 +17,13 @@ class SecurityScanResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-shield-exclamation';
 
-    protected static ?string $navigationLabel = 'Scans de Segurança';
+    protected static ?string $navigationLabel = 'Scans de SeguranÃ§a';
 
-    protected static ?string $navigationGroup = 'Segurança';
+    protected static ?string $navigationGroup = 'Operação';
 
-    protected static ?string $modelLabel = 'scan de segurança';
+    protected static ?string $modelLabel = 'scan de seguranÃ§a';
 
-    protected static ?string $pluralModelLabel = 'scans de segurança';
+    protected static ?string $pluralModelLabel = 'scans de seguranÃ§a';
 
     protected static ?int $navigationSort = 1;
 
@@ -55,18 +55,9 @@ class SecurityScanResource extends Resource
                     Infolists\Components\RepeatableEntry::make('findings')
                         ->label('')
                         ->schema([
-                            Infolists\Components\TextEntry::make('check')
+                            Infolists\Components\TextEntry::make('label')
                                 ->label('Verificação')
-                                ->formatStateUsing(fn ($state) => match ($state) {
-                                    'webshells'            => 'Webshells',
-                                    'recently_modified'    => 'Ficheiros recentes',
-                                    'suspicious_processes' => 'Processos suspeitos',
-                                    'smtp_connections'     => 'Ligações SMTP',
-                                    'cron_jobs'            => 'Cron jobs',
-                                    'recent_logins'        => 'Logins recentes',
-                                    'rkhunter'             => 'RKHunter',
-                                    default                => $state,
-                                }),
+                                ->placeholder(fn ($record) => $record['check'] ?? '-'),
                             Infolists\Components\TextEntry::make('severity')
                                 ->label('Severidade')
                                 ->badge()
@@ -76,9 +67,17 @@ class SecurityScanResource extends Resource
                                     'info'     => 'gray',
                                     default    => 'gray',
                                 }),
-                            Infolists\Components\TextEntry::make('summary')->label('Resumo')->columnSpan(2),
-                            Infolists\Components\TextEntry::make('detail')
-                                ->label('Detalhe')
+                            Infolists\Components\TextEntry::make('count')->label('Quantidade')->badge(),
+                            Infolists\Components\IconEntry::make('has_findings')->label('Com achados')->boolean(),
+                            Infolists\Components\TextEntry::make('items')
+                                ->label('Itens encontrados')
+                                ->formatStateUsing(fn ($state) => is_array($state) ? implode(PHP_EOL, $state) : ($state ?: ''))
+                                ->columnSpanFull()
+                                ->fontFamily('mono')
+                                ->extraAttributes(['style' => 'white-space:pre-wrap;font-size:0.75rem'])
+                                ->visible(fn ($state) => filled($state)),
+                            Infolists\Components\TextEntry::make('raw')
+                                ->label('Saída original')
                                 ->columnSpanFull()
                                 ->fontFamily('mono')
                                 ->extraAttributes(['style' => 'white-space:pre-wrap;font-size:0.75rem'])
@@ -88,7 +87,7 @@ class SecurityScanResource extends Resource
                         ->visible(fn (SecurityScan $record) => ! empty($record->findings)),
                 ]),
 
-            Infolists\Components\Section::make('Log de execução')
+            Infolists\Components\Section::make('Log de execuÃ§Ã£o')
                 ->collapsed()
                 ->schema([
                     Infolists\Components\TextEntry::make('log')
@@ -138,12 +137,12 @@ class SecurityScanResource extends Resource
                     ->dateTime('d/m/Y H:i')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('finished_at')
-                    ->label('Duração')
+                    ->label('DuraÃ§Ã£o')
                     ->formatStateUsing(function (SecurityScan $record) {
                         $secs = $record->durationSeconds();
-                        return $secs !== null ? "{$secs}s" : '—';
+                        return $secs !== null ? "{$secs}s" : 'â€”';
                     })
-                    ->placeholder('—'),
+                    ->placeholder('â€”'),
                 Tables\Columns\TextColumn::make('triggered_by')
                     ->label('Origem')
                     ->badge()
@@ -171,7 +170,7 @@ class SecurityScanResource extends Resource
                     ->preload(),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make()->label('Ver relatório'),
+                Tables\Actions\ViewAction::make()->label('Ver relatÃ³rio'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

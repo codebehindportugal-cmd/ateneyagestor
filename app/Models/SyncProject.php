@@ -43,6 +43,14 @@ class SyncProject extends Model
         'sync_batch_size',
         'sync_default_currency',
         'sync_download_images',
+        'sync_orders',
+        'sync_products',
+        'sync_prices',
+        'sync_images',
+        'sync_descriptions',
+        'sync_short_descriptions',
+        'sync_stock',
+        'sync_metadata',
         'smtp_host',
         'smtp_port',
         'smtp_user',
@@ -72,6 +80,14 @@ class SyncProject extends Model
             'smtp_password' => 'encrypted',
             'sync_batch_size' => 'integer',
             'sync_download_images' => 'boolean',
+            'sync_orders' => 'boolean',
+            'sync_products' => 'boolean',
+            'sync_prices' => 'boolean',
+            'sync_images' => 'boolean',
+            'sync_descriptions' => 'boolean',
+            'sync_short_descriptions' => 'boolean',
+            'sync_stock' => 'boolean',
+            'sync_metadata' => 'boolean',
         ];
     }
 
@@ -100,9 +116,9 @@ class SyncProject extends Model
     public static function typeOptions(): array
     {
         return [
-            'phc_woo' => 'PHC → WooCommerce',
-            'wintouch_woo' => 'Wintouch → WooCommerce',
-            'primavera_woo' => 'Primavera → WooCommerce',
+            'phc_woo' => 'PHC Ã¢â€ â€™ WooCommerce',
+            'wintouch_woo' => 'Wintouch Ã¢â€ â€™ WooCommerce',
+            'primavera_woo' => 'Primavera Ã¢â€ â€™ WooCommerce',
             'csharp' => 'C# (cliente)',
             'other' => 'Outro',
         ];
@@ -112,7 +128,7 @@ class SyncProject extends Model
     {
         return [
             'local' => 'Corre neste projeto/servidor',
-            'external' => 'Corre no cliente e só envia report',
+            'external' => 'Corre no cliente e sÃƒÂ³ envia report',
         ];
     }
 
@@ -171,7 +187,17 @@ class SyncProject extends Model
             'sync' => [
                 'batch_size' => $this->sync_batch_size ?: 50,
                 'default_currency' => $this->sync_default_currency ?: 'EUR',
-                'download_images' => (bool) $this->sync_download_images,
+                'download_images' => (bool) ($this->sync_images ?? $this->sync_download_images),
+                'scope' => [
+                    'orders' => (bool) ($this->sync_orders ?? true),
+                    'products' => (bool) ($this->sync_products ?? true),
+                    'prices' => (bool) ($this->sync_prices ?? true),
+                    'images' => (bool) ($this->sync_images ?? $this->sync_download_images),
+                    'descriptions' => (bool) ($this->sync_descriptions ?? true),
+                    'short_descriptions' => (bool) ($this->sync_short_descriptions ?? true),
+                    'stock' => (bool) ($this->sync_stock ?? true),
+                    'metadata' => (bool) ($this->sync_metadata ?? true),
+                ],
             ],
             'logging' => [
                 'level' => 'INFO',

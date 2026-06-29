@@ -1,4 +1,4 @@
-﻿<x-filament-panels::page>
+<x-filament-panels::page>
     <div class="space-y-6">
         <x-filament::section>
             <x-slot name="heading">Cron do servidor</x-slot>

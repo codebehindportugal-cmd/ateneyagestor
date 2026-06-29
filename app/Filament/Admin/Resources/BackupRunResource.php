@@ -55,7 +55,7 @@ class BackupRunResource extends Resource
                             : round($state / 1024, 1) . ' KB'
                     ) : '-')
                     ->placeholder('-'),
-                Tables\Columns\TextColumn::make('nas_path')->label('NAS')->limit(50)->placeholder('â€”')->toggleable(),
+                Tables\Columns\TextColumn::make('nas_path')->label('NAS')->limit(50)->placeholder('-')->toggleable(),
                 Tables\Columns\TextColumn::make('triggered_by')->label('Origem')->badge()
                     ->color(fn ($state) => match ($state) {
                         'filament' => 'info',

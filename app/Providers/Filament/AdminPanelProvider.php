@@ -26,7 +26,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->brandName('GestÃ£o Ateneya')
+            ->brandName('Gestao Ateneya')
             ->brandLogo(asset('images/ateneya-logo.jpg'))
             ->brandLogoHeight('2.5rem')
             ->favicon(asset('images/ateneya-logo.jpg'))

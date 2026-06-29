@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Pages;
 
 use App\Models\Setting;
+use Cron\CronExpression;
 use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -11,6 +12,7 @@ use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Artisan;
+use Symfony\Component\Process\Process;
 
 class CronSettingsPage extends Page implements HasForms
 {
@@ -42,7 +44,7 @@ class CronSettingsPage extends Page implements HasForms
 
     public function getTitle(): string
     {
-        return 'Agendamentos e tarefas automáticas';
+        return 'Agendamentos e tarefas automaticas';
     }
 
     public function form(Form $form): Form
@@ -50,27 +52,27 @@ class CronSettingsPage extends Page implements HasForms
         return $form
             ->statePath('data')
             ->schema([
-                Forms\Components\Section::make('Monitorização')
+                Forms\Components\Section::make('Monitorizacao')
                     ->columns(2)
                     ->schema([
                         Forms\Components\Toggle::make('site_monitor_enabled')->label('Validar sites online')->default(true),
-                        Forms\Components\TextInput::make('site_monitor_cron')->label('Cron')->required()->helperText('Ex: */5 * * * *'),
+                        $this->cronInput('site_monitor_cron'),
                         Forms\Components\Toggle::make('server_check_enabled')->label('Verificar servidores')->default(true),
-                        Forms\Components\TextInput::make('server_check_cron')->label('Cron')->required()->helperText('Ex: */5 * * * *'),
+                        $this->cronInput('server_check_cron'),
                     ]),
-                Forms\Components\Section::make('Backups e segurança')
+                Forms\Components\Section::make('Backups e seguranca')
                     ->columns(2)
                     ->schema([
                         Forms\Components\Toggle::make('backup_enabled')->label('Backups para NAS')->default(true),
-                        Forms\Components\TextInput::make('backup_cron')->label('Cron')->required()->helperText('Ex: 0 3 * * *'),
-                        Forms\Components\Toggle::make('security_scan_enabled')->label('Scans de segurança')->default(true),
-                        Forms\Components\TextInput::make('security_scan_cron')->label('Cron')->required()->helperText('Ex: 0 4 * * 1'),
+                        $this->cronInput('backup_cron'),
+                        Forms\Components\Toggle::make('security_scan_enabled')->label('Scans de seguranca')->default(true),
+                        $this->cronInput('security_scan_cron'),
                     ]),
-                Forms\Components\Section::make('Atualizações')
+                Forms\Components\Section::make('Updates')
                     ->columns(2)
                     ->schema([
                         Forms\Components\Toggle::make('updates_enabled')->label('Verificar updates')->default(false),
-                        Forms\Components\TextInput::make('updates_cron')->label('Cron')->required()->helperText('Ex: 0 5 * * 1'),
+                        $this->cronInput('updates_cron'),
                     ]),
             ]);
     }
@@ -87,24 +89,29 @@ class CronSettingsPage extends Page implements HasForms
                 ->label('Validar sites agora')
                 ->icon('heroicon-o-signal')
                 ->color('gray')
-                ->action(fn () => $this->runCommand('monitor:sites', 'Validação de sites concluída')),
+                ->action(fn () => $this->runCommand('monitor:sites', 'Validacao de sites concluida')),
             Action::make('run_servers')
                 ->label('Ver servidores agora')
                 ->icon('heroicon-o-server-stack')
                 ->color('gray')
-                ->action(fn () => $this->runCommand('server:check', 'Verificação de servidores concluída')),
+                ->action(fn () => $this->runCommand('server:check', 'Verificacao de servidores concluida')),
             Action::make('run_backups')
                 ->label('Backup agora')
                 ->icon('heroicon-o-archive-box-arrow-down')
                 ->color('info')
                 ->requiresConfirmation()
-                ->action(fn () => $this->runCommand('backup:run', 'Backup concluído', ['--all' => true])),
+                ->action(fn () => $this->runCommand('backup:run', 'Backup concluido', ['--all' => true])),
             Action::make('run_security')
                 ->label('Scan agora')
                 ->icon('heroicon-o-shield-exclamation')
                 ->color('warning')
                 ->requiresConfirmation()
-                ->action(fn () => $this->runCommand('security:scan', 'Scan concluído', ['--all' => true])),
+                ->action(fn () => $this->runCommand('security:scan', 'Scan concluido', ['--all' => true])),
+            Action::make('run_updates')
+                ->label('Ver updates agora')
+                ->icon('heroicon-o-arrow-path')
+                ->color('gray')
+                ->action('runUpdates'),
         ];
     }
 
@@ -132,8 +139,25 @@ class CronSettingsPage extends Page implements HasForms
 
         Notification::make()
             ->title('Agendamentos guardados')
-            ->body('O scheduler do Laravel passa a usar estes valores no próximo minuto.')
+            ->body('O scheduler do Laravel passa a usar estes valores no proximo minuto.')
             ->success()
+            ->send();
+    }
+
+    public function runUpdates(): void
+    {
+        $process = Process::fromShellCommandline('composer outdated --direct 2>&1', base_path());
+        $process->setTimeout(120);
+        $process->run();
+
+        $output = trim($process->getOutput().PHP_EOL.$process->getErrorOutput());
+        file_put_contents(storage_path('logs/update-check.log'), $output.PHP_EOL);
+
+        Notification::make()
+            ->title($process->isSuccessful() ? 'Verificacao de updates concluida' : 'Verificacao de updates terminou com avisos')
+            ->body($output !== '' ? $output : 'Sem updates diretos encontrados.')
+            ->color($process->isSuccessful() ? 'success' : 'warning')
+            ->persistent()
             ->send();
     }
 
@@ -148,5 +172,20 @@ class CronSettingsPage extends Page implements HasForms
             ->color($exitCode === 0 ? 'success' : 'danger')
             ->persistent()
             ->send();
+    }
+
+    private function cronInput(string $name): Forms\Components\TextInput
+    {
+        return Forms\Components\TextInput::make($name)
+            ->label('Cron')
+            ->required()
+            ->helperText('Ex: */5 * * * *')
+            ->rule(function () {
+                return function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! CronExpression::isValidExpression((string) $value)) {
+                        $fail('Expressao cron invalida.');
+                    }
+                };
+            });
     }
 }

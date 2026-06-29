@@ -17,13 +17,13 @@ class SecurityScanResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-shield-exclamation';
 
-    protected static ?string $navigationLabel = 'Scans de SeguranÃ§a';
+    protected static ?string $navigationLabel = 'Scans de Segurança';
 
-    protected static ?string $navigationGroup = 'Operação';
+    protected static ?string $navigationGroup = 'Operacao';
 
-    protected static ?string $modelLabel = 'scan de seguranÃ§a';
+    protected static ?string $modelLabel = 'scan de segurança';
 
-    protected static ?string $pluralModelLabel = 'scans de seguranÃ§a';
+    protected static ?string $pluralModelLabel = 'scans de segurança';
 
     protected static ?int $navigationSort = 1;
 
@@ -56,7 +56,7 @@ class SecurityScanResource extends Resource
                         ->label('')
                         ->schema([
                             Infolists\Components\TextEntry::make('label')
-                                ->label('Verificação')
+                                ->label('Verificacao')
                                 ->placeholder(fn ($record) => $record['check'] ?? '-'),
                             Infolists\Components\TextEntry::make('severity')
                                 ->label('Severidade')
@@ -77,7 +77,7 @@ class SecurityScanResource extends Resource
                                 ->extraAttributes(['style' => 'white-space:pre-wrap;font-size:0.75rem'])
                                 ->visible(fn ($state) => filled($state)),
                             Infolists\Components\TextEntry::make('raw')
-                                ->label('Saída original')
+                                ->label('Saida original')
                                 ->columnSpanFull()
                                 ->fontFamily('mono')
                                 ->extraAttributes(['style' => 'white-space:pre-wrap;font-size:0.75rem'])
@@ -87,7 +87,7 @@ class SecurityScanResource extends Resource
                         ->visible(fn (SecurityScan $record) => ! empty($record->findings)),
                 ]),
 
-            Infolists\Components\Section::make('Log de execuÃ§Ã£o')
+            Infolists\Components\Section::make('Log de execução')
                 ->collapsed()
                 ->schema([
                     Infolists\Components\TextEntry::make('log')
@@ -137,12 +137,12 @@ class SecurityScanResource extends Resource
                     ->dateTime('d/m/Y H:i')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('finished_at')
-                    ->label('DuraÃ§Ã£o')
+                    ->label('Duração')
                     ->formatStateUsing(function (SecurityScan $record) {
                         $secs = $record->durationSeconds();
-                        return $secs !== null ? "{$secs}s" : 'â€”';
+                        return $secs !== null ? "{$secs}s" : '—';
                     })
-                    ->placeholder('â€”'),
+                    ->placeholder('—'),
                 Tables\Columns\TextColumn::make('triggered_by')
                     ->label('Origem')
                     ->badge()
@@ -170,7 +170,7 @@ class SecurityScanResource extends Resource
                     ->preload(),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make()->label('Ver relatÃ³rio'),
+                Tables\Actions\ViewAction::make()->label('Ver relatório'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

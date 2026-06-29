@@ -28,20 +28,20 @@ class SyncProjectResource extends Resource
 
     protected static ?string $pluralModelLabel = 'sincronizadores';
 
-    protected static ?string $navigationGroup = 'Integrações';
+    protected static ?string $navigationGroup = 'Integracoes';
 
     protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Section::make('IdentificaÃ§Ã£o')
+            Forms\Components\Section::make('Identificação')
                 ->columns(2)
                 ->schema([
                     Forms\Components\TextInput::make('name')
                         ->label('Nome')
                         ->required()
-                        ->placeholder('Ex: PHC â†’ Faustino Clemente'),
+                        ->placeholder('Ex: PHC → Faustino Clemente'),
                     Forms\Components\Select::make('type')
                         ->label('Tipo')
                         ->options(SyncProject::typeOptions())
@@ -66,18 +66,18 @@ class SyncProjectResource extends Resource
                     Forms\Components\Toggle::make('is_active')->label('Ativo')->default(true),
                 ]),
             Forms\Components\Section::make('Runner local')
-                ->description('ConfiguraÃ§Ã£o para executar o script directamente neste servidor (gestao.ateneya.com).')
+                ->description('Configuração para executar o script directamente neste servidor (gestao.ateneya.com).')
                 ->columns(2)
                 ->schema([
                     Forms\Components\TextInput::make('runner_script_path')
                         ->label('Caminho do script')
                         ->placeholder('syncer/wintouch_woo/main.py')
-                        ->helperText('Relativo Ã  raiz do projecto backup-manager.')
+                        ->helperText('Relativo à raiz do projecto backup-manager.')
                         ->columnSpanFull(),
                     Forms\Components\TextInput::make('runner_schedule')
                         ->label('Schedule (cron)')
                         ->placeholder('0 */3 * * *')
-                        ->helperText('ExpressÃ£o cron para execuÃ§Ã£o automÃ¡tica. Ex: cada 3h = "0 */3 * * *". Deixa em branco para nÃ£o agendar.')
+                        ->helperText('Expressão cron para execução automática. Ex: cada 3h = "0 */3 * * *". Deixa em branco para não agendar.')
                         ->columnSpanFull(),
                 ]),
             Forms\Components\Section::make('PHC')
@@ -156,15 +156,15 @@ class SyncProjectResource extends Resource
                 ->schema([
                     Forms\Components\Toggle::make('sync_orders')->label('Encomendas')->default(true),
                     Forms\Components\Toggle::make('sync_products')->label('Produtos')->default(true),
-                    Forms\Components\Toggle::make('sync_prices')->label('Preços')->default(true),
+                    Forms\Components\Toggle::make('sync_prices')->label('Precos')->default(true),
                     Forms\Components\Toggle::make('sync_images')->label('Imagens')->default(true),
-                    Forms\Components\Toggle::make('sync_descriptions')->label('Descrição')->default(true),
-                    Forms\Components\Toggle::make('sync_short_descriptions')->label('Breve descrição')->default(true),
+                    Forms\Components\Toggle::make('sync_descriptions')->label('Descricao')->default(true),
+                    Forms\Components\Toggle::make('sync_short_descriptions')->label('Breve Descricao')->default(true),
                     Forms\Components\Toggle::make('sync_stock')->label('Stock / disponibilidade')->default(true),
                     Forms\Components\Toggle::make('sync_metadata')->label('Metadados')->default(true),
                     Forms\Components\Hidden::make('sync_download_images')->default(true),
                 ]),
-            Forms\Components\Section::make('Opções da sincronização')
+            Forms\Components\Section::make('Opcoes da sincronizacao')
                 ->columns(2)
                 ->schema([
                     Forms\Components\TextInput::make('sync_batch_size')
@@ -223,7 +223,7 @@ class SyncProjectResource extends Resource
                 Tables\Columns\TextColumn::make('site_url')->label('Site')->url(fn ($record) => $record->site_url)->openUrlInNewTab(),
                 Tables\Columns\TextColumn::make('client.name')->label('Cliente')->placeholder('-'),
                 Tables\Columns\TextColumn::make('runner_mode')
-                    ->label('ExecuÃ§Ã£o')
+                    ->label('Execução')
                     ->badge()
                     ->formatStateUsing(fn (?string $state) => SyncProject::runnerModeOptions()[$state ?? 'external'] ?? $state)
                     ->color(fn (?string $state) => $state === 'local' ? 'success' : 'gray'),
@@ -239,10 +239,10 @@ class SyncProjectResource extends Resource
                         'error' => 'Erro',
                         default => 'Nunca correu',
                     }),
-                Tables\Columns\TextColumn::make('last_run_at')->label('Ãšltima execuÃ§Ã£o')
+                Tables\Columns\TextColumn::make('last_run_at')->label('Última execução')
                     ->dateTime('d/m/Y H:i')->placeholder('Nunca')->sortable(),
                 Tables\Columns\TextColumn::make('latestSyncRun.status')
-                    ->label('Ãšltimo run')
+                    ->label('Último run')
                     ->badge()
                     ->formatStateUsing(fn (?SyncStatus $state) => $state?->label() ?? 'Sem run')
                     ->color(fn (?SyncStatus $state) => $state?->color() ?? 'gray')
@@ -262,13 +262,13 @@ class SyncProjectResource extends Resource
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('Correr sincronizador')
-                    ->modalDescription(fn (SyncProject $record) => "Vai executar \"{$record->name}\" agora em segundo plano. O resultado fica no HistÃ³rico Sync.")
+                    ->modalDescription(fn (SyncProject $record) => "Vai executar \"{$record->name}\" agora em segundo plano. O resultado fica no Histórico Sync.")
                     ->visible(fn (SyncProject $record) => $record->runsLocally())
                     ->action(function (SyncProject $record) {
                         try {
                             if (blank($record->runner_script_path)) {
                                 Notification::make()
-                                    ->title('Runner nÃ£o configurado')
+                                    ->title('Runner não configurado')
                                     ->body('Abre este sincronizador e preenche o caminho do script antes de correr.')
                                     ->warning()
                                     ->persistent()
@@ -317,7 +317,7 @@ class SyncProjectResource extends Resource
 
                             Notification::make()
                                 ->title('Sync iniciado')
-                                ->body('A execuÃ§Ã£o ficou registada em HistÃ³rico Sync e vai continuar no servidor.')
+                                ->body('A execução ficou registada em Histórico Sync e vai continuar no servidor.')
                                 ->success()
                                 ->send();
                         } catch (\Throwable $e) {
@@ -340,9 +340,9 @@ class SyncProjectResource extends Resource
                         $plainTextToken = $record->createToken('sync_reporter')->plainTextToken;
 
                         Notification::make()
-                            ->title('Token gerado â€” copia agora')
+                            ->title('Token gerado — copia agora')
                             ->body(
-                                "Token (sÃ³ mostrado uma vez):\n\n{$plainTextToken}\n\n".
+                                "Token (só mostrado uma vez):\n\n{$plainTextToken}\n\n".
                                 "Cola no .env do script:\n".
                                 "BACKUP_MANAGER_URL=http://backup-manager.test\n".
                                 "BACKUP_MANAGER_TOKEN={$plainTextToken}"
@@ -407,7 +407,7 @@ class SyncProjectResource extends Resource
                     ->icon('heroicon-o-document-magnifying-glass')
                     ->color('gray')
                     ->visible(fn (SyncProject $record) => filled($record->latestSyncRun))
-                    ->modalHeading(fn (SyncProject $record) => 'Ãšltimo log â€” '.$record->name)
+                    ->modalHeading(fn (SyncProject $record) => 'Último log — '.$record->name)
                     ->modalContent(fn (SyncProject $record) => view('filament.sync-run-details-modal', [
                         'run' => $record->latestSyncRun,
                     ]))
@@ -469,7 +469,7 @@ class SyncProjectResource extends Resource
         $handle = @popen($command, 'r');
 
         if (! is_resource($handle)) {
-            throw new \RuntimeException('NÃ£o foi possÃ­vel iniciar o processo do sincronizador.');
+            throw new \RuntimeException('Não foi possível iniciar o processo do sincronizador.');
         }
 
         $exitCode = pclose($handle);

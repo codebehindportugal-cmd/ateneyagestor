@@ -32,7 +32,7 @@ class SecurityScanService
         try {
             $captureLog("A iniciar scan de segurança de {$server->name}...");
 
-            $keyPath = config('backup.ssh_key') ?: $server->ssh_key_path;
+            $keyPath = $server->ssh_key_path ?: config('backup.ssh_key');
 
             if (! $keyPath || ! file_exists($keyPath)) {
                 throw new \RuntimeException(

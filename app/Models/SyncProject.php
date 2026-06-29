@@ -116,9 +116,9 @@ class SyncProject extends Model
     public static function typeOptions(): array
     {
         return [
-            'phc_woo' => 'PHC Ã¢â€ â€™ WooCommerce',
-            'wintouch_woo' => 'Wintouch Ã¢â€ â€™ WooCommerce',
-            'primavera_woo' => 'Primavera Ã¢â€ â€™ WooCommerce',
+            'phc_woo' => 'PHC → WooCommerce',
+            'wintouch_woo' => 'Wintouch → WooCommerce',
+            'primavera_woo' => 'Primavera → WooCommerce',
             'csharp' => 'C# (cliente)',
             'other' => 'Outro',
         ];
@@ -128,7 +128,7 @@ class SyncProject extends Model
     {
         return [
             'local' => 'Corre neste projeto/servidor',
-            'external' => 'Corre no cliente e sÃƒÂ³ envia report',
+            'external' => 'Corre no cliente e só envia report',
         ];
     }
 

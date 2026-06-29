@@ -19,13 +19,13 @@ class SiteMonitorResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-signal';
 
-    protected static ?string $navigationLabel = 'MonitorizaÃ§Ã£o';
+    protected static ?string $navigationLabel = 'Monitorização';
 
     protected static ?string $modelLabel = 'monitor';
 
     protected static ?string $pluralModelLabel = 'monitores';
 
-    protected static ?string $navigationGroup = 'Operação';
+    protected static ?string $navigationGroup = 'Operacao';
 
     protected static ?int $navigationSort = 1;
 
@@ -45,7 +45,7 @@ class SiteMonitorResource extends Resource
                     ->searchable()
                     ->preload()
                     ->nullable()
-                    ->helperText('Opcional â€” associa ao servidor que serve este site.'),
+                    ->helperText('Opcional — associa ao servidor que serve este site.'),
                 Forms\Components\TextInput::make('name')
                     ->label('Nome')
                     ->required()
@@ -87,7 +87,7 @@ class SiteMonitorResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('last_http_code')
                     ->label('HTTP')
-                    ->placeholder('â€”')
+                    ->placeholder('—')
                     ->badge()
                     ->color(fn (?int $state) => match (true) {
                         $state === null      => 'gray',
@@ -97,8 +97,8 @@ class SiteMonitorResource extends Resource
                     }),
                 Tables\Columns\TextColumn::make('last_response_ms')
                     ->label('Tempo')
-                    ->placeholder('â€”')
-                    ->formatStateUsing(fn (?int $state) => $state ? "{$state} ms" : 'â€”')
+                    ->placeholder('—')
+                    ->formatStateUsing(fn (?int $state) => $state ? "{$state} ms" : '—')
                     ->color(fn (?int $state) => match (true) {
                         $state === null   => 'gray',
                         $state < 500      => 'success',
@@ -107,11 +107,11 @@ class SiteMonitorResource extends Resource
                     }),
                 Tables\Columns\TextColumn::make('last_error')
                     ->label('Erro')
-                    ->placeholder('â€”')
+                    ->placeholder('—')
                     ->limit(50)
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('last_checked_at')
-                    ->label('Ãšltima verificaÃ§Ã£o')
+                    ->label('Última verificação')
                     ->since()
                     ->placeholder('Nunca'),
                 Tables\Columns\IconColumn::make('is_active')
@@ -139,7 +139,7 @@ class SiteMonitorResource extends Resource
                         Artisan::call('monitor:sites', ['--id' => $record->id]);
                         $record->refresh();
                         Notification::make()
-                            ->title('VerificaÃ§Ã£o concluÃ­da: ' . $record->status->getLabel())
+                            ->title('Verificação concluída: ' . $record->status->getLabel())
                             ->color($record->status->getColor())
                             ->send();
                     }),
@@ -152,7 +152,7 @@ class SiteMonitorResource extends Resource
                     ->icon('heroicon-o-arrow-path')
                     ->action(function () {
                         Artisan::call('monitor:sites');
-                        Notification::make()->title('VerificaÃ§Ã£o concluÃ­da')->success()->send();
+                        Notification::make()->title('Verificação concluída')->success()->send();
                     }),
             ])
             ->bulkActions([

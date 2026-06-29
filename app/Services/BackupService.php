@@ -96,7 +96,7 @@ class BackupService
 
     private function createBackupOnServer(Server $server, string $localTmpDir, callable $log): array
     {
-        $keyPath = config('backup.ssh_key') ?: $server->ssh_key_path;
+        $keyPath = $server->ssh_key_path ?: config('backup.ssh_key');
 
         if (! $keyPath || ! file_exists($keyPath)) {
             throw new \RuntimeException(

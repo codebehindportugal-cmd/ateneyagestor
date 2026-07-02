@@ -26,15 +26,22 @@ def main() -> int:
     products_synced = 0
     orders_synced = 0
     errors_count = 0
+    items: list[dict] = []
 
     try:
         logging.info("A iniciar sincronizacao PHC -> WooCommerce")
+        if settings.sync_tables:
+            logging.info(
+                "A usar %d tabela(s) configurada(s) no painel: %s",
+                len(settings.sync_tables),
+                ", ".join(t.get("table", "?") for t in settings.sync_tables),
+            )
 
         phc = PhcClient(settings)
         woo = WooCommerceClient(settings)
 
         products = phc.fetch_products()
-        products_synced = woo.sync_products(products)
+        products_synced, items = woo.sync_products(products)
 
         logging.info("Sincronizacao concluida: %s produtos", products_synced)
         status = "success"
@@ -52,6 +59,7 @@ def main() -> int:
         started_at=started_at,
         finished_at=finished_at,
         log_path=settings.log_file,
+        items=items,
     )
 
     return 0 if status == "success" else 1

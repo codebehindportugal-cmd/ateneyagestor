@@ -1,7 +1,7 @@
 import os
 import yaml
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Union, Optional   # ← acrescentar Union
 
@@ -27,7 +27,12 @@ class SyncConfig:
     batch_size: int = 50
     default_currency: str = "EUR"
     download_images: bool = True
-    
+    scope: Dict[str, bool] = field(default_factory=dict)
+
+    def wants(self, key: str) -> bool:
+        """Devolve True se o painel não desativou explicitamente esta parte do sync."""
+        return bool(self.scope.get(key, True))
+
 @dataclass
 class SmtpConfig:
     user: str       # login no servidor

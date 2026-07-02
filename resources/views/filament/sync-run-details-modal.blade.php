@@ -26,8 +26,45 @@
         </div>
     @endif
 
-    {{-- Metadata (o que o script enviou) --}}
-    @if ($run->metadata)
+    {{-- Diff / comparação por item (quando o script envia metadata.items) --}}
+    @if (! empty($run->metadata['items'] ?? null))
+        <div>
+            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                O que foi alterado ({{ count($run->metadata['items']) }} itens)
+            </div>
+            <div class="overflow-auto max-h-64 rounded-lg border border-gray-200 dark:border-gray-700">
+                <table class="min-w-full text-xs">
+                    <thead class="bg-gray-50 dark:bg-gray-900 sticky top-0">
+                        <tr>
+                            <th class="text-left px-3 py-2 font-semibold text-gray-500">SKU</th>
+                            <th class="text-left px-3 py-2 font-semibold text-gray-500">Nome</th>
+                            <th class="text-left px-3 py-2 font-semibold text-gray-500">Ação</th>
+                            <th class="text-left px-3 py-2 font-semibold text-gray-500">Campos</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                        @foreach ($run->metadata['items'] as $item)
+                            <tr>
+                                <td class="px-3 py-1.5 font-mono">{{ $item['sku'] ?? '-' }}</td>
+                                <td class="px-3 py-1.5">{{ $item['name'] ?? '-' }}</td>
+                                <td class="px-3 py-1.5">
+                                    <span @class([
+                                        'inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase',
+                                        'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' => ($item['action'] ?? '') === 'created',
+                                        'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' => ($item['action'] ?? '') === 'updated',
+                                        'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' => ! in_array($item['action'] ?? '', ['created', 'updated']),
+                                    ])>
+                                        {{ $item['action'] ?? '-' }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-1.5 text-gray-500">{{ implode(', ', $item['fields'] ?? []) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @elseif ($run->metadata)
         <div>
             <div class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Metadata (enviado pelo script)</div>
             <div class="rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-3">

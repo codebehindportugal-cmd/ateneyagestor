@@ -47,6 +47,11 @@ def run_order_sync(woo: WooClient, wintouch: WintouchClient, reporter: SyncRepor
         try:
             if wintouch.create_order_on_wintouch(order, woo):
                 reporter.order_synced()
+                reporter.record_item(
+                    str(order["id"]),
+                    order.get("billing", {}).get("email", ""),
+                    "synced",
+                )
                 logging.info("Encomenda %s sincronizada com sucesso.", order["id"])
             else:
                 logging.info("Encomenda %s ignorada: ja estava sincronizada.", order["id"])
@@ -105,17 +110,23 @@ if __name__ == "__main__":
 
     try:
         # Sincronizar encomendas
-        run_order_sync(woo, win, reporter)
+        if cfg.sync.wants("orders"):
+            run_order_sync(woo, win, reporter)
+        else:
+            logging.info("Sincronizacao de encomendas desativada nas definicoes do projeto.")
+            print("Sincronizacao de encomendas desativada nas definicoes do projeto.")
 
         # Sincronizar produtos
         active_skus = set()
-        for batch in win.iter_products(woo):
+        products_enabled = cfg.sync.wants("products")
+        for batch in (win.iter_products(woo) if products_enabled else []):
             for product in batch:
                 try:
                     synced_sku = woo.sync_product(product)
                     if synced_sku:
                         active_skus.add(synced_sku)
                         reporter.product_synced()
+                        reporter.record_item(synced_sku, product.name, "synced")
                 except Exception as e:
                     reporter.error()
                     print(f"❌ Erro no produto: {e}")

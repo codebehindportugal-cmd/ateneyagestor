@@ -102,6 +102,35 @@ class SyncProjectResource extends Resource
                         ->placeholder('Codigo/nome da empresa no PHC'),
                 ])
                 ->collapsible(),
+            Forms\Components\Section::make('Tabelas e mapeamento de campos (PHC)')
+                ->description('Define que tabelas SQL ler no PHC, que campos usar de cada uma, e para que campo do WooCommerce cada um mapeia. Deixa "Mapeamento" vazio para usar sku/name/regular_price/stock_quantity por omissão.')
+                ->visible(fn (Get $get) => $get('type') === 'phc_woo')
+                ->schema([
+                    Forms\Components\Repeater::make('sync_tables')
+                        ->label('Tabelas')
+                        ->schema([
+                            Forms\Components\TextInput::make('table')
+                                ->label('Tabela SQL')
+                                ->placeholder('Ex: ST')
+                                ->required(),
+                            Forms\Components\TagsInput::make('fields')
+                                ->label('Campos a ler')
+                                ->placeholder('Ex: ref, design, epv1, stock')
+                                ->helperText('Nomes das colunas na tabela do PHC.'),
+                            Forms\Components\KeyValue::make('mapping')
+                                ->label('Mapeamento campo local -> WooCommerce')
+                                ->keyLabel('Campo PHC')
+                                ->valueLabel('Campo WooCommerce')
+                                ->addActionLabel('Adicionar mapeamento')
+                                ->helperText('Ex: ref -> sku, design -> name, epv1 -> regular_price, stock -> stock_quantity. Campos extra (ex: descricao -> description) tambem sao suportados.'),
+                        ])
+                        ->columns(1)
+                        ->itemLabel(fn (array $state): ?string => $state['table'] ?? null)
+                        ->addActionLabel('Adicionar tabela')
+                        ->reorderable(false)
+                        ->collapsible(),
+                ])
+                ->collapsible(),
             Forms\Components\Section::make('WooCommerce')
                 ->visible(fn (Get $get) => in_array($get('type'), ['phc_woo', 'wintouch_woo', 'primavera_woo'], true))
                 ->columns(2)

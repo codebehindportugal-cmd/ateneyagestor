@@ -22,10 +22,16 @@ class BackupManagerReporter:
         started_at: datetime,
         finished_at: datetime,
         log_path: Path,
+        items: list[dict] | None = None,
     ) -> None:
         log = ""
         if log_path.exists():
             log = log_path.read_text(encoding="utf-8", errors="ignore")[-60000:]
+
+        metadata: dict = {"slug": self.settings.sync_project_slug}
+        if items:
+            # Limite defensivo — o painel guarda isto num campo JSON.
+            metadata["items"] = items[:2000]
 
         response = requests.post(
             self.settings.backup_manager_url.rstrip("/") + "/api/sync/runs",
@@ -41,7 +47,7 @@ class BackupManagerReporter:
                 "started_at": started_at.isoformat(),
                 "finished_at": finished_at.isoformat(),
                 "log": log,
-                "metadata": {"slug": self.settings.sync_project_slug},
+                "metadata": metadata,
             },
             timeout=30,
         )

@@ -30,6 +30,7 @@ class SyncReporter:
         self._orders = 0
         self._errors = 0
         self._log_lines: list[str] = []
+        self._items: list[dict] = []
 
     @property
     def _enabled(self) -> bool:
@@ -48,6 +49,11 @@ class SyncReporter:
 
     def append_log(self, line: str) -> None:
         self._log_lines.append(line)
+
+    def record_item(self, sku: str, name: str, action: str) -> None:
+        """Regista uma alteracao (produto ou encomenda) para a vista de
+        diff/comparacao no Backup Manager. 'action' ex: created, updated, synced."""
+        self._items.append({"sku": sku, "name": name, "action": action})
 
     # --- envio final ---
 
@@ -69,6 +75,10 @@ class SyncReporter:
         if log_content is None:
             log_content = "\n".join(self._log_lines) if self._log_lines else None
 
+        merged_metadata = dict(metadata or {})
+        if self._items:
+            merged_metadata.setdefault("items", self._items[:2000])
+
         payload = {
             "status": status,
             "products_synced": self._products,
@@ -77,7 +87,7 @@ class SyncReporter:
             "started_at": self._started_at.isoformat(),
             "finished_at": datetime.now().isoformat(),
             "log": log_content,
-            "metadata": metadata or {},
+            "metadata": merged_metadata,
         }
 
         try:

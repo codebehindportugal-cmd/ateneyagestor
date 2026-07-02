@@ -30,6 +30,7 @@ class SyncProject extends Model
         'phc_password',
         'phc_database',
         'phc_company',
+        'sync_tables',
         'wintouch_base_url',
         'wintouch_api_key',
         'wintouch_login_email',
@@ -88,6 +89,7 @@ class SyncProject extends Model
             'sync_short_descriptions' => 'boolean',
             'sync_stock' => 'boolean',
             'sync_metadata' => 'boolean',
+            'sync_tables' => 'array',
         ];
     }
 
@@ -158,6 +160,25 @@ class SyncProject extends Model
             && filled($this->wintouch_login_password);
     }
 
+    /**
+     * Tabelas PHC a sincronizar, com os campos a ler e o mapeamento
+     * campo local -> campo WooCommerce. Configurável no painel sem tocar em código.
+     *
+     * Formato: [['table' => 'ST', 'fields' => ['ref','design','epv1'], 'mapping' => ['ref' => 'sku', ...]]]
+     */
+    public function syncTables(): array
+    {
+        return collect($this->sync_tables ?? [])
+            ->filter(fn ($row) => filled($row['table'] ?? null))
+            ->map(fn ($row) => [
+                'table' => $row['table'],
+                'fields' => array_values(array_filter((array) ($row['fields'] ?? []))),
+                'mapping' => (array) ($row['mapping'] ?? []),
+            ])
+            ->values()
+            ->all();
+    }
+
     public function toRunnerConfig(): array
     {
         return [
@@ -174,6 +195,7 @@ class SyncProject extends Model
                 'password' => $this->phc_password,
                 'database' => $this->phc_database,
                 'company' => $this->phc_company,
+                'tables' => $this->syncTables(),
             ],
             'woocommerce' => [
                 'base_url' => $this->site_url,

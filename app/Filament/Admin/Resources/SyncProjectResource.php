@@ -486,7 +486,15 @@ class SyncProjectResource extends Resource
         // so is_file() on it triggers an open_basedir warning. It comes straight from the
         // running SAPI, so it's already known-good — use it directly without validating.
         if (PHP_OS_FAMILY !== 'Windows') {
-            return PHP_BINARY ?: 'php';
+            $binary = PHP_BINARY ?: 'php';
+
+            // When this action runs from a web request, PHP-FPM serves it and
+            // PHP_BINARY points to the php-fpm binary, not the CLI one.
+            if (str_contains($binary, 'php-fpm')) {
+                $binary = str_replace('/sbin/php-fpm', '/bin/php', $binary);
+            }
+
+            return $binary;
         }
 
         $candidate = 'C:\laragon\bin\php\php-8.2.5-Win32-vs16-x64\php.exe';

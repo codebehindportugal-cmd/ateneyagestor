@@ -122,11 +122,14 @@ if __name__ == "__main__":
         for batch in (win.iter_products(woo) if products_enabled else []):
             for product in batch:
                 try:
-                    synced_sku = woo.sync_product(product)
-                    if synced_sku:
-                        active_skus.add(synced_sku)
+                    result = woo.sync_product(product)
+                    if result:
+                        sku = result["sku"]
+                        action = result.get("action", "synced")
+                        if result.get("active"):
+                            active_skus.add(sku)
                         reporter.product_synced()
-                        reporter.record_item(synced_sku, product.name, "synced")
+                        reporter.record_item(sku, product.name, action)
                 except Exception as e:
                     reporter.error()
                     print(f"❌ Erro no produto: {e}")

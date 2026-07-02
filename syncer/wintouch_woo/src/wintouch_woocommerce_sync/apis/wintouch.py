@@ -14,6 +14,11 @@ log = logging.getLogger(__name__)
 
 
 class WintouchClient:
+    # Categoria Wintouch "Não Web" (Product2ndCategoryID, Code=NAOWEB).
+    # Produtos com esta categoria não devem ser criados no WooCommerce e,
+    # se já existirem, devem ser desativados (status draft).
+    NAOWEB_2ND_CATEGORY_ID = "45893e11-637c-4c73-9b1f-f5ae40acac80"
+
     def __init__(self, cfg, batch_size: int = 50):
         self.cfg = cfg
         self.base = cfg.base_url.rstrip("/") + "/api/v1"
@@ -205,15 +210,34 @@ class WintouchClient:
                 try:
                     p = self._get(f"products/{pid}", embed="VATSales")
 
-                    # 🛑 Ignorar produtos com Product2ndCategoryID proibido
-                    if p.get("Product2ndCategoryID") == "45893e11-637c-4c73-9b1f-f5ae40acac80":
-                        log.info(
-                            "⏩ Produto %s ignorado por ter categoria 2nd proibida.",
-                            pid,
-                        )
+                    if p.get("IsService") or not p.get("Enabled", True):
                         continue
 
-                    if p.get("IsService") or not p.get("Enabled", True):
+                    # 🚫 Produto marcado "Não Web" no Wintouch (Product2ndCategoryID=NAOWEB):
+                    # não é criado no WooCommerce; se já existir, sync_product() desativa-o (draft).
+                    if p.get("Product2ndCategoryID") == self.NAOWEB_2ND_CATEGORY_ID:
+                        log.info(
+                            "🚫 Produto %s (SKU=%s) marcado 'Não Web' — não será criado; "
+                            "será desativado no WooCommerce se já existir.",
+                            pid,
+                            p.get("Code"),
+                        )
+                        self.sku_to_id[p.get("Code")] = pid
+                        products.append(
+                            Product(
+                                name=p.get("Name", ""),
+                                sku=p.get("Code", ""),
+                                short_description="",
+                                description="",
+                                price=0.0,
+                                currency="EUR",
+                                categories=[],
+                                brand="",
+                                wintouch_id=pid,
+                                second_category_id=p.get("Product2ndCategoryID"),
+                                nao_web=True,
+                            )
+                        )
                         continue
 
                     _ = self.get_latest_wintouch_update(pid)  # calculado para consistência

@@ -22,3 +22,4 @@ class Product:
     stock_quantity: int = 0
     wintouch_id: Optional[str] = None
     second_category_id: Optional[str] = None
+    nao_web: bool = False

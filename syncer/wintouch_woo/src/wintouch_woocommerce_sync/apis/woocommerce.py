@@ -430,7 +430,30 @@ class WooClient:
         return res["id"]
 
     # ----------------- Produto -----------------
-    def sync_product(self, p: Product):
+    def sync_product(self, p: Product) -> Optional[Dict[str, Any]]:
+        existentes = self._get("products", {"sku": p.sku})
+        existing = existentes[0] if isinstance(existentes, list) and existentes else None
+        prod_id = existing["id"] if existing else None
+        previous_status = existing.get("status") if existing else None
+
+        if p.nao_web:
+            if not existing:
+                logging.info(
+                    "⏩ [%s] Produto marcado 'Não Web' no Wintouch e inexistente no WooCommerce — não criado.",
+                    p.sku,
+                )
+                return None
+            if previous_status == "draft":
+                logging.debug("[%s] Produto 'Não Web' já estava em draft.", p.sku)
+                return None
+            self._put(f"products/{prod_id}", {"status": "draft"})
+            logging.info(
+                "🚫 [%s] Produto desativado (draft) no WooCommerce — marcado 'Não Web' no Wintouch (ID %s).",
+                p.sku,
+                prod_id,
+            )
+            return {"sku": p.sku, "action": "deactivated_nao_web", "active": False}
+
         if p.price <= 0:
             logging.warning(
                 "⛔ PRODUTO SEM PREÇO | SKU=%s | WintouchID=%s | Nome=%s",
@@ -450,14 +473,7 @@ class WooClient:
         cat_ids = [self.ensure_category(c) for c in (p.categories or []) if c]
         brand_term_id = self.ensure_brand(p.brand) if p.brand else None
 
-        existentes = self._get("products", {"sku": p.sku})
-        existing_imgs = []
-        if isinstance(existentes, list) and existentes:
-            prod_id = existentes[0]["id"]
-            existing_imgs = existentes[0].get("images", []) or []
-        else:
-            prod_id = None
-            existing_imgs = []
+        existing_imgs = (existing.get("images", []) or []) if existing else []
 
         # Aviso se já vem sem imagens do Wintouch
         if not (p.images or []):
@@ -630,12 +646,19 @@ class WooClient:
                             f"products/{prod_id}",
                             {"images": only_ids},
                         )
+            action = "reactivated" if previous_status == "draft" else "updated"
+            if action == "reactivated":
+                logging.info(
+                    "♻️ [%s] Produto reativado (publish) — deixou de estar marcado 'Não Web'.",
+                    p.sku,
+                )
             logging.info(
                 "✅ Atualizado produto %s (ID %s) — imagens: %d",
                 p.sku,
                 prod_id,
                 len(final_images),
             )
+            return {"sku": p.sku, "action": action, "active": True}
         else:
             created = self._post("products", {**data_common, "images": final_images})
             created_id = created.get("id")
@@ -656,8 +679,7 @@ class WooClient:
                 created_id,
                 len(final_images),
             )
-
-        return p.sku
+            return {"sku": p.sku, "action": "created", "active": True}
 
     def disable_missing_wintouch_products(self, active_skus: set[str]) -> int:
         disabled = 0

@@ -263,7 +263,6 @@ class SyncProjectResource extends Resource
                     ->requiresConfirmation()
                     ->modalHeading('Correr sincronizador')
                     ->modalDescription(fn (SyncProject $record) => "Vai executar \"{$record->name}\" agora em segundo plano. O resultado fica no Histórico Sync.")
-                    ->visible(fn (SyncProject $record) => $record->runsLocally())
                     ->action(function (SyncProject $record) {
                         try {
                             if (blank($record->runner_script_path)) {

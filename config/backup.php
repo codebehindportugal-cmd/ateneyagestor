@@ -42,6 +42,17 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'tmp_dir' => env('BACKUP_TMP_DIR', '/tmp/bm-backups'),
+    'tmp_dir' => env('BACKUP_TMP_DIR', storage_path('app/backups')),
+
+    /*
+    |--------------------------------------------------------------------------
+    | PHP CLI binary override
+    |--------------------------------------------------------------------------
+    | Optional. When unset, SyncProjectResource::phpCliPath() derives the CLI
+    | binary from PHP_BINARY/PHP_BINDIR. Set this if that detection is wrong
+    | for a given server.
+    */
+
+    'php_cli_path' => env('PHP_CLI_PATH'),
 
 ];

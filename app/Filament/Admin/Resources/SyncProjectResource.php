@@ -482,16 +482,22 @@ class SyncProjectResource extends Resource
 
     private static function phpCliPath(): string
     {
+        if ($override = config('backup.php_cli_path')) {
+            return $override;
+        }
+
         // PHP_BINARY on production points outside open_basedir (e.g. /opt/plesk/php/...),
         // so is_file() on it triggers an open_basedir warning. It comes straight from the
         // running SAPI, so it's already known-good — use it directly without validating.
         if (PHP_OS_FAMILY !== 'Windows') {
             $binary = PHP_BINARY ?: 'php';
 
-            // When this action runs from a web request, PHP-FPM serves it and
-            // PHP_BINARY points to the php-fpm binary, not the CLI one.
-            if (str_contains($binary, 'php-fpm')) {
-                $binary = str_replace('/sbin/php-fpm', '/bin/php', $binary);
+            // Under PHP-FPM/CGI (web requests), PHP_BINARY points to the fpm/cgi
+            // binary, not the CLI one. PHP_BINDIR is a compile-time constant
+            // shared across SAPIs, so it still points at the bin/ dir holding
+            // the CLI binary.
+            if (str_contains($binary, 'fpm') || str_contains($binary, 'cgi')) {
+                $binary = PHP_BINDIR . '/php';
             }
 
             return $binary;

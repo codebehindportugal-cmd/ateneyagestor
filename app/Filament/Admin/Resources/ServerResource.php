@@ -2,12 +2,11 @@
 
 namespace App\Filament\Admin\Resources;
 
-use App\Enums\BackupStatus;
 use App\Enums\ServerType;
 use App\Filament\Admin\Resources\ServerResource\Pages;
+use App\Jobs\RunServerBackup;
 use App\Models\Server;
 use App\Enums\SecurityStatus;
-use App\Services\BackupService;
 use App\Services\SecurityScanService;
 use App\Services\SshService;
 use Illuminate\Support\Facades\Artisan;
@@ -283,24 +282,14 @@ class ServerResource extends Resource
                         ->modalHeading('Fazer backup agora')
                         ->modalDescription(fn (Server $record) => "Vai criar um backup de \"{$record->name}\" agora e enviar para o NAS. Pode demorar alguns minutos.")
                         ->visible(fn (Server $record) => $record->is_active && filled($record->ssh_key_path ?? config('backup.ssh_key')))
-                        ->action(function (Server $record, BackupService $backup) {
-                            $run = $backup->backup($record, 'filament');
+                        ->action(function (Server $record) {
+                            RunServerBackup::dispatch($record->id, 'filament');
 
-                            if ($run->status === BackupStatus::Success) {
-                                Notification::make()
-                                    ->title('Backup concluído')
-                                    ->body("✓ {$record->name} — " . ($run->nas_path ?? 'sem NAS configurado'))
-                                    ->success()
-                                    ->persistent()
-                                    ->send();
-                            } else {
-                                Notification::make()
-                                    ->title('Backup falhou')
-                                    ->body($run->error ?? 'Erro desconhecido')
-                                    ->danger()
-                                    ->persistent()
-                                    ->send();
-                            }
+                            Notification::make()
+                                ->title('Backup iniciado')
+                                ->body("{$record->name} — a correr em segundo plano. O estado atualiza-se na tabela quando terminar.")
+                                ->success()
+                                ->send();
                         }),
                     Tables\Actions\Action::make('scan_security')
                         ->label('Scan de segurança')
@@ -339,20 +328,15 @@ class ServerResource extends Resource
                         ->requiresConfirmation()
                         ->modalHeading('Fazer backup dos servidores seleccionados')
                         ->modalDescription('Vai criar backups em sequência para todos os servidores seleccionados.')
-                        ->action(function (Collection $records, BackupService $backup) {
-                            $ok     = 0;
-                            $failed = 0;
-
+                        ->action(function (Collection $records) {
                             foreach ($records as $server) {
-                                $run = $backup->backup($server, 'filament');
-                                $run->status === BackupStatus::Success ? $ok++ : $failed++;
+                                RunServerBackup::dispatch($server->id, 'filament');
                             }
 
                             Notification::make()
-                                ->title('Backups concluídos')
-                                ->body("✓ {$ok} sucesso   ✗ {$failed} falhou")
-                                ->color($failed > 0 ? 'warning' : 'success')
-                                ->persistent()
+                                ->title('Backups iniciados')
+                                ->body("{$records->count()} backup(s) a correr em segundo plano.")
+                                ->success()
                                 ->send();
                         }),
                     Tables\Actions\DeleteBulkAction::make(),

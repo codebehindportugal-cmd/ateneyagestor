@@ -27,7 +27,7 @@ class SshService
         $ssh = new SSH2($server->host, $server->port ?? 22);
         $ssh->setTimeout($timeout);
 
-        $keyPath = $server->ssh_key_path;
+        $keyPath = self::expandTilde($server->ssh_key_path);
         if (! $keyPath || ! file_exists($keyPath)) {
             throw new \RuntimeException("Chave SSH não encontrada: {$keyPath}. Configura o caminho da chave na ficha do servidor.");
         }
@@ -56,5 +56,24 @@ class SshService
         }
 
         return $this->run($server, self::PRESET_COMMANDS[$preset]['command']);
+    }
+
+    public static function expandTilde(?string $path): ?string
+    {
+        if (! $path) {
+            return $path;
+        }
+
+        if ($path === '~' || str_starts_with($path, '~/') || str_starts_with($path, '~\\')) {
+            $home = PHP_OS_FAMILY === 'Windows'
+                ? (getenv('USERPROFILE') ?: getenv('HOMEDRIVE') . getenv('HOMEPATH'))
+                : (getenv('HOME') ?: (function_exists('posix_getpwuid') ? posix_getpwuid(posix_geteuid())['dir'] : null));
+
+            if ($home) {
+                $path = $home . substr($path, 1);
+            }
+        }
+
+        return $path;
     }
 }

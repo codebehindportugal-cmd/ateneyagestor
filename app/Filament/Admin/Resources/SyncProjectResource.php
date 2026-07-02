@@ -483,25 +483,19 @@ class SyncProjectResource extends Resource
 
     private static function phpCliPath(): string
     {
-        $candidates = [];
-
-        if (PHP_OS_FAMILY === 'Windows') {
-            $candidates[] = 'C:\laragon\bin\php\php-8.2.5-Win32-vs16-x64\php.exe';
+        // PHP_BINARY on production points outside open_basedir (e.g. /opt/plesk/php/...),
+        // so is_file() on it triggers an open_basedir warning. It comes straight from the
+        // running SAPI, so it's already known-good — use it directly without validating.
+        if (PHP_OS_FAMILY !== 'Windows') {
+            return PHP_BINARY ?: 'php';
         }
 
-        if (defined('PHP_BINDIR')) {
-            $candidates[] = PHP_BINDIR . DIRECTORY_SEPARATOR . (PHP_OS_FAMILY === 'Windows' ? 'php.exe' : 'php');
+        $candidate = 'C:\laragon\bin\php\php-8.2.5-Win32-vs16-x64\php.exe';
+        if (is_file($candidate)) {
+            return $candidate;
         }
 
-        $candidates[] = PHP_BINARY;
-
-        foreach ($candidates as $candidate) {
-            if (is_file($candidate) && stripos(basename($candidate), 'php') === 0) {
-                return $candidate;
-            }
-        }
-
-        return PHP_OS_FAMILY === 'Windows' ? 'php.exe' : 'php';
+        return PHP_BINARY ?: 'php.exe';
     }
 
     private static function clientEnvTemplate(SyncProject $project, ?string $backupManagerToken = null): string

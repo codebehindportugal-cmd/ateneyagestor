@@ -96,7 +96,7 @@ class BackupService
 
     private function createBackupOnServer(Server $server, string $localTmpDir, callable $log): array
     {
-        $keyPath = $server->ssh_key_path ?: config('backup.ssh_key');
+        $keyPath = SshService::expandTilde($server->ssh_key_path ?: config('backup.ssh_key'));
 
         if (! $keyPath || ! file_exists($keyPath)) {
             throw new \RuntimeException(
@@ -297,7 +297,7 @@ class BackupService
         $log("Plesk backup (nativo) do domínio: {$domain}");
 
         $output = $sftp->exec(
-            "/usr/local/psa/bin/pleskbackup domains {$domain} --skip-logs --output-file={$backupFile} 2>&1",
+            "/usr/local/psa/bin/pleskbackup --domains-name {$domain} -output-file {$backupFile} -exclude-logs 2>&1",
             3600
         );
 

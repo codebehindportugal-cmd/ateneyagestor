@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ServerEnvironment;
 use App\Enums\ServerType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,7 @@ class Server extends Model
         'name',
         'type',
         'is_active',
+        'environment',
         'host',
         'port',
         'user',
@@ -49,6 +51,7 @@ class Server extends Model
         return [
             'type'                 => ServerType::class,
             'is_active'            => 'boolean',
+            'environment'          => ServerEnvironment::class,
             'storage_paths'        => 'array',
             'db_override'          => 'array',
             'plesk_backup_args'    => 'array',

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources;
 
+use App\Enums\ServerEnvironment;
 use App\Enums\ServerType;
 use App\Filament\Admin\Resources\ServerResource\Pages;
 use App\Jobs\RunServerBackup;
@@ -71,6 +72,16 @@ class ServerResource extends Resource
                         ->disabledOn('edit')
                         ->helperText('Nao editavel depois de criado -- cria um novo registo se precisares de mudar o tipo.'),
                     Forms\Components\Toggle::make('is_active')->label('Ativo')->default(true),
+                    Forms\Components\Select::make('environment')
+                        ->label('Ambiente')
+                        ->options([
+                            ServerEnvironment::Production->value  => ServerEnvironment::Production->label(),
+                            ServerEnvironment::Staging->value     => ServerEnvironment::Staging->label(),
+                            ServerEnvironment::Development->value => ServerEnvironment::Development->label(),
+                        ])
+                        ->default(ServerEnvironment::Production->value)
+                        ->required()
+                        ->helperText('Servidores de desenvolvimento ficam marcados no painel e não devem ter "Ativo" ligado.'),
                 ]),
 
             Forms\Components\Section::make('Ligacao')
@@ -190,6 +201,11 @@ class ServerResource extends Resource
                 Tables\Columns\TextColumn::make('name')->label('Nome')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('client.name')->label('Cliente')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('type')->label('Tipo')->badge(),
+                Tables\Columns\TextColumn::make('environment')
+                    ->label('Ambiente')
+                    ->badge()
+                    ->color(fn (ServerEnvironment $state) => $state->color())
+                    ->formatStateUsing(fn (ServerEnvironment $state) => $state->label()),
                 Tables\Columns\TextColumn::make('host')->label('Host'),
                 Tables\Columns\TextColumn::make('ping_response_ms')
                     ->label('Latência')
@@ -210,6 +226,11 @@ class ServerResource extends Resource
                     ServerType::VpsLaravel->value => ServerType::VpsLaravel->label(),
                     ServerType::Plesk->value      => ServerType::Plesk->label(),
                     ServerType::Cpanel->value     => ServerType::Cpanel->label(),
+                ]),
+                Tables\Filters\SelectFilter::make('environment')->label('Ambiente')->options([
+                    ServerEnvironment::Production->value  => ServerEnvironment::Production->label(),
+                    ServerEnvironment::Staging->value     => ServerEnvironment::Staging->label(),
+                    ServerEnvironment::Development->value => ServerEnvironment::Development->label(),
                 ]),
                 Tables\Filters\TernaryFilter::make('is_active')->label('Ativo'),
             ])

@@ -115,12 +115,25 @@ class SecurityScanService
 
     private function checkPhpWebshells(SFTP $sftp, string $webRoot): array
     {
-        // Patterns common in real webshells — eval(base64_decode), passthru(),
-        // preg_replace with /e modifier, and $_GET/POST-fed file_put_contents.
-        $pattern = 'eval\s*\(\s*base64_decode|assert\s*\(\s*\$_(GET|POST|REQUEST|COOKIE)|passthru\s*\(|preg_replace\s*\([^,]+\/e|file_put_contents\s*\([^,]+,\s*\$_(GET|POST|REQUEST)';
+        // Patterns common in real webshells — eval(base64_decode), a shell-exec
+        // function fed directly from a superglobal, and $_GET/POST-fed
+        // file_put_contents. The /e preg_replace modifier was dropped (removed in
+        // PHP 7, so that check was pure noise). Command-exec functions require a
+        // superglobal argument so they don't match method calls (->passthru),
+        // wrapper fns (fpassthru/gzpassthru), or hardcoded-argument calls in
+        // vendor code — only direct user-input-to-shell is flagged.
+        $pattern = 'eval\s*\(\s*base64_decode|assert\s*\(\s*\$_(GET|POST|REQUEST|COOKIE)|(system|exec|shell_exec|passthru|proc_open)\s*\([^)]*\$_(GET|POST|REQUEST|COOKIE)|file_put_contents\s*\([^,]+,\s*\$_(GET|POST|REQUEST)';
+
+        // vendor/node_modules are Composer/npm-managed, not attacker-writable, and
+        // their source legitimately contains fragments of these patterns (function
+        // names, docblocks) — excluding them removes noise without losing coverage
+        // of the actual application/theme/plugin code. This file itself is also
+        // excluded since it literally contains the pattern text below as a string.
+        $exclude = "-not -path '*/vendor/*' -not -path '*/node_modules/*'" .
+            " -not -path '*/app/Services/SecurityScanService.php'";
 
         $raw = (string) $sftp->exec(
-            "find " . escapeshellarg($webRoot) . " -name '*.php' -type f 2>/dev/null" .
+            "find " . escapeshellarg($webRoot) . " -name '*.php' -type f {$exclude} 2>/dev/null" .
             " | xargs grep -lP " . escapeshellarg($pattern) . " 2>/dev/null | head -20",
             60
         );
@@ -140,8 +153,14 @@ class SecurityScanService
 
     private function checkRecentlyModified(SFTP $sftp, string $webRoot): array
     {
+        // Exclude Composer/npm dirs (churn on every deploy) and Laravel's compiled
+        // view/route cache (rewritten on every cache:clear, not "modified" in any
+        // meaningful sense) — otherwise every deploy floods this with noise.
+        $exclude = "-not -path '*/vendor/*' -not -path '*/node_modules/*'" .
+            " -not -path '*/storage/framework/*' -not -path '*/bootstrap/cache/*'";
+
         $raw = (string) $sftp->exec(
-            "find " . escapeshellarg($webRoot) . " -name '*.php' -type f -mtime -7 2>/dev/null | head -30",
+            "find " . escapeshellarg($webRoot) . " -name '*.php' -type f -mtime -7 {$exclude} 2>/dev/null | head -30",
             60
         );
 

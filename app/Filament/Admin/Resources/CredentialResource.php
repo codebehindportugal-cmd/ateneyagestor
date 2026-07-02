@@ -6,7 +6,6 @@ use App\Filament\Admin\Resources\CredentialResource\Pages;
 use App\Models\Credential;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -94,6 +93,13 @@ class CredentialResource extends Resource
                     ->searchable()
                     ->copyable()
                     ->copyMessage('Utilizador copiado!'),
+                Tables\Columns\TextColumn::make('password')
+                    ->label('Password')
+                    ->placeholder('—')
+                    ->formatStateUsing(fn (?string $state) => filled($state) ? '••••••••' : null)
+                    ->copyable()
+                    ->copyMessage('Password copiada!')
+                    ->copyMessageDuration(1500),
                 Tables\Columns\TextColumn::make('url')
                     ->label('URL')
                     ->placeholder('—')
@@ -116,19 +122,6 @@ class CredentialResource extends Resource
                     ->relationship('client', 'name'),
             ])
             ->actions([
-                Tables\Actions\Action::make('copy_password')
-                    ->label('Copiar password')
-                    ->icon('heroicon-o-clipboard-document')
-                    ->color('gray')
-                    ->action(function (Credential $record) {
-                        // The password is decrypted by the model accessor.
-                        // We send it back via a notification with JS clipboard copy.
-                        Notification::make()
-                            ->title('Password: ' . $record->password)
-                            ->info()
-                            ->duration(8000)
-                            ->send();
-                    }),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])

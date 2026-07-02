@@ -5,7 +5,6 @@ namespace App\Filament\Admin\Resources\ClientResource\RelationManagers;
 use App\Models\Credential;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -65,6 +64,13 @@ class CredentialsRelationManager extends RelationManager
                     ->placeholder('—')
                     ->copyable()
                     ->copyMessage('Copiado!'),
+                Tables\Columns\TextColumn::make('password')
+                    ->label('Password')
+                    ->placeholder('—')
+                    ->formatStateUsing(fn (?string $state) => filled($state) ? '••••••••' : null)
+                    ->copyable()
+                    ->copyMessage('Password copiada!')
+                    ->copyMessageDuration(1500),
                 Tables\Columns\TextColumn::make('url')
                     ->label('URL')
                     ->placeholder('—')
@@ -74,17 +80,6 @@ class CredentialsRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make(),
             ])
             ->actions([
-                Tables\Actions\Action::make('copy_password')
-                    ->label('Ver password')
-                    ->icon('heroicon-o-eye')
-                    ->color('gray')
-                    ->action(function (Credential $record) {
-                        Notification::make()
-                            ->title($record->label . ': ' . $record->password)
-                            ->info()
-                            ->duration(10000)
-                            ->send();
-                    }),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])

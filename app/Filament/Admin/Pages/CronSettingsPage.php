@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Pages;
 
 use App\Models\Setting;
+use App\Support\PhpCli;
 use Cron\CronExpression;
 use Filament\Actions\Action;
 use Filament\Forms;
@@ -100,13 +101,23 @@ class CronSettingsPage extends Page implements HasForms
                 ->icon('heroicon-o-archive-box-arrow-down')
                 ->color('info')
                 ->requiresConfirmation()
-                ->action(fn () => $this->runCommand('backup:run', 'Backup concluido', ['--all' => true])),
+                ->action(fn () => $this->runArtisanInBackground(
+                    'backup:run --all',
+                    'backup-manual',
+                    'Backup iniciado em background',
+                    'Percorre todos os servidores ativos e pode demorar vários minutos. Consulta storage/logs/backup-manual.log ou o histórico de backups para acompanhar.'
+                )),
             Action::make('run_security')
                 ->label('Scan agora')
                 ->icon('heroicon-o-shield-exclamation')
                 ->color('warning')
                 ->requiresConfirmation()
-                ->action(fn () => $this->runCommand('security:scan', 'Scan concluido', ['--all' => true])),
+                ->action(fn () => $this->runArtisanInBackground(
+                    'security:scan --all',
+                    'security-scan-manual',
+                    'Scan iniciado em background',
+                    'Percorre todos os servidores ativos e pode demorar vários minutos. Consulta storage/logs/security-scan-manual.log ou o histórico de scans para acompanhar.'
+                )),
             Action::make('run_updates')
                 ->label('Ver updates agora')
                 ->icon('heroicon-o-arrow-path')
@@ -146,19 +157,12 @@ class CronSettingsPage extends Page implements HasForms
 
     public function runUpdates(): void
     {
-        $process = Process::fromShellCommandline('composer outdated --direct 2>&1', base_path());
-        $process->setTimeout(120);
-        $process->run();
-
-        $output = trim($process->getOutput().PHP_EOL.$process->getErrorOutput());
-        file_put_contents(storage_path('logs/update-check.log'), $output.PHP_EOL);
-
-        Notification::make()
-            ->title($process->isSuccessful() ? 'Verificacao de updates concluida' : 'Verificacao de updates terminou com avisos')
-            ->body($output !== '' ? $output : 'Sem updates diretos encontrados.')
-            ->color($process->isSuccessful() ? 'success' : 'warning')
-            ->persistent()
-            ->send();
+        $this->runShellInBackground(
+            'composer outdated --direct',
+            'update-check',
+            'Verificacao de updates iniciada em background',
+            'Consulta storage/logs/update-check.log dentro de alguns segundos para o resultado.'
+        );
     }
 
     private function runCommand(string $command, string $successMessage, array $parameters = []): void
@@ -171,6 +175,53 @@ class CronSettingsPage extends Page implements HasForms
             ->body($output !== '' ? $output : null)
             ->color($exitCode === 0 ? 'success' : 'danger')
             ->persistent()
+            ->send();
+    }
+
+    /**
+     * Runs an artisan command as a detached, non-blocking process so the
+     * PHP-FPM worker handling this request isn't held for the whole duration
+     * (backup:run/security:scan --all can take many minutes across servers,
+     * which was timing out nginx with a 504 on this page).
+     */
+    private function runArtisanInBackground(string $commandLine, string $logName, string $title, string $body): void
+    {
+        $shellCommand = sprintf(
+            '%s %s %s',
+            escapeshellarg(PhpCli::path()),
+            escapeshellarg(base_path('artisan')),
+            $commandLine
+        );
+
+        $this->runShellInBackground($shellCommand, $logName, $title, $body);
+    }
+
+    private function runShellInBackground(string $shellCommand, string $logName, string $title, string $body): void
+    {
+        $env = null;
+        if (PHP_OS_FAMILY !== 'Windows') {
+            $env = ['PATH' => PhpCli::binDir() . ':' . (getenv('PATH') ?: '/usr/bin:/bin')];
+        }
+
+        $logFile = storage_path("logs/{$logName}.log");
+
+        $process = Process::fromShellCommandline(
+            sprintf('%s >> %s 2>&1', $shellCommand, escapeshellarg($logFile)),
+            base_path(),
+            $env
+        );
+        $process->setTimeout(null);
+        $process->disableOutput();
+        // create_new_console stops Process::__destruct() from sending SIGTERM
+        // once this method returns and $process is garbage collected — without
+        // it the "background" run would be killed right after the request ends.
+        $process->setOptions(['create_new_console' => true]);
+        $process->start();
+
+        Notification::make()
+            ->title($title)
+            ->body($body)
+            ->success()
             ->send();
     }
 

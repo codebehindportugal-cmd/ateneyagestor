@@ -211,7 +211,6 @@ class CronSettingsPage extends Page implements HasForms
             $env
         );
         $process->setTimeout(null);
-        $process->disableOutput();
         // create_new_console stops Process::__destruct() from sending SIGTERM
         // once this method returns and $process is garbage collected — without
         // it the "background" run would be killed right after the request ends.

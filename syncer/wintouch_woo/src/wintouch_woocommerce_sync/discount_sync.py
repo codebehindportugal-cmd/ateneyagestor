@@ -84,14 +84,23 @@ def apply_discounts(wc_client, wintouch_cfg):
         logging.error("❌ Erro ao carregar categorias do WooCommerce: %s", e)
         return
 
-    # Marcas (atributo pa_marca) — opcional: se não existir no WooCommerce, continua sem marcas
+    # Marcas (plugin WooCommerce Brands: products/brands) — opcional
     all_brands = []
     try:
-        all_brands_resp = wc_client._get("products/attributes/pa_marca/terms")
-        all_brands = all_brands_resp.get("terms", all_brands_resp) if isinstance(all_brands_resp, dict) else all_brands_resp
+        page = 1
+        while True:
+            page_data = wc_client._get("products/brands", {"per_page": 100, "page": page})
+            if not page_data:
+                break
+            if isinstance(page_data, dict):
+                page_data = page_data.get("brands", page_data.get("terms", []))
+            all_brands.extend(page_data)
+            if len(page_data) < 100:
+                break
+            page += 1
         logging.info("🏷️ Marcas WooCommerce carregadas: %d", len(all_brands))
     except Exception as e:
-        logging.warning("⚠️ Atributo 'pa_marca' não encontrado no WooCommerce — matching por marca desactivado: %s", e)
+        logging.warning("⚠️ Endpoint 'products/brands' não disponível — matching por marca desactivado: %s", e)
 
     cat_map = {normalize_name(c["name"]): c["id"] for c in all_categories if isinstance(c, dict) and "name" in c}
     brand_map = {normalize_name(b["name"]): b["id"] for b in all_brands if isinstance(b, dict) and "name" in b and "id" in b}
@@ -183,19 +192,11 @@ def apply_discounts(wc_client, wintouch_cfg):
                         break
                     for p in page_products:
                         prod_cats = [c["id"] for c in p.get("categories", [])]
-                        prod_attrs = p.get("attributes", [])
-                        # WooCommerce usa o display name do atributo (ex: "Marca"), não o slug (ex: "pa_marca")
-                        BRAND_ATTR_NAMES = {"pa_marca", "marca", "brand", "marca/brand"}
-                        prod_brand_names = [
-                            normalize_name(v)
-                            for a in prod_attrs
-                            if normalize_name(a.get("name", "")) in BRAND_ATTR_NAMES
-                            or normalize_name(a.get("slug", "")) in BRAND_ATTR_NAMES
-                            for v in a.get("options", [])
-                        ]
+                        # Marcas via plugin WooCommerce Brands (campo "brands" no produto)
+                        prod_brand_ids = [b["id"] for b in p.get("brands", []) if isinstance(b, dict)]
 
                         has_category = wc_cat_id and wc_cat_id in prod_cats
-                        has_brand = brand_name and brand_name in prod_brand_names
+                        has_brand = wc_brand_id and wc_brand_id in prod_brand_ids
                         is_specific_product = product_info and normalize_name(product_info.get("Name")) == normalize_name(p.get("name"))
 
                         if has_category or has_brand or is_specific_product:

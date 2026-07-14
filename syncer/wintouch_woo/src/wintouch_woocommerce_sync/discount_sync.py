@@ -120,13 +120,20 @@ def apply_discounts(wc_client, wintouch_cfg):
             logging.warning("⚠️ Erro ao obter dados da política %s: %s", policy_id, e)
             continue
 
-        discounts = data.get("LoyaltyPolicyDiscounts", [])
-        campaigns = data.get("LoyaltyPolicyCampaigns", [])
+        # WinTouch pode usar camelCase ou underscore nos nomes das chaves
+        discounts = data.get("LoyaltyPolicyDiscounts") or data.get("Loyalty_Policy_Discounts", [])
+        campaigns = data.get("LoyaltyPolicyCampaigns") or data.get("Loyalty_Policy_Campaigns", [])
         logging.info("🎯 Total de descontos recebidos para política %s: %d", policy_id, len(discounts))
+        if not discounts:
+            logging.debug("🔍 Chaves disponíveis na política %s: %s", policy_id, list(data.keys()))
 
         for d in discounts:
-            discount_limits = d.get("LoyaltyPolicyDiscountLimits", [])
+            discount_limits = (
+                d.get("LoyaltyPolicyDiscountLimits")
+                or d.get("Loyalty_Policy_Discount_Limits", [])
+            )
             if not discount_limits:
+                logging.debug("⏭️ Desconto sem limites definidos, a ignorar: %s", d)
                 continue
 
             discount_raw = discount_limits[0].get("Discount", 0)
@@ -134,9 +141,16 @@ def apply_discounts(wc_client, wintouch_cfg):
             if discount_percent <= 0:
                 continue
 
-            cat_id = d.get("Product1ndCategoryID")
-            brand_id = d.get("Product3ndCategoryID")
+            # WinTouch pode usar diferentes nomes de campo para IDs de categoria/produto
+            cat_id = d.get("Product1ndCategoryID") or d.get("Product1stCategoryID") or d.get("Product_1nd_Category_ID")
+            brand_id = d.get("Product3ndCategoryID") or d.get("Product3rdCategoryID") or d.get("Product_3nd_Category_ID")
             product_info = d.get("Product")
+
+            logging.info(
+                "📋 A processar desconto %.2f%% | cat_id=%s | brand_id=%s | produto=%s",
+                discount_percent, cat_id, brand_id,
+                product_info.get("Name") if product_info else None,
+            )
 
             cat_name = ""
             if cat_id:
@@ -170,7 +184,15 @@ def apply_discounts(wc_client, wintouch_cfg):
                     for p in page_products:
                         prod_cats = [c["id"] for c in p.get("categories", [])]
                         prod_attrs = p.get("attributes", [])
-                        prod_brand_names = [normalize_name(v) for a in prod_attrs if normalize_name(a.get("name")) == "pa_marca" for v in a.get("options", [])]
+                        # WooCommerce usa o display name do atributo (ex: "Marca"), não o slug (ex: "pa_marca")
+                        BRAND_ATTR_NAMES = {"pa_marca", "marca", "brand", "marca/brand"}
+                        prod_brand_names = [
+                            normalize_name(v)
+                            for a in prod_attrs
+                            if normalize_name(a.get("name", "")) in BRAND_ATTR_NAMES
+                            or normalize_name(a.get("slug", "")) in BRAND_ATTR_NAMES
+                            for v in a.get("options", [])
+                        ]
 
                         has_category = wc_cat_id and wc_cat_id in prod_cats
                         has_brand = brand_name and brand_name in prod_brand_names
@@ -199,6 +221,14 @@ def apply_discounts(wc_client, wintouch_cfg):
                               p.get("categories"), p.get("attributes"))
 
             if not unique_products:
+                logging.warning(
+                    "⚠️ Nenhum produto encontrado para desconto %.2f%% "
+                    "(cat_wc=%s [%s], brand='%s', produto='%s')",
+                    discount_percent,
+                    wc_cat_id, cat_name,
+                    brand_name,
+                    product_info.get("Name") if product_info else None,
+                )
                 continue
 
             start_date, end_date = get_discount_period(d, campaigns)

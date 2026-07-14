@@ -14,6 +14,7 @@ yarn-error.log
 /public/storage
 /storage/*.key
 /storage/framework/cache/data/*
+/storage/framework/cache/*.php
 /storage/framework/sessions/*
 /storage/framework/views/*
 /storage/logs/*.log
@@ -23,3 +24,9 @@ yarn-error.log
 !/storage/framework/views/.gitkeep
 /bootstrap/cache/*.php
 !/bootstrap/cache/.gitkeep
+# Claude Code files
+/.claude/
+# Deploy logs
+deploy-log.txt
+/bootstrap/cache/packages.php 
+/bootstrap/cache/services.php 

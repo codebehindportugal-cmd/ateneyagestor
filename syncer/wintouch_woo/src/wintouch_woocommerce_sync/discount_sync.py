@@ -49,12 +49,18 @@ def apply_discounts(wc_client, wintouch_cfg):
             if len(page_data) < 100:
                 break
             page += 1
+    except Exception as e:
+        logging.error("❌ Erro ao carregar categorias do WooCommerce: %s", e)
+        return
 
+    # Marcas (atributo pa_marca) — opcional: se não existir no WooCommerce, continua sem marcas
+    all_brands = []
+    try:
         all_brands_resp = wc_client._get("products/attributes/pa_marca/terms")
         all_brands = all_brands_resp.get("terms", all_brands_resp) if isinstance(all_brands_resp, dict) else all_brands_resp
+        logging.info("🏷️ Marcas WooCommerce carregadas: %d", len(all_brands))
     except Exception as e:
-        logging.error("❌ Erro ao carregar categorias ou marcas do WooCommerce: %s", e)
-        return
+        logging.warning("⚠️ Atributo 'pa_marca' não encontrado no WooCommerce — matching por marca desactivado: %s", e)
 
     cat_map = {normalize_name(c["name"]): c["id"] for c in all_categories if isinstance(c, dict) and "name" in c}
     brand_map = {normalize_name(b["name"]): b["id"] for b in all_brands if isinstance(b, dict) and "name" in b and "id" in b}

@@ -1,0 +1,5 @@
+A verificar sync_projects via MySQL... 
+id	name	slug	is_active	runner_mode	runner_script_path	runner_schedule	status	last_run_at
+1	Marco e Raquel — Wintouch Sync	marco-e-raquel-wintouch-sync-YZs8bu	1	external	syncer/wintouch_woo/main.py	0 */3 * * *	running	2026-07-12 11:28:38
+2	Faustino Clemente — PHC Sync	faustino-clemente-phc-sync-IAFUmQ	1	external	NULL	NULL	unknown	NULL
+ 

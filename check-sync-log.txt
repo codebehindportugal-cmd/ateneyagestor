@@ -1,0 +1,19 @@
+A verificar configuracao dos sync projects no servidor... 
+
+In ParseErrorException.php line 44:
+                                                           
+  PHP Parse error: Syntax error, unexpected ';' on line 1  
+                                                           
+
+ 
+=== SCHEDULE LIST === 
+
+  */15 * * * *  agents:mark-stale-offline ............ Next Due: em 13 minutos
+  0    0 * * *  invoices:mark-overdue .................. Next Due: em 13 horas
+  */5  * * * *  php artisan monitor:sites ............. Next Due: em 3 minutos
+  */5  * * * *  php artisan server:check .............. Next Due: em 3 minutos
+  0    0 * * *  site-monitor-checks:prune .............. Next Due: em 13 horas
+  0    3 * * *  php artisan backup:run --all ........... Next Due: em 16 horas
+  0    4 * * 1  php artisan security:scan --all .......... Next Due: em 5 dias
+
+ 

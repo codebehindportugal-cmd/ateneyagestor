@@ -30,3 +30,5 @@ yarn-error.log
 deploy-log.txt
 /bootstrap/cache/packages.php 
 /bootstrap/cache/services.php 
+/bootstrap/cache/packages.php 
+/bootstrap/cache/services.php 

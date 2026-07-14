@@ -27,6 +27,37 @@ def get_discount_period(discount_obj, campaigns):
 
     return start[:10], end[:10]
 
+def clear_stale_discounts(wc_client, updated_product_ids):
+    """Remove sale_price de produtos que já não têm desconto activo no Wintouch."""
+    logging.info("🧹 A verificar promoções obsoletas no WooCommerce...")
+    cleared = 0
+    page = 1
+    while True:
+        try:
+            products = wc_client._get("products", {"per_page": 100, "page": page, "on_sale": True})
+        except Exception as e:
+            logging.warning("⚠️ Erro ao listar produtos em promoção: %s", e)
+            break
+        if not products:
+            break
+        for p in products:
+            if p["id"] not in updated_product_ids:
+                try:
+                    wc_client._put(f"products/{p['id']}", {
+                        "sale_price": "",
+                        "date_on_sale_from": None,
+                        "date_on_sale_to": None,
+                    })
+                    logging.info("🗑️ Promoção removida do produto: %s (ID %s)", p.get("name"), p["id"])
+                    cleared += 1
+                except Exception as e:
+                    logging.warning("⚠️ Erro ao remover promoção do produto %s: %s", p.get("name"), e)
+        if len(products) < 100:
+            break
+        page += 1
+    logging.info("🧹 Promoções obsoletas removidas: %d", cleared)
+
+
 def apply_discounts(wc_client, wintouch_cfg):
     logging.info("🚀 Início do processo de aplicar descontos")
 
@@ -68,6 +99,8 @@ def apply_discounts(wc_client, wintouch_cfg):
     logging.info("📁 Categorias WooCommerce mapeadas: %d", len(cat_map))
     for name, bid in brand_map.items():
         logging.debug("🔧 Marca WooCommerce: %s → ID: %s", name, bid)
+
+    updated_product_ids = set()
 
     for policy in policies:
         policy_id = policy["ID"]
@@ -184,6 +217,7 @@ def apply_discounts(wc_client, wintouch_cfg):
                         "date_on_sale_from": start_date,
                         "date_on_sale_to": end_date,
                     })
+                    updated_product_ids.add(p["id"])
 
                     logging.info("✅ Produto %s atualizado com %.2f%% de desconto (%s → %s)",
                                  p["name"], discount_percent,
@@ -192,4 +226,5 @@ def apply_discounts(wc_client, wintouch_cfg):
                 except Exception as e:
                     logging.warning("⚠️ Erro ao aplicar desconto no produto %s: %s", p.get("name"), e)
 
+    clear_stale_discounts(wc_client, updated_product_ids)
     logging.info("🏁 Processo de descontos finalizado.")

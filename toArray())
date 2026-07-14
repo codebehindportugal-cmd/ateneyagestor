@@ -1,0 +1,1 @@
+json_encode(DB::table('sync_projects')-;

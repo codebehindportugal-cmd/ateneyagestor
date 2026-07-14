@@ -1,0 +1,37 @@
+A fazer stash e git pull no servidor... 
+Saved working directory and index state WIP on master: 1bef863 fix: botões scan/backup/updates falhavam com erro open_basedir
+From https://github.com/codebehindportugal-cmd/ateneyagestor
+ * branch            master     -> FETCH_HEAD
+Updating 1bef863..e8a1e5e
+Fast-forward
+ .gitignore                                         |    7 +
+ app/Filament/Admin/Resources/AgentResource.php     |    8 +-
+ app/Filament/Admin/Resources/BackupRunResource.php |    8 +-
+ .../PaperInvoice/PaperInvoiceExtractor.php         |    2 +-
+ deploy-claude.sh                                   |  117 ++
+ deploy-run.bat                                     |   30 +
+ git-commit-push.bat                                |   48 +
+ git-deploy-server.sh                               |   43 +
+ resources/views/accountant/index.blade.php         |  562 +++----
+ ...de-1e06026dbe325cba543b2306bd7e55d66d31e4c1.php |   19 -
+ storage/logs/run-test.bat                          |    2 +-
+ syncer/wintouch_woo/.gitignore                     |   46 +-
+ syncer/wintouch_woo/README.md                      |  238 +--
+ syncer/wintouch_woo/requirements.txt               |   12 +-
+ .../wintouch_woocommerce_sync/apis/woocommerce.py  | 1722 ++++++++++----------
+ .../src/wintouch_woocommerce_sync/config.py        |  140 +-
+ .../src/wintouch_woocommerce_sync/discount_sync.py |  384 ++---
+ .../src/wintouch_woocommerce_sync/models.py        |   48 +-
+ .../src/wintouch_woocommerce_sync/sync.py          |   60 +-
+ .../src/wintouch_woocommerce_sync/utils.py         |   76 +-
+ 20 files changed, 1902 insertions(+), 1670 deletions(-)
+ create mode 100644 deploy-claude.sh
+ create mode 100644 deploy-run.bat
+ create mode 100644 git-commit-push.bat
+ create mode 100644 git-deploy-server.sh
+ delete mode 100644 storage/framework/cache/facade-1e06026dbe325cba543b2306bd7e55d66d31e4c1.php
+PULL_OK
+e8a1e5e fix: CRLF normalizado, .gitignore actualizado, cache excluida
+1bef863 fix: botões scan/backup/updates falhavam com erro open_basedir
+506fca1 fix: verificação de updates falhava com "php: No such file or directory"
+ 

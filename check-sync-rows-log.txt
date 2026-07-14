@@ -1,0 +1,3 @@
+A verificar registos sync_projects... 
+PHP Parse error:  syntax error, unexpected token ";" in Command line code on line 1
+ 

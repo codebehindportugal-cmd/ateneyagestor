@@ -1,0 +1,1 @@
+Deploy completed successfully. PULL_OK confirmed. discount_sync.py fix is live on server (commit e8a1e5e). WinTouch promotions will now process correctly.

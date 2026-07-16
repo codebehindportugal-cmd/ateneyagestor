@@ -233,6 +233,13 @@ def apply_discounts(wc_client, wintouch_cfg):
                 continue
 
             start_date, end_date = get_discount_period(d, campaigns)
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            if end_date < today_str:
+                logging.info(
+                    "⏩ Desconto expirado em %s (cat=%s, marca=%s) — a ignorar e deixar clear_stale_discounts remover.",
+                    end_date, cat_name, brand_name,
+                )
+                continue
 
             for p in unique_products:
                 try:

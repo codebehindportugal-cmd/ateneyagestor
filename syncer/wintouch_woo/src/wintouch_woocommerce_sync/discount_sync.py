@@ -1,6 +1,7 @@
 # Arquivo: src/wintouch_woocommerce_sync/discount_sync.py
 
 import logging
+import math
 from datetime import datetime
 from calendar import monthrange
 import unicodedata
@@ -248,7 +249,10 @@ def apply_discounts(wc_client, wintouch_cfg):
                         logging.warning("⚠️ Produto %s ignorado pois preço regular é inválido: %s", p.get("name"), regular_price)
                         continue
 
-                    sale_price = regular_price * (1 - discount_percent / 100)
+                    # Arredondar para baixo (floor) garante que o cliente recebe
+                    # pelo menos o desconto indicado e o badge WooCommerce mostra
+                    # a percentagem correta mesmo em produtos de baixo valor.
+                    sale_price = math.floor(regular_price * (1 - discount_percent / 100) * 100) / 100
 
                     wc_client._put(f"products/{p['id']}", {
                         "sale_price": f"{sale_price:.2f}",

@@ -10,7 +10,8 @@ from src.wintouch_woocommerce_sync.apis.wintouch import WintouchClient
 def normalize_name(name):
     return unicodedata.normalize("NFKD", name or "").encode("ASCII", "ignore").decode("ASCII").strip().lower()
 
-def get_discount_period(discount_obj, campaigns):
+def get_wintouch_period(discount_obj, campaigns):
+    """Devolve as datas reais do Wintouch (para validar se a promoção está ativa)."""
     today = datetime.now()
     start = discount_obj.get("StartDate")
     end = discount_obj.get("EndDate")
@@ -24,9 +25,45 @@ def get_discount_period(discount_obj, campaigns):
 
     if not end:
         last_day = monthrange(today.year, today.month)[1]
-        end = today.replace(day=last_day, hour=23, minute=59, second=59).strftime("%Y-%m-%d")
+        end = today.replace(day=last_day).strftime("%Y-%m-%d")
 
     return start[:10], end[:10]
+
+
+def get_discount_period(mode: str = "monthly", wt_start: str = None, wt_end: str = None):
+    """Devolve o período a definir no WooCommerce conforme o mode configurado.
+
+    Modes disponíveis (configurar em config.yaml > discount > period_mode):
+      monthly   → primeiro ao último dia do mês atual (padrão)
+      weekly    → segunda-feira a domingo da semana atual
+      quarterly → primeiro ao último dia do trimestre atual
+      annual    → 1 janeiro a 31 dezembro do ano atual
+      wintouch  → usar as datas reais vindas do Wintouch
+    """
+    today = datetime.now()
+
+    if mode == "wintouch" and wt_start and wt_end:
+        return wt_start, wt_end
+
+    if mode == "weekly":
+        monday = today - __import__("datetime").timedelta(days=today.weekday())
+        sunday = monday + __import__("datetime").timedelta(days=6)
+        return monday.strftime("%Y-%m-%d"), sunday.strftime("%Y-%m-%d")
+
+    if mode == "quarterly":
+        quarter_start_month = ((today.month - 1) // 3) * 3 + 1
+        quarter_end_month = quarter_start_month + 2
+        last_day = monthrange(today.year, quarter_end_month)[1]
+        start = today.replace(month=quarter_start_month, day=1).strftime("%Y-%m-%d")
+        end = today.replace(month=quarter_end_month, day=last_day).strftime("%Y-%m-%d")
+        return start, end
+
+    if mode == "annual":
+        return f"{today.year}-01-01", f"{today.year}-12-31"
+
+    # monthly (padrão)
+    last_day = monthrange(today.year, today.month)[1]
+    return today.replace(day=1).strftime("%Y-%m-%d"), today.replace(day=last_day).strftime("%Y-%m-%d")
 
 def clear_stale_discounts(wc_client, updated_product_ids):
     """Remove sale_price de produtos que já não têm desconto activo no Wintouch."""
@@ -59,8 +96,10 @@ def clear_stale_discounts(wc_client, updated_product_ids):
     logging.info("🧹 Promoções obsoletas removidas: %d", cleared)
 
 
-def apply_discounts(wc_client, wintouch_cfg):
+def apply_discounts(wc_client, wintouch_cfg, discount_cfg=None):
     logging.info("🚀 Início do processo de aplicar descontos")
+    period_mode = (discount_cfg.period_mode if discount_cfg else None) or "monthly"
+    logging.info("📅 Modo de período de desconto: %s", period_mode)
 
     wintouch = WintouchClient(cfg=wintouch_cfg)
 
@@ -233,14 +272,17 @@ def apply_discounts(wc_client, wintouch_cfg):
                 )
                 continue
 
-            start_date, end_date = get_discount_period(d, campaigns)
+            wt_start, wt_end = get_wintouch_period(d, campaigns)
             today_str = datetime.now().strftime("%Y-%m-%d")
-            if end_date < today_str:
+            if wt_end < today_str:
                 logging.info(
                     "⏩ Desconto expirado em %s (cat=%s, marca=%s) — a ignorar e deixar clear_stale_discounts remover.",
-                    end_date, cat_name, brand_name,
+                    wt_end, cat_name, brand_name,
                 )
                 continue
+
+            # Datas no WooCommerce conforme o period_mode configurado
+            start_date, end_date = get_discount_period(mode=period_mode, wt_start=wt_start, wt_end=wt_end)
 
             for p in unique_products:
                 try:

@@ -142,7 +142,7 @@ if __name__ == "__main__":
             logging.warning("Desativacao de produtos ausentes ignorada: nenhum SKU ativo recolhido do Wintouch.")
             print("Desativacao de produtos ausentes ignorada: nenhum SKU ativo recolhido do Wintouch.")
 
-        apply_discounts(woo, cfg.wintouch)
+        apply_discounts(woo, cfg.wintouch, getattr(cfg, "discount", None))
 
         status = "partial" if reporter._errors > 0 else "success"
 

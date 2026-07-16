@@ -24,11 +24,24 @@ yarn-error.log
 !/storage/framework/views/.gitkeep
 /bootstrap/cache/*.php
 !/bootstrap/cache/.gitkeep
-# Claude Code files
+
+# Uploads de utilizadores (nunca no git)
+/storage/app/public/*
+!/storage/app/public/.gitkeep
+
+# Binários Windows locais (poppler/tesseract) — no servidor usam-se os do sistema
+/bin/
+
+# Ferramentas Claude/agentes locais
 /.claude/
-# Deploy logs
-deploy-log.txt
-/bootstrap/cache/packages.php 
-/bootstrap/cache/services.php 
-/bootstrap/cache/packages.php 
-/bootstrap/cache/services.php 
+/.agents/
+
+# Scripts e logs locais de debug/deploy (Windows)
+/_local/
+/*.bat
+/*-log.txt
+/check-*.txt
+/deploy-*.txt
+/*.log
+DEPLOY_STATUS.txt
+deploy-status.html

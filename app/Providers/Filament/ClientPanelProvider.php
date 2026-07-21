@@ -32,13 +32,14 @@ class ClientPanelProvider extends PanelProvider
             ->favicon(asset('images/ateneya-logo.jpg'))
             ->sidebarCollapsibleOnDesktop()
             ->maxContentWidth(MaxWidth::Full)
+            ->darkMode(false)
             ->colors([
-                'primary' => Color::Slate,
+                'primary' => Color::Indigo,
                 'info' => Color::Sky,
                 'success' => Color::Emerald,
                 'warning' => Color::Amber,
                 'danger' => Color::Rose,
-                'gray' => Color::Zinc,
+                'gray' => Color::Slate,
             ])
             ->discoverResources(in: app_path('Filament/Client/Resources'), for: 'App\\Filament\\Client\\Resources')
             ->pages([

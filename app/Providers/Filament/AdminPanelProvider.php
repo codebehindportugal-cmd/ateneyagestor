@@ -32,25 +32,21 @@ class AdminPanelProvider extends PanelProvider
             ->favicon(asset('images/ateneya-logo.jpg'))
             ->sidebarCollapsibleOnDesktop()
             ->maxContentWidth(MaxWidth::Full)
+            ->darkMode(false)
             ->colors([
-                'primary' => Color::Slate,
+                'primary' => Color::Indigo,
                 'info' => Color::Sky,
                 'success' => Color::Emerald,
                 'warning' => Color::Amber,
                 'danger' => Color::Rose,
-                'gray' => Color::Zinc,
+                'gray' => Color::Slate,
             ])
             ->navigationGroups([
-                NavigationGroup::make('Operação')
-                    ->icon('heroicon-o-command-line'),
-                NavigationGroup::make('Integrações')
-                    ->icon('heroicon-o-arrows-right-left'),
-                NavigationGroup::make('Contabilidade')
-                    ->icon('heroicon-o-document-text'),
-                NavigationGroup::make('Clientes')
-                    ->icon('heroicon-o-users'),
+                NavigationGroup::make('Operação'),
+                NavigationGroup::make('Integrações'),
+                NavigationGroup::make('Contabilidade'),
+                NavigationGroup::make('Clientes'),
                 NavigationGroup::make('Sistema')
-                    ->icon('heroicon-o-cog-6-tooth')
                     ->collapsed(),
             ])
             ->discoverResources(in: app_path('Filament/Admin/Resources'), for: 'App\\Filament\\Admin\\Resources')

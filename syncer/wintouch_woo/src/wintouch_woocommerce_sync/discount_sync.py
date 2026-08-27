@@ -1,14 +1,74 @@
 # Arquivo: src/wintouch_woocommerce_sync/discount_sync.py
 
 import logging
-import math
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 from calendar import monthrange
 import unicodedata
 from src.wintouch_woocommerce_sync.apis.wintouch import WintouchClient
 
 def normalize_name(name):
     return unicodedata.normalize("NFKD", name or "").encode("ASCII", "ignore").decode("ASCII").strip().lower()
+
+
+def compute_sale_price(regular_price, discount_percent):
+    """Calcula o preço promocional de forma a que a percentagem implícita
+    (a que o WooCommerce recalcula a partir dos preços e mostra no badge)
+    corresponda exatamente à percentagem que vem do Wintouch.
+
+    Como os preços só têm 2 casas decimais, o valor exato do desconto quase
+    nunca cai num cêntimo certo. Em vez de arredondar sempre para baixo
+    (floor) — que fazia o desconto real ficar ora a mais ora a menos —
+    testamos os cêntimos vizinhos do valor exato e escolhemos o que devolve
+    a percentagem original do Wintouch quando recalculada. Se nenhum cêntimo
+    conseguir reproduzir a percentagem (ex.: produtos muito baratos), usamos
+    o cêntimo mais próximo do valor exato (arredondamento normal, meio para
+    cima — o mesmo critério do Wintouch).
+
+    Devolve um Decimal com 2 casas decimais, ou None se não for possível
+    calcular um preço promocional válido.
+    """
+    reg = Decimal(str(regular_price))
+    # f"{...:g}" remove zeros à direita: 15.0 → "15", 12.50 → "12.5",
+    # para compararmos a percentagem na mesma precisão do Wintouch.
+    pct = Decimal(f"{float(discount_percent):g}")
+    if reg <= 0 or pct <= 0 or pct >= 100:
+        return None
+
+    cent = Decimal("0.01")
+    exact = reg * (Decimal("1") - pct / Decimal("100"))
+    base = exact.quantize(cent, rounding=ROUND_HALF_UP)
+
+    # Precisão da comparação = precisão da percentagem do Wintouch
+    # (15 → unidades; 12.5 → uma casa decimal)
+    pct_exponent = min(pct.as_tuple().exponent, 0)
+    quantum = Decimal(1).scaleb(pct_exponent)
+
+    # Cêntimos candidatos, do mais próximo do valor exato para o mais afastado
+    candidates = sorted(
+        {base, base - cent, base + cent},
+        key=lambda c: abs(c - exact),
+    )
+    valid = [c for c in candidates if Decimal("0") < c < reg]
+    if not valid:
+        return None
+
+    def implied_pct(c):
+        return (reg - c) / reg * Decimal("100")
+
+    matches = [c for c in valid
+               if implied_pct(c).quantize(quantum, rounding=ROUND_HALF_UP) == pct]
+    if matches:
+        # Entre os cêntimos que reproduzem a percentagem, preferir os que dão
+        # desconto real >= percentagem nominal: assim o badge fica certo tanto
+        # em temas que arredondam como em temas que truncam a percentagem,
+        # e o cliente nunca recebe menos desconto do que o anunciado.
+        matches.sort(key=lambda c: (0 if implied_pct(c) >= pct else 1, abs(c - exact)))
+        return matches[0]
+
+    # Nenhum cêntimo reproduz a percentagem (ex.: produtos muito baratos) —
+    # usar o mais próximo do valor exato
+    return valid[0]
 
 def get_wintouch_period(discount_obj, campaigns):
     """Devolve as datas reais do Wintouch (para validar se a promoção está ativa)."""
@@ -291,10 +351,13 @@ def apply_discounts(wc_client, wintouch_cfg, discount_cfg=None):
                         logging.warning("⚠️ Produto %s ignorado pois preço regular é inválido: %s", p.get("name"), regular_price)
                         continue
 
-                    # Arredondar para baixo (floor) garante que o cliente recebe
-                    # pelo menos o desconto indicado e o badge WooCommerce mostra
-                    # a percentagem correta mesmo em produtos de baixo valor.
-                    sale_price = math.floor(regular_price * (1 - discount_percent / 100) * 100) / 100
+                    # Escolher o cêntimo que faz o WooCommerce mostrar exatamente
+                    # a percentagem que vem do Wintouch (ver compute_sale_price).
+                    sale_price = compute_sale_price(regular_price, discount_percent)
+                    if sale_price is None:
+                        logging.warning("⚠️ Produto %s ignorado: não foi possível calcular preço promocional (preço=%s, desconto=%s%%)",
+                                        p.get("name"), regular_price, discount_percent)
+                        continue
 
                     wc_client._put(f"products/{p['id']}", {
                         "sale_price": f"{sale_price:.2f}",

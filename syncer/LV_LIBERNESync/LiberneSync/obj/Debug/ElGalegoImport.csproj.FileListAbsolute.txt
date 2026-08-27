@@ -1,0 +1,149 @@
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\Interop.IStpBS900.dll
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\Interop.MSXML2.dll
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\Interop.RhpBE900.dll
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\Interop.StdBE900.dll
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\Interop.StpBE900.dll
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\Interop.VBA.dll
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\Interop.XtremeCommandBars.dll
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\Interop.XtremeDockingPane.dll
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\ElGalegoImport.exe.config
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\ElGalegoImport.exe
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\ElGalegoImport.pdb
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Newtonsoft.Json.dll
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Newtonsoft.Json.xml
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\ElGalegoImport.csproj.ResolveComReference.cache
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\ElGalegoImport.csproj.CoreCompileInputs.cache
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\ElGalegoImport.exe
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\ElGalegoImport.pdb
+C:\Users\bruno.lino\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\ElGalegoImport.csprojResolveAssemblyReference.cache
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\ElGalegoImport.exe.config
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\ElGalegoImport.exe
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\ElGalegoImport.pdb
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\ADODB.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.AdmBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.AdmBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.BasBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.CblBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.CblCtlMovs900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.CrmBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.EapBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.ErpBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.FacBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.GcpBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.IBasBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.ICblBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.ICrmBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.ICrmDS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.IEapBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.IFacBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.IGcpBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.IRhpBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.Microsoft.Office.Core.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.Primavera.BusinessData.ERPEngine900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.Primavera.Platform.Caching900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.RhpBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.StdBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.StdPlatBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.StdPlatBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Newtonsoft.Json.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\System.Xml.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\System.Xml.Linq.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\VBA.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\stdole.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\MSAPC.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\VBRUN.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Microsoft.StdFormat.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\MSDATASRC.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Newtonsoft.Json.xml
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.MSXML2.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.VBA.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.XtremeCommandBars.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\bin\Debug\Interop.XtremeDockingPane.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\ElGalegoImport.csprojResolveAssemblyReference.cache
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\Interop.MSXML2.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\Interop.VBA.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\Interop.XtremeCommandBars.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\Interop.XtremeDockingPane.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\ElGalegoImport.csproj.ResolveComReference.cache
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\ElGalegoImport.csproj.CoreCompileInputs.cache
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\ElGalegoImport.exe
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport\ElGalegoImport\obj\Debug\ElGalegoImport.pdb
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\ElGalegoImport.exe.config
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\ElGalegoImport.exe
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\ElGalegoImport.pdb
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\ADODB.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.AdmBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.AdmBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.BasBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.CblBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.CblCtlMovs900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.CrmBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.EapBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.ErpBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.FacBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.GcpBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.IBasBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.ICblBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.ICrmBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.ICrmDS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.IEapBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.IFacBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.IGcpBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.IRhpBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.Microsoft.Office.Core.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.Primavera.BusinessData.ERPEngine900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.Primavera.Platform.Caching900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.RhpBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.StdBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.StdPlatBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.StdPlatBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Newtonsoft.Json.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\System.Xml.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\System.Xml.Linq.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\VBA.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\stdole.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\MSAPC.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\VBRUN.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Microsoft.StdFormat.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\MSDATASRC.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Newtonsoft.Json.xml
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.MSXML2.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.VBA.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.XtremeCommandBars.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\bin\Debug\Interop.XtremeDockingPane.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\obj\Debug\ElGalegoImport.csprojResolveAssemblyReference.cache
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\obj\Debug\Interop.MSXML2.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\obj\Debug\Interop.VBA.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\obj\Debug\Interop.XtremeCommandBars.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\obj\Debug\Interop.XtremeDockingPane.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\obj\Debug\ElGalegoImport.csproj.ResolveComReference.cache
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\obj\Debug\ElGalegoImport.csproj.CoreCompileInputs.cache
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\obj\Debug\ElGalegoImport.exe
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\ElGalegoImport_04042018\ElGalegoImport\obj\Debug\ElGalegoImport.pdb
+D:\Projetos\ElGalego\ElGalegoImport\obj\Debug\Interop.MSXML2.dll
+D:\Projetos\ElGalego\ElGalegoImport\obj\Debug\Interop.VBA.dll
+D:\Projetos\ElGalego\ElGalegoImport\obj\Debug\Interop.XtremeCommandBars.dll
+D:\Projetos\ElGalego\ElGalegoImport\obj\Debug\Interop.XtremeDockingPane.dll
+D:\Projetos\ElGalego\ElGalegoImport\obj\Debug\ElGalegoImport.csproj.ResolveComReference.cache
+D:\Projetos\ElGalego\ElGalegoImport\obj\Debug\ElGalegoImport.exe
+D:\Projetos\ElGalego\ElGalegoImport\bin\Debug\ElGalegoImport.exe.config
+D:\Projetos\ElGalego\ElGalegoImport\bin\Debug\ElGalegoImport.exe
+D:\Projetos\ElGalego\ElGalegoImport\bin\Debug\ElGalegoImport.pdb
+D:\Projetos\ElGalego\ElGalegoImport\bin\Debug\Newtonsoft.Json.dll
+D:\Projetos\ElGalego\ElGalegoImport\bin\Debug\System.Xml.dll
+D:\Projetos\ElGalego\ElGalegoImport\bin\Debug\System.Xml.Linq.dll
+D:\Projetos\ElGalego\ElGalegoImport\bin\Debug\VBA.dll
+D:\Projetos\ElGalego\ElGalegoImport\bin\Debug\MSAPC.dll
+D:\Projetos\ElGalego\ElGalegoImport\bin\Debug\VBRUN.dll
+D:\Projetos\ElGalego\ElGalegoImport\bin\Debug\Newtonsoft.Json.xml
+D:\Projetos\ElGalego\ElGalegoImport\bin\Debug\Interop.MSXML2.dll
+D:\Projetos\ElGalego\ElGalegoImport\bin\Debug\Interop.VBA.dll
+D:\Projetos\ElGalego\ElGalegoImport\bin\Debug\Interop.XtremeCommandBars.dll
+D:\Projetos\ElGalego\ElGalegoImport\bin\Debug\Interop.XtremeDockingPane.dll
+D:\Projetos\ElGalego\ElGalegoImport\obj\Debug\ElGalegoImport.pdb
+D:\Projetos\LIBERNE\ElGalegoImport\obj\Debug\ElGalegoImport.csprojResolveAssemblyReference.cache
+D:\Projetos\LIBERNE\ElGalegoImport\obj\Debug\Interop.MSXML2.dll
+D:\Projetos\LIBERNE\ElGalegoImport\obj\Debug\Interop.VBA.dll
+D:\Projetos\LIBERNE\ElGalegoImport\obj\Debug\Interop.XtremeCommandBars.dll
+D:\Projetos\LIBERNE\ElGalegoImport\obj\Debug\Interop.XtremeDockingPane.dll
+D:\Projetos\LIBERNE\ElGalegoImport\obj\Debug\ElGalegoImport.csproj.ResolveComReference.cache

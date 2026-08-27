@@ -1,0 +1,502 @@
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\LIBERNE.exe.config
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\LIBERNE.xml
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\LIBERNE.exe
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\LIBERNE.pdb
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.AdmBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.AdmBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.BasBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.CblBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.CblCtlMovs900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.CrmBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.EapBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.ErpBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.FacBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.GcpBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.IBasBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.ICblBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.ICrmBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.ICrmDS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.IEapBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.IFacBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.IGcpBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.IRhpBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.Microsoft.Office.Core.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.Primavera.BusinessData.ERPEngine900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.Primavera.Platform.Caching900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.RhpBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.StdPlatBE900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.StdPlatBS900.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Newtonsoft.Json.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\System.Xml.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\System.Xml.Linq.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\VBA.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\stdole.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\MSAPC.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\VBRUN.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Microsoft.StdFormat.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\MSDATASRC.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Newtonsoft.Json.xml
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.MSXML2.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.VBA.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.XtremeCommandBars.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\bin\Release\Interop.XtremeDockingPane.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.csprojAssemblyReference.cache
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\obj\Release\Interop.MSXML2.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\obj\Release\Interop.VBA.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\obj\Release\Interop.XtremeCommandBars.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\obj\Release\Interop.XtremeDockingPane.dll
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.csproj.ResolveComReference.cache
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.csproj.CoreCompileInputs.cache
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.csproj.CopyComplete
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.exe
+C:\Users\Tecdoor\Documents\Visual Studio 2017\Projects\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.pdb
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\LIBERNE.exe.config
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\LIBERNE.xml
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\LIBERNE.exe
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\LIBERNE.pdb
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Interop.ErpBS900.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Interop.GcpBE900.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Interop.Microsoft.Office.Core.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Interop.Primavera.BusinessData.ERPEngine900.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Interop.StdBE900.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Newtonsoft.Json.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\System.Xml.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\System.Xml.Linq.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Interop.ICrmBS900.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Interop.ICblBS900.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Interop.IRhpBS900.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\stdole.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Interop.CrmBE900.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\VBA.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Interop.CblBE900.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Interop.RhpBE900.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Newtonsoft.Json.xml
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Interop.VBA.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Interop.XtremeCommandBars.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\bin\Release\Interop.XtremeDockingPane.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.csprojAssemblyReference.cache
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\obj\Release\Interop.MSXML2.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\obj\Release\Interop.VBA.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\obj\Release\Interop.XtremeCommandBars.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\obj\Release\Interop.XtremeDockingPane.dll
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.csproj.ResolveComReference.cache
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.csproj.CoreCompileInputs.cache
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.csproj.CopyComplete
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.exe
+C:\Users\teste\source\repos\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.pdb
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\LIBERNE.exe.config
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\LIBERNE.xml
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\LIBERNE.exe
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\LIBERNE.pdb
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\adodb.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.AdmBE900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.AdmBS900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.BasBE900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.EapBE900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.ErpBS900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.FacBE900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.GcpBE900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.IBasBS900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.IEapBS900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.IFacBS900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.IGcpBS900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.Microsoft.Office.Core.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.Primavera.BusinessData.ERPEngine900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.Primavera.Platform.Caching900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.StdBE900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.StdPlatBE900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.StdPlatBS900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Microsoft.CSharp.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Newtonsoft.Json.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\System.Configuration.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\System.Data.DataSetExtensions.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\System.Data.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\System.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\System.Drawing.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\System.Net.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\System.Net.Http.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\System.Windows.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\System.Windows.Forms.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\System.Xml.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\System.Xml.Linq.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\VBA.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.CblBE900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.ICrmBS900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.ICblBS900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.IRhpBS900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\stdole.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\MSAPC.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\VBRUN.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.CrmBE900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.RhpBE900.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Microsoft.StdFormat.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\MSDATASRC.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Newtonsoft.Json.xml
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.VBA.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.XtremeCommandBars.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\bin\Release\Interop.XtremeDockingPane.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.csprojAssemblyReference.cache
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\obj\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\obj\Release\Interop.VBA.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\obj\Release\Interop.XtremeCommandBars.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\obj\Release\Interop.XtremeDockingPane.dll
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.csproj.ResolveComReference.cache
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.csproj.CoreCompileInputs.cache
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.csproj.CopyComplete
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.exe
+C:\Desenvolvimento\LIBERNE\ElGalegoImport\obj\Release\LIBERNE.pdb
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\LIBERNE.exe.config
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\LIBERNE.xml
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\LIBERNE.exe
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\LIBERNE.pdb
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\adodb.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\Microsoft.CSharp.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\Newtonsoft.Json.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\System.Configuration.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\System.Data.DataSetExtensions.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\System.Data.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\System.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\System.Drawing.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\System.Net.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\System.Net.Http.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\System.Windows.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\System.Windows.Forms.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\System.Xml.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\System.Xml.Linq.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\VBA.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\Interop.CblBE900.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\Interop.ICrmBS900.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\Interop.ICblBS900.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\Interop.IRhpBS900.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\stdole.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\MSAPC.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\VBRUN.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\Interop.CrmBE900.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\Interop.RhpBE900.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\Microsoft.StdFormat.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\MSDATASRC.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\Newtonsoft.Json.xml
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\Interop.MSXML2.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\Interop.VBA.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\Interop.XtremeCommandBars.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\bin\Release\Interop.XtremeDockingPane.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\obj\Release\LIBERNE.csprojAssemblyReference.cache
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\obj\Release\Interop.MSXML2.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\obj\Release\Interop.VBA.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\obj\Release\Interop.XtremeCommandBars.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\obj\Release\Interop.XtremeDockingPane.dll
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\obj\Release\LIBERNE.csproj.ResolveComReference.cache
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\obj\Release\LIBERNE.csproj.CoreCompileInputs.cache
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\obj\Release\LIBERNE.csproj.CopyComplete
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\obj\Release\LIBERNE.exe
+\\192.168.1.1\Dev\DeskDev\0LIBERNE\LIBERNE_13032021\ElGalegoImport\obj\Release\LIBERNE.pdb
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\LIBERNE.exe.config
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\LIBERNE.xml
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\LIBERNE.exe
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\LIBERNE.pdb
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\adodb.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\Microsoft.CSharp.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\Newtonsoft.Json.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\System.Configuration.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\System.Data.DataSetExtensions.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\System.Data.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\System.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\System.Drawing.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\System.Net.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\System.Net.Http.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\System.Windows.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\System.Windows.Forms.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\System.Xml.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\System.Xml.Linq.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\VBA.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\Interop.CblBE900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\Interop.ICrmBS900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\Interop.ICblBS900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\Interop.IRhpBS900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\stdole.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\MSAPC.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\VBRUN.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\Interop.CrmBE900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\Interop.RhpBE900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\Microsoft.StdFormat.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\MSDATASRC.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\Newtonsoft.Json.xml
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\Interop.VBA.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\Interop.XtremeCommandBars.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\bin\Release\Interop.XtremeDockingPane.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\obj\Release\LIBERNE.csprojAssemblyReference.cache
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\obj\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\obj\Release\Interop.VBA.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\obj\Release\Interop.XtremeCommandBars.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\obj\Release\Interop.XtremeDockingPane.dll
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\obj\Release\LIBERNE.csproj.ResolveComReference.cache
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\obj\Release\LIBERNE.csproj.CoreCompileInputs.cache
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\obj\Release\LIBERNE.csproj.CopyComplete
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\obj\Release\LIBERNE.exe
+C:\Desenvolvimento\Primavera\LIBERNE_04112021\ElGalegoImport\obj\Release\LIBERNE.pdb
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\obj\Release\LIBERNE.csprojAssemblyReference.cache
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\obj\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\obj\Release\Interop.VBA.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\obj\Release\Interop.XtremeCommandBars.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\obj\Release\Interop.XtremeDockingPane.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\obj\Release\LIBERNE.csproj.ResolveComReference.cache
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\obj\Release\LIBERNE.csproj.CoreCompileInputs.cache
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\obj\Release\LIBERNE.exe
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\obj\Release\LIBERNE.pdb
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\LIBERNE.exe.config
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\LIBERNE.xml
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\LIBERNE.exe
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\LIBERNE.pdb
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\adodb.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.AdmBE900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.AdmBS900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.BasBE900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.EapBE900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.ErpBS900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.FacBE900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.GcpBE900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.IBasBS900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.IEapBS900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.IFacBS900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.IGcpBS900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.Microsoft.Office.Core.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.Primavera.BusinessData.ERPEngine900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.Primavera.Platform.Caching900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.StdBE900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.StdPlatBE900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.StdPlatBS900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Microsoft.CSharp.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Newtonsoft.Json.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\System.Configuration.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\System.Data.DataSetExtensions.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\System.Data.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\System.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\System.Drawing.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\System.Net.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\System.Net.Http.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\System.Windows.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\System.Windows.Forms.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\System.Xml.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\System.Xml.Linq.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\VBA.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.CblBE900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.ICrmBS900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.ICblBS900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.IRhpBS900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\stdole.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Primavera.Athena.Core.Threading.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\MSAPC.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\VBRUN.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.CrmBE900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.RhpBE900.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Microsoft.StdFormat.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\MSDATASRC.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\IKVM.OpenJDK.XML.API.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\IKVM.OpenJDK.Core.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\IKVM.OpenJDK.Text.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\IKVM.OpenJDK.Util.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\IKVM.OpenJDK.Security.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Newtonsoft.Json.xml
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.VBA.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.XtremeCommandBars.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\bin\Release\Interop.XtremeDockingPane.dll
+C:\Desenvolvimento\Primavera\LIBERNE_06112021\ElGalegoImport\obj\Release\LIBERNE.csproj.CopyComplete
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\LIBERNE.exe.config
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\LIBERNE.xml
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\LIBERNE.exe
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\LIBERNE.pdb
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\adodb.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\Microsoft.CSharp.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\Newtonsoft.Json.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\System.Configuration.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\System.Data.DataSetExtensions.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\System.Data.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\System.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\System.Drawing.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\System.Net.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\System.Net.Http.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\System.Windows.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\System.Windows.Forms.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\System.Xml.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\System.Xml.Linq.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\Newtonsoft.Json.xml
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\Interop.VBA.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\Interop.XtremeCommandBars.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\bin\Release\Interop.XtremeDockingPane.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\obj\Release\LIBERNE.csproj.AssemblyReference.cache
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\obj\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\obj\Release\Interop.VBA.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\obj\Release\Interop.XtremeCommandBars.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\obj\Release\Interop.XtremeDockingPane.dll
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\obj\Release\LIBERNE.csproj.ResolveComReference.cache
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\obj\Release\LIBERNE.csproj.CoreCompileInputs.cache
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\obj\Release\LIBERNE.csproj.CopyComplete
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\obj\Release\LIBERNE.exe
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\obj\Release\LIBERNE.pdb
+C:\Desenvolvimento\0Liberne\LIBERNE_MIGRACAO\ElGalegoImport\obj\Release\LIBERNE.exe.config
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\LIBERNE.exe.config
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\LIBERNE.xml
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\LIBERNE.exe
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\LIBERNE.pdb
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\adodb.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\Microsoft.CSharp.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\Newtonsoft.Json.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\System.Configuration.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\System.Data.DataSetExtensions.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\System.Data.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\System.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\System.Drawing.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\System.Net.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\System.Net.Http.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\System.Windows.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\System.Windows.Forms.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\System.Xml.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\System.Xml.Linq.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\WooCommerce.NET.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\WooCommerce.NET.pdb
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\Newtonsoft.Json.xml
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\bin\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\obj\Release\LIBERNE.csprojAssemblyReference.cache
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\obj\Release\LIBERNE.exe.config
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\obj\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\obj\Release\Interop.VBA.dll
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\obj\Release\LIBERNE.csproj.ResolveComReference.cache
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\obj\Release\LIBERNE.csproj.CoreCompileInputs.cache
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\obj\Release\LIBERNE.csproj.CopyComplete
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\obj\Release\LIBERNE.exe
+C:\Desenvolvimento\LIBERNESync_MIGRACAO\ElGalegoImport\obj\Release\LIBERNE.pdb
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\LIBERNE.exe.config
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\LIBERNE.xml
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\LIBERNE.exe
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\LIBERNE.pdb
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\adodb.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\Microsoft.CSharp.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\Newtonsoft.Json.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\System.Configuration.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\System.Data.DataSetExtensions.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\System.Data.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\System.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\System.Drawing.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\System.Net.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\System.Net.Http.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\System.Windows.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\System.Windows.Forms.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\System.Xml.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\System.Xml.Linq.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\WooCommerce.NET.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\WooCommerce.NET.pdb
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\Newtonsoft.Json.xml
+C:\Desenvolvimento\LIBERNESync\LiberneSync\bin\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\obj\Release\LIBERNE.csprojAssemblyReference.cache
+C:\Desenvolvimento\LIBERNESync\LiberneSync\obj\Release\LIBERNE.exe.config
+C:\Desenvolvimento\LIBERNESync\LiberneSync\obj\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\obj\Release\Interop.VBA.dll
+C:\Desenvolvimento\LIBERNESync\LiberneSync\obj\Release\LIBERNE.csproj.ResolveComReference.cache
+C:\Desenvolvimento\LIBERNESync\LiberneSync\obj\Release\LIBERNE.csproj.CoreCompileInputs.cache
+C:\Desenvolvimento\LIBERNESync\LiberneSync\obj\Release\LIBERNE.csproj.CopyComplete
+C:\Desenvolvimento\LIBERNESync\LiberneSync\obj\Release\LIBERNE.exe
+C:\Desenvolvimento\LIBERNESync\LiberneSync\obj\Release\LIBERNE.pdb
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\LIBERNE.exe.config
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\LIBERNE.xml
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\LIBERNE.exe
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\LIBERNE.pdb
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\adodb.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\Microsoft.Bcl.AsyncInterfaces.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\Microsoft.CSharp.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\Newtonsoft.Json.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\RestSharp.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Buffers.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Configuration.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Data.DataSetExtensions.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Data.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Drawing.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Memory.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Net.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Numerics.Vectors.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Runtime.CompilerServices.Unsafe.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Text.Encodings.Web.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Text.Json.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Threading.Tasks.Extensions.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.ValueTuple.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Windows.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Windows.Forms.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Xml.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Xml.Linq.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\WooCommerce.NET.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\WooCommerce.NET.pdb
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\Microsoft.Bcl.AsyncInterfaces.xml
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\Newtonsoft.Json.xml
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\RestSharp.xml
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Buffers.xml
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Memory.xml
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Numerics.Vectors.xml
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Runtime.CompilerServices.Unsafe.xml
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Text.Encodings.Web.xml
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Text.Json.xml
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.Threading.Tasks.Extensions.xml
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\System.ValueTuple.xml
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\bin\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\obj\Release\LIBERNE.csprojAssemblyReference.cache
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\obj\Release\LIBERNE.exe.config
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\obj\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\obj\Release\Interop.VBA.dll
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\obj\Release\LIBERNE.csproj.ResolveComReference.cache
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\obj\Release\LIBERNE.csproj.CoreCompileInputs.cache
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\obj\Release\LIBERNE.csproj.CopyComplete
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\obj\Release\LIBERNE.exe
+C:\Desenvolvimento\LV_LIBERNESync_20241024\LiberneSync\obj\Release\LIBERNE.pdb
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\LIBERNE.exe.config
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\LIBERNE.xml
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\LIBERNE.exe
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\LIBERNE.pdb
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\adodb.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\Microsoft.Bcl.AsyncInterfaces.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\Microsoft.CSharp.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\Newtonsoft.Json.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\RestSharp.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Buffers.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Configuration.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Data.DataSetExtensions.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Data.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Drawing.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Memory.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Net.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Numerics.Vectors.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Runtime.CompilerServices.Unsafe.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Text.Encodings.Web.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Text.Json.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Threading.Tasks.Extensions.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.ValueTuple.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Windows.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Windows.Forms.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Xml.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Xml.Linq.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\WooCommerce.NET.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\WooCommerce.NET.pdb
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\Microsoft.Bcl.AsyncInterfaces.xml
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\Newtonsoft.Json.xml
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\RestSharp.xml
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Buffers.xml
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Memory.xml
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Numerics.Vectors.xml
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Runtime.CompilerServices.Unsafe.xml
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Text.Encodings.Web.xml
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Text.Json.xml
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.Threading.Tasks.Extensions.xml
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\System.ValueTuple.xml
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\obj\Release\LIBERNE.csprojAssemblyReference.cache
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\obj\Release\LIBERNE.exe.config
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\obj\Release\Interop.MSXML2.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\obj\Release\Interop.VBA.dll
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\obj\Release\LIBERNE.csproj.ResolveComReference.cache
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\obj\Release\LIBERNE.csproj.CoreCompileInputs.cache
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\obj\Release\LIBERNE.csproj.CopyComplete
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\obj\Release\LIBERNE.exe
+C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\obj\Release\LIBERNE.pdb

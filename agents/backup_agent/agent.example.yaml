@@ -1,0 +1,20 @@
+# agent.yaml — configuração local do agente. Copiar para agent.yaml e preencher.
+# Este ficheiro tem o token do painel: chmod 600.
+
+# URL do painel (sem barra no fim).
+api_url: https://gestao.ateneya.com
+
+# Token Sanctum do agente.
+# Gera-se no painel: Operação > Agentes > Criar agente (tipo "Agente de backups").
+# Só aparece uma vez.
+token: "COLA-AQUI-O-TOKEN"
+
+# Onde os backups são gravados. Sobrepõe-se ao "Caminho do disco no Pi" do painel,
+# porque quem sabe onde o NAS está montado é esta máquina.
+backup_root: /mnt/nas/backups
+
+# Guarda de segurança: recusa correr se backup_root não for um ponto de montagem.
+# Sem isto, um NAS desmontado enche o disco do container em silêncio e os
+# backups ficam a ser escritos no sítio errado.
+# Só põe false se o destino for mesmo um disco local do container.
+require_mountpoint: true

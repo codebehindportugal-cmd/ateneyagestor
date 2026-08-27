@@ -3,13 +3,19 @@
 namespace App\Models;
 
 use App\Enums\ServerEnvironment;
-use App\Enums\ServerType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * Uma máquina. Só guarda como lá chegar — host, porta, utilizador e a
+ * referência da chave no secrets.yaml do agente. O que se copia está em
+ * Site, porque o mesmo VPS aloja vários domínios.
+ *
+ * Nunca guarda chaves privadas nem passwords: só a referência.
+ */
 class Server extends Model
 {
     use HasFactory;
@@ -18,28 +24,19 @@ class Server extends Model
         'client_id',
         'agent_id',
         'name',
-        'type',
+        'label',
+        'panel',
         'is_active',
         'environment',
         'host',
         'port',
         'user',
-        'app_path',
-        'storage_paths',
-        'db_override',
-        'domain',
-        'plesk_backup_args',
-        'api_port',
-        'backup_dest',
-        'poll_interval_seconds',
-        'max_wait_seconds',
         'agent_secret_ref',
         'retention_keep_days',
         'retention_keep_min_copies',
         'notes',
         'ssh_key_path',
         'plesk_api_key',
-        'wp_root',
         'ping_status',
         'ping_last_checked_at',
         'ping_response_ms',
@@ -49,16 +46,17 @@ class Server extends Model
     protected function casts(): array
     {
         return [
-            'type'                 => ServerType::class,
             'is_active'            => 'boolean',
             'environment'          => ServerEnvironment::class,
-            'storage_paths'        => 'array',
-            'db_override'          => 'array',
-            'plesk_backup_args'    => 'array',
             'ping_last_checked_at' => 'datetime',
         ];
     }
 
+    /**
+     * O cliente "dono" da máquina, quando existe — um VPS dedicado a um
+     * cliente. Fica vazio nas máquinas partilhadas, onde quem tem cliente
+     * é cada site.
+     */
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
@@ -67,6 +65,16 @@ class Server extends Model
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class);
+    }
+
+    public function sites(): HasMany
+    {
+        return $this->hasMany(Site::class);
+    }
+
+    public function activeSites(): HasMany
+    {
+        return $this->hasMany(Site::class)->where('is_active', true);
     }
 
     public function backupRuns(): HasMany
@@ -94,52 +102,32 @@ class Server extends Model
         return $this->hasOne(SecurityScan::class)->latestOfMany('started_at');
     }
 
+    public function hasPlesk(): bool
+    {
+        return $this->panel === 'plesk';
+    }
+
     /**
-     * The shape agent_sync.py expects from GET /api/agent/config -- METADATA
-     * ONLY, never secrets. Null/empty fields are dropped so the Pi-side
-     * config.yaml this produces stays close to a hand-written one.
+     * O que o agente recebe em GET /api/agent/config: a ligação, e dentro
+     * dela os sites a copiar. Uma ligação SSH por máquina em vez de uma por
+     * domínio — nos servidores com 4 sites isso são 4 ligações que passam a 1.
      */
     public function toAgentArray(): array
     {
-        $base = [
-            'name' => $this->name,
-            'type' => $this->type->value,
-            'host' => $this->host,
-            'port' => $this->port,
+        $sites = $this->activeSites
+            ->map(fn (Site $site) => $site->toAgentArray())
+            ->values()
+            ->all();
+
+        return array_filter([
+            'name'             => $this->name,
+            'label'            => $this->label,
+            'host'             => $this->host,
+            'port'             => $this->port ?: 22,
+            'user'             => $this->user ?: 'root',
+            'panel'            => $this->panel,
             'agent_secret_ref' => $this->agent_secret_ref ?: $this->name,
-        ];
-
-        $typeSpecific = match ($this->type) {
-            ServerType::WordPress => [
-                'user'    => $this->user,
-                'wp_root' => $this->wp_root,
-            ],
-            ServerType::VpsLaravel => [
-                'user'          => $this->user,
-                'app_path'      => $this->app_path,
-                'storage_paths' => $this->storage_paths,
-                'db_override'   => $this->db_override,
-            ],
-            ServerType::Plesk => [
-                'user'               => $this->user,
-                'domain'             => $this->domain,
-                'plesk_backup_args'  => $this->plesk_backup_args,
-            ],
-            ServerType::Cpanel => [
-                'api_port'               => $this->api_port,
-                'backup_dest'            => $this->backup_dest,
-                'poll_interval_seconds'  => $this->poll_interval_seconds,
-                'max_wait_seconds'       => $this->max_wait_seconds,
-            ],
-        };
-
-        if ($this->retention_keep_days || $this->retention_keep_min_copies) {
-            $typeSpecific['retention'] = array_filter([
-                'keep_days' => $this->retention_keep_days,
-                'keep_min_copies' => $this->retention_keep_min_copies,
-            ]);
-        }
-
-        return array_filter(array_merge($base, $typeSpecific), fn ($v) => ! is_null($v) && $v !== []);
+            'sites'            => $sites,
+        ], fn ($value) => ! is_null($value) && $value !== []);
     }
 }

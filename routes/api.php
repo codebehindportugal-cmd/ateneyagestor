@@ -38,7 +38,11 @@ Route::middleware('auth:sanctum')->prefix('agent')->group(function () {
 |
 */
 Route::middleware('auth:sanctum')->prefix('sync')->group(function () {
-    Route::post('/runs', [SyncController::class, 'storeRun']);
+    Route::post('/runs', [SyncController::class, 'storeRun']);           // legado: relatório único no fim
+    Route::get('/should-run', [SyncController::class, 'shouldRun']);    // poll do "Correr agora" remoto
+    Route::post('/runs/start', [SyncController::class, 'startRun']);    // início → aparece "Em curso"
+    Route::post('/runs/{run}/progress', [SyncController::class, 'progressRun']);
+    Route::post('/runs/{run}/finish', [SyncController::class, 'finishRun']);
 });
 
 Route::middleware('auth:sanctum')->post('/invoices/paper/extract', PaperInvoiceExtractionController::class);

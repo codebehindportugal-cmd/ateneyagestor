@@ -1,0 +1,2 @@
+[2025-11-01 15:15:05] [ERRO] [VAR] Pai '99.8.CT326' não encontrado para variação '99.8.CT326.7'.
+[2025-11-01 15:15:06] [ERRO] [VAR] Pai '99.8.CT326' não encontrado para variação '99.8.CT326.8'.

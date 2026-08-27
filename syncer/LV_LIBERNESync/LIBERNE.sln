@@ -1,0 +1,51 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30804.86
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WooCommerce.NET", "WooCommerce.NET\WooCommerce.NET.csproj", "{8A00662B-FDA5-4F15-8C7D-9C021D5D896A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LIBERNE", "LiberneSync\LIBERNE.csproj", "{50D9BE16-6615-4441-8287-93F3D4943692}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8A00662B-FDA5-4F15-8C7D-9C021D5D896A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A00662B-FDA5-4F15-8C7D-9C021D5D896A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A00662B-FDA5-4F15-8C7D-9C021D5D896A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8A00662B-FDA5-4F15-8C7D-9C021D5D896A}.Debug|x64.Build.0 = Debug|Any CPU
+		{8A00662B-FDA5-4F15-8C7D-9C021D5D896A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8A00662B-FDA5-4F15-8C7D-9C021D5D896A}.Debug|x86.Build.0 = Debug|Any CPU
+		{8A00662B-FDA5-4F15-8C7D-9C021D5D896A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A00662B-FDA5-4F15-8C7D-9C021D5D896A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A00662B-FDA5-4F15-8C7D-9C021D5D896A}.Release|x64.ActiveCfg = Release|Any CPU
+		{8A00662B-FDA5-4F15-8C7D-9C021D5D896A}.Release|x64.Build.0 = Release|Any CPU
+		{8A00662B-FDA5-4F15-8C7D-9C021D5D896A}.Release|x86.ActiveCfg = Release|Any CPU
+		{8A00662B-FDA5-4F15-8C7D-9C021D5D896A}.Release|x86.Build.0 = Release|Any CPU
+		{50D9BE16-6615-4441-8287-93F3D4943692}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{50D9BE16-6615-4441-8287-93F3D4943692}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{50D9BE16-6615-4441-8287-93F3D4943692}.Debug|x64.ActiveCfg = Debug|x64
+		{50D9BE16-6615-4441-8287-93F3D4943692}.Debug|x64.Build.0 = Debug|x64
+		{50D9BE16-6615-4441-8287-93F3D4943692}.Debug|x86.ActiveCfg = Debug|x86
+		{50D9BE16-6615-4441-8287-93F3D4943692}.Debug|x86.Build.0 = Debug|x86
+		{50D9BE16-6615-4441-8287-93F3D4943692}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{50D9BE16-6615-4441-8287-93F3D4943692}.Release|Any CPU.Build.0 = Release|Any CPU
+		{50D9BE16-6615-4441-8287-93F3D4943692}.Release|x64.ActiveCfg = Release|x64
+		{50D9BE16-6615-4441-8287-93F3D4943692}.Release|x64.Build.0 = Release|x64
+		{50D9BE16-6615-4441-8287-93F3D4943692}.Release|x86.ActiveCfg = Release|x86
+		{50D9BE16-6615-4441-8287-93F3D4943692}.Release|x86.Build.0 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8A36E670-D5EE-46AB-BC0D-4D1F2882004F}
+	EndGlobalSection
+EndGlobal

@@ -61,6 +61,7 @@ class SyncProject extends Model
         'is_active',
         'status',
         'last_run_at',
+        'run_requested_at',
         'notes',
         'code_archive_path',
         'code_archive_name',
@@ -71,6 +72,7 @@ class SyncProject extends Model
         return [
             'is_active' => 'boolean',
             'last_run_at' => 'datetime',
+            'run_requested_at' => 'datetime',
             'phc_api_key' => 'encrypted',
             'phc_password' => 'encrypted',
             'wintouch_api_key' => 'encrypted',

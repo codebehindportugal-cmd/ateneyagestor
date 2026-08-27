@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>LIBERNE</name>
+    </assembly>
+    <members>
+        <member name="M:LIBERNE.Program.DeleteAllPostsBySkuAsync(System.String)">
+            <summary>
+            Apaga TODOS os posts (produto ou variação) que tenham este SKU em todo o site.
+            Usa /buscar-por-sku + /eliminar-produto em loop, com limite de 10 por segurança.
+            </summary>
+        </member>
+    </members>
+</doc>

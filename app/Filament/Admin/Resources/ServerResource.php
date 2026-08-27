@@ -2,24 +2,26 @@
 
 namespace App\Filament\Admin\Resources;
 
-use App\Enums\ServerEnvironment;
-use App\Enums\ServerType;
-use App\Filament\Admin\Resources\ServerResource\Pages;
-use App\Jobs\RunServerBackup;
-use App\Models\Server;
 use App\Enums\SecurityStatus;
+use App\Enums\ServerEnvironment;
+use App\Filament\Admin\Resources\ServerResource\Pages;
+use App\Models\Server;
 use App\Services\SecurityScanService;
 use App\Services\SshService;
-use Illuminate\Support\Facades\Artisan;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Artisan;
 
+/**
+ * A MÁQUINA. Só guarda como lá chegar.
+ *
+ * O que se copia está em SiteResource: o mesmo VPS aloja vários domínios, e
+ * cada um pode ser de um cliente e de um tipo diferentes.
+ */
 class ServerResource extends Resource
 {
     protected static ?string $model = Server::class;
@@ -42,36 +44,32 @@ class ServerResource extends Resource
             Forms\Components\Section::make('Identificacao')
                 ->columns(2)
                 ->schema([
+                    Forms\Components\TextInput::make('label')
+                        ->label('Nome da máquina')
+                        ->placeholder('Contabo B')
+                        ->helperText('Como lhe chamas no dia a dia.'),
+                    Forms\Components\TextInput::make('name')
+                        ->label('Identificador')
+                        ->required()
+                        ->unique(ignoreRecord: true)
+                        ->helperText('Pasta no NAS — sem espaços, ex: vps-89-117-58-85.'),
                     Forms\Components\Select::make('client_id')
-                        ->label('Cliente')
+                        ->label('Cliente dono da máquina')
                         ->relationship('client', 'name')
                         ->searchable()
                         ->preload()
-                        ->required(),
+                        ->helperText('Só para VPS dedicados. Em branco nas máquinas partilhadas — aí o cliente é de cada site.'),
                     Forms\Components\Select::make('agent_id')
-                        ->label('Agente (Pi) responsavel')
+                        ->label('Agente responsavel')
                         ->relationship('agent', 'name')
                         ->searchable()
                         ->preload()
-                        ->helperText('Qual Pi/agente vai puxar este backup. Deixa em branco se so tiveres um agente.'),
-                    Forms\Components\TextInput::make('name')
-                        ->label('Nome (identificador)')
-                        ->required()
-                        ->unique(ignoreRecord: true)
-                        ->helperText('Usado como nome da pasta no disco do Pi -- sem espacos, ex: vps-acme-site.'),
-                    Forms\Components\Select::make('type')
-                        ->label('Tipo')
-                        ->options([
-                            ServerType::WordPress->value  => ServerType::WordPress->label(),
-                            ServerType::VpsLaravel->value => ServerType::VpsLaravel->label(),
-                            ServerType::Plesk->value      => ServerType::Plesk->label(),
-                            ServerType::Cpanel->value     => ServerType::Cpanel->label(),
-                        ])
-                        ->required()
-                        ->live()
-                        ->disabledOn('edit')
-                        ->helperText('Nao editavel depois de criado -- cria um novo registo se precisares de mudar o tipo.'),
-                    Forms\Components\Toggle::make('is_active')->label('Ativo')->default(true),
+                        ->helperText('Qual agente vai puxar estes backups. Em branco = qualquer agente.'),
+                    Forms\Components\Select::make('panel')
+                        ->label('Painel instalado')
+                        ->options(['plesk' => 'Plesk', 'cpanel' => 'cPanel'])
+                        ->placeholder('Nenhum')
+                        ->helperText('Se tiver Plesk, os sites desta máquina podem ser copiados com o pleskbackup.'),
                     Forms\Components\Select::make('environment')
                         ->label('Ambiente')
                         ->options([
@@ -80,85 +78,37 @@ class ServerResource extends Resource
                             ServerEnvironment::Development->value => ServerEnvironment::Development->label(),
                         ])
                         ->default(ServerEnvironment::Production->value)
-                        ->required()
-                        ->helperText('Servidores de desenvolvimento ficam marcados no painel e não devem ter "Ativo" ligado.'),
+                        ->required(),
+                    Forms\Components\Toggle::make('is_active')
+                        ->label('Ativo')
+                        ->default(true)
+                        ->helperText('Desligado, o agente ignora a máquina e todos os seus sites.'),
                 ]),
 
             Forms\Components\Section::make('Ligacao')
-                ->columns(2)
+                ->description('Usada por todos os sites desta máquina — uma ligação SSH, não uma por domínio.')
+                ->columns(3)
                 ->schema([
                     Forms\Components\TextInput::make('host')->label('Host / IP')->required(),
-                    Forms\Components\TextInput::make('port')->label('Porto SSH')->numeric()->default(22)
-                        ->visible(fn (Get $get) => in_array($get('type'), [ServerType::VpsLaravel->value, ServerType::Plesk->value])),
-                    Forms\Components\TextInput::make('user')->label('Utilizador SSH')
-                        ->visible(fn (Get $get) => in_array($get('type'), [ServerType::VpsLaravel->value, ServerType::Plesk->value]))
-                        ->required(fn (Get $get) => in_array($get('type'), [ServerType::VpsLaravel->value, ServerType::Plesk->value])),
+                    Forms\Components\TextInput::make('port')->label('Porto SSH')->numeric()->default(22),
+                    Forms\Components\TextInput::make('user')->label('Utilizador SSH')->default('root')->required(),
                 ]),
 
-            Forms\Components\Section::make('WordPress')
-                ->columns(2)
-                ->visible(fn (Get $get) => $get('type') === ServerType::WordPress->value)
-                ->schema([
-                    Forms\Components\TextInput::make('wp_root')
-                        ->label('Caminho do WordPress (wp_root)')
-                        ->required(fn (Get $get) => $get('type') === ServerType::WordPress->value)
-                        ->placeholder('/var/www/exemplo.com/public_html')
-                        ->helperText('Diretoria que contém o wp-config.php. As credenciais da BD são lidas do wp-config.php em tempo real.')
-                        ->columnSpanFull(),
-                ]),
-
-            Forms\Components\Section::make('VPS + Laravel')
-                ->columns(2)
-                ->visible(fn (Get $get) => $get('type') === ServerType::VpsLaravel->value)
-                ->schema([
-                    Forms\Components\TextInput::make('app_path')
-                        ->label('Caminho da app (raiz do Laravel)')
-                        ->required(fn (Get $get) => $get('type') === ServerType::VpsLaravel->value)
-                        ->helperText('Ex: /var/www/acme-site -- as credenciais da BD sao lidas do .env aqui em tempo real.'),
-                    Forms\Components\TagsInput::make('storage_paths')
-                        ->label('Pastas a arquivar (relativas ao caminho da app)')
-                        ->default(['storage/app', 'storage/logs'])
-                        ->placeholder('storage/app'),
-                ]),
-
-            Forms\Components\Section::make('Plesk')
-                ->columns(2)
-                ->visible(fn (Get $get) => $get('type') === ServerType::Plesk->value)
-                ->schema([
-                    Forms\Components\TextInput::make('domain')
-                        ->label('Dominio a fazer backup')
-                        ->required(fn (Get $get) => $get('type') === ServerType::Plesk->value),
-                    Forms\Components\TagsInput::make('plesk_backup_args')
-                        ->label('Flags extra do pleskbackup')
-                        ->placeholder('--rotation=0'),
-                ]),
-
-            Forms\Components\Section::make('cPanel')
-                ->columns(2)
-                ->visible(fn (Get $get) => $get('type') === ServerType::Cpanel->value)
-                ->schema([
-                    Forms\Components\TextInput::make('api_port')->label('Porto da API (HTTPS)')->numeric()->default(2083),
-                    Forms\Components\TextInput::make('backup_dest')->label('Destino do backup')->default('homedir'),
-                    Forms\Components\TextInput::make('poll_interval_seconds')->label('Intervalo de verificacao (segundos)')->numeric()->default(30),
-                    Forms\Components\TextInput::make('max_wait_seconds')->label('Tempo maximo de espera (segundos)')->numeric()->default(1800),
-                ]),
-
-            Forms\Components\Section::make('Segredos (apenas no Pi)')
-                ->description('A chave SSH / token de API NUNCA sao guardados aqui -- ficam so no secrets.yaml do Pi, associados por esta referencia.')
+            Forms\Components\Section::make('Segredos (apenas no agente)')
+                ->description('A chave SSH NUNCA é guardada aqui — fica só no secrets.yaml do agente, associada por esta referência.')
                 ->schema([
                     Forms\Components\TextInput::make('agent_secret_ref')
                         ->label('Referencia do segredo (agent_secret_ref)')
-                        ->helperText('Se deixares em branco, usa o nome do servidor. Tem de corresponder a uma entrada em secrets.yaml no Pi.'),
+                        ->helperText('Em branco usa o identificador da máquina. Tem de corresponder a uma entrada em secrets.yaml.'),
                 ]),
 
             Forms\Components\Section::make('Acesso direto SSH (deste painel)')
-                ->description('Para conseguires correr comandos nos servidores diretamente deste painel. A chave fica no teu PC, não na base de dados.')
+                ->description('Para correres comandos nesta máquina a partir do painel. A chave fica no teu PC, não na base de dados.')
                 ->columns(2)
                 ->schema([
                     Forms\Components\TextInput::make('ssh_key_path')
                         ->label('Caminho da chave SSH privada')
-                        ->placeholder('C:/Users/André Mendes/.ssh/id_rsa')
-                        ->helperText('Caminho no teu PC (Laragon) para a chave privada que tem acesso ao VPS.'),
+                        ->placeholder('C:/Users/André Mendes/.ssh/id_rsa'),
                     Forms\Components\TextInput::make('plesk_api_key')
                         ->label('Plesk API Key')
                         ->password()
@@ -166,11 +116,15 @@ class ServerResource extends Resource
                         ->helperText('Opcional. Criado no Plesk: Ferramentas > API Keys.'),
                 ]),
 
-            Forms\Components\Section::make('Retencao (opcional)')
+            Forms\Components\Section::make('Retencao por omissao')
+                ->description('Aplica-se aos sites desta máquina que não definam a sua própria.')
                 ->columns(2)
                 ->schema([
-                    Forms\Components\TextInput::make('retention_keep_days')->label('Manter X dias')->numeric()->helperText('Em branco = usa o valor global do agente.'),
-                    Forms\Components\TextInput::make('retention_keep_min_copies')->label('Manter sempre no minimo X copias')->numeric(),
+                    Forms\Components\TextInput::make('retention_keep_days')
+                        ->label('Manter X dias')->numeric()
+                        ->helperText('Em branco = usa o valor global do agente.'),
+                    Forms\Components\TextInput::make('retention_keep_min_copies')
+                        ->label('Manter sempre no minimo X copias')->numeric(),
                 ]),
 
             Forms\Components\Textarea::make('notes')->label('Notas internas')->columnSpanFull(),
@@ -198,34 +152,38 @@ class ServerResource extends Resource
                     ->tooltip(fn (Server $record) => $record->ping_last_checked_at
                         ? 'Verificado ' . $record->ping_last_checked_at->diffForHumans()
                         : 'Nunca verificado'),
-                Tables\Columns\TextColumn::make('name')->label('Nome')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('client.name')->label('Cliente')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('type')->label('Tipo')->badge(),
+                Tables\Columns\TextColumn::make('label')
+                    ->label('Máquina')
+                    ->description(fn (Server $record) => $record->name)
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('host')->label('Host')->searchable(),
+                Tables\Columns\TextColumn::make('panel')
+                    ->label('Painel')
+                    ->badge()
+                    ->placeholder('—'),
+                Tables\Columns\TextColumn::make('sites_count')
+                    ->label('Sites')
+                    ->counts('sites')
+                    ->badge()
+                    ->color('info'),
                 Tables\Columns\TextColumn::make('environment')
                     ->label('Ambiente')
                     ->badge()
                     ->color(fn (ServerEnvironment $state) => $state->color())
                     ->formatStateUsing(fn (ServerEnvironment $state) => $state->label()),
-                Tables\Columns\TextColumn::make('host')->label('Host'),
                 Tables\Columns\TextColumn::make('ping_response_ms')
                     ->label('Latência')
                     ->placeholder('—')
                     ->formatStateUsing(fn (?int $state) => $state ? "{$state} ms" : '—')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('agent.name')->label('Agente')->toggleable(),
-                Tables\Columns\TextColumn::make('latestBackupRun.status')
-                    ->label('Ultimo backup')
-                    ->badge()
-                    ->color(fn ($state) => $state?->color() ?? 'gray')
-                    ->formatStateUsing(fn ($state) => $state?->label() ?? 'Sem dados'),
                 Tables\Columns\IconColumn::make('is_active')->label('Ativo')->boolean(),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('type')->label('Tipo')->options([
-                    ServerType::WordPress->value  => ServerType::WordPress->label(),
-                    ServerType::VpsLaravel->value => ServerType::VpsLaravel->label(),
-                    ServerType::Plesk->value      => ServerType::Plesk->label(),
-                    ServerType::Cpanel->value     => ServerType::Cpanel->label(),
+                Tables\Filters\SelectFilter::make('panel')->label('Painel')->options([
+                    'plesk'  => 'Plesk',
+                    'cpanel' => 'cPanel',
                 ]),
                 Tables\Filters\SelectFilter::make('environment')->label('Ambiente')->options([
                     ServerEnvironment::Production->value  => ServerEnvironment::Production->label(),
@@ -249,7 +207,7 @@ class ServerResource extends Resource
                                 default => 'Desconhecido',
                             };
                             Notification::make()
-                                ->title($record->name . ': ' . $label)
+                                ->title(($record->label ?: $record->name) . ': ' . $label)
                                 ->color($record->ping_status === 'up' ? 'success' : 'danger')
                                 ->send();
                         }),
@@ -280,7 +238,7 @@ class ServerResource extends Resource
 
                                 $output = htmlspecialchars($result['output'] ?: '(sem output)');
                                 Notification::make()
-                                    ->title('SSH: ' . $record->name)
+                                    ->title('SSH: ' . ($record->label ?: $record->name))
                                     ->body('<pre style="font-size:0.75rem;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow:auto;background:#111;color:#4ade80;padding:0.75rem;border-radius:0.375rem">' . $output . '</pre>')
                                     ->success()
                                     ->persistent()
@@ -295,43 +253,26 @@ class ServerResource extends Resource
                             }
                         })
                         ->visible(fn (Server $record) => filled($record->ssh_key_path)),
-                    Tables\Actions\Action::make('backup_now')
-                        ->label('Fazer backup')
-                        ->icon('heroicon-o-archive-box-arrow-down')
-                        ->color('info')
-                        ->requiresConfirmation()
-                        ->modalHeading('Fazer backup agora')
-                        ->modalDescription(fn (Server $record) => "Vai criar um backup de \"{$record->name}\" agora e enviar para o NAS. Pode demorar alguns minutos.")
-                        ->visible(fn (Server $record) => $record->is_active && filled($record->ssh_key_path ?? config('backup.ssh_key')))
-                        ->action(function (Server $record) {
-                            RunServerBackup::dispatch($record->id, 'filament');
-
-                            Notification::make()
-                                ->title('Backup iniciado')
-                                ->body("{$record->name} — a correr em segundo plano. O estado atualiza-se na tabela quando terminar.")
-                                ->success()
-                                ->send();
-                        }),
                     Tables\Actions\Action::make('scan_security')
                         ->label('Scan de segurança')
                         ->icon('heroicon-o-shield-exclamation')
                         ->color('warning')
                         ->requiresConfirmation()
                         ->modalHeading('Lançar scan de segurança')
-                        ->modalDescription(fn (Server $record) => "Vai correr uma análise de segurança em \"{$record->name}\" via SSH. Pode demorar 1-2 minutos.")
+                        ->modalDescription(fn (Server $record) => 'Vai correr uma análise de segurança em "' . ($record->label ?: $record->name) . '" via SSH. Pode demorar 1-2 minutos.')
                         ->visible(fn (Server $record) => $record->is_active && filled($record->ssh_key_path ?? config('backup.ssh_key')))
                         ->action(function (Server $record, SecurityScanService $scanner) {
                             $scan = $scanner->scan($record, 'filament');
 
                             $body = match ($scan->status) {
-                                SecurityStatus::Clean    => "✓ Nenhum problema encontrado.",
+                                SecurityStatus::Clean    => 'Nenhum problema encontrado.',
                                 SecurityStatus::Warning  => "⚠ {$scan->findings_count} achado(s) — ver relatório para detalhes.",
                                 SecurityStatus::Critical => "✗ {$scan->findings_count} achado(s) CRÍTICO(S) — ver relatório imediatamente.",
                                 default                  => $scan->error ?? 'Erro desconhecido.',
                             };
 
                             Notification::make()
-                                ->title("Segurança: {$record->name}")
+                                ->title('Segurança: ' . ($record->label ?: $record->name))
                                 ->body($body)
                                 ->color($scan->status->color())
                                 ->persistent()
@@ -342,24 +283,6 @@ class ServerResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\BulkAction::make('backup_selected')
-                        ->label('Fazer backup dos seleccionados')
-                        ->icon('heroicon-o-archive-box-arrow-down')
-                        ->color('info')
-                        ->requiresConfirmation()
-                        ->modalHeading('Fazer backup dos servidores seleccionados')
-                        ->modalDescription('Vai criar backups em sequência para todos os servidores seleccionados.')
-                        ->action(function (Collection $records) {
-                            foreach ($records as $server) {
-                                RunServerBackup::dispatch($server->id, 'filament');
-                            }
-
-                            Notification::make()
-                                ->title('Backups iniciados')
-                                ->body("{$records->count()} backup(s) a correr em segundo plano.")
-                                ->success()
-                                ->send();
-                        }),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
@@ -368,6 +291,7 @@ class ServerResource extends Resource
     public static function getRelations(): array
     {
         return [
+            \App\Filament\Admin\Resources\ServerResource\RelationManagers\SitesRelationManager::class,
             \App\Filament\Admin\Resources\ServerResource\RelationManagers\BackupRunsRelationManager::class,
             \App\Filament\Admin\Resources\ServerResource\RelationManagers\SiteMonitorsRelationManager::class,
             \App\Filament\Admin\Resources\ServerResource\RelationManagers\SecurityScansRelationManager::class,
@@ -377,9 +301,9 @@ class ServerResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListServers::route('/'),
+            'index'  => Pages\ListServers::route('/'),
             'create' => Pages\CreateServer::route('/create'),
-            'edit' => Pages\EditServer::route('/{record}/edit'),
+            'edit'   => Pages\EditServer::route('/{record}/edit'),
         ];
     }
 }

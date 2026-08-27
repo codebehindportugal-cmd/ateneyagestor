@@ -1,0 +1,17 @@
+[2025-12-11 17:47:26] [ERRO] [SYNC] Data última sincronização: 10/12/2025 19:27:39
+[2025-12-11 17:47:26] [ERRO] [SYNC] Produtos - CSV gerado.
+[2025-12-11 17:47:29] [ERRO] [SYNC] Promocoes - CSV gerado.
+[2025-12-11 17:48:13] [ERRO] [SKU-FILTER] Existe produtos a sincronizar com SKU: 
+[2025-12-11 17:48:14] [ERRO] [SYNC] Data última sincronização: 01/01/0001 00:00:00
+[2025-12-11 17:50:15] [EXCEPTION] Erro durante o processamento em IniciarAplicacao
+System.Exception: Erro ao obter produtos atualizados: Tempo Limite de Execução Expirado. O período de tempo de espera decorreu antes da conclusão da operação ou o servidor não está a responder.
+   em LIBERNE.Program.ObterProdutosAtualizados(ErpBS erpBS, DateTime ultimaDataSincronizacao, String marcaFiltro) em C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\Program.cs:line 569
+   em LIBERNE.Program.<IniciarAplicacao>d__21.MoveNext() em C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\Program.cs:line 290
+[2025-12-11 17:50:16] [EXCEPTION] A aplicação terminou com erro no Main()
+System.Exception: Erro ao obter produtos atualizados: Tempo Limite de Execução Expirado. O período de tempo de espera decorreu antes da conclusão da operação ou o servidor não está a responder.
+   em LIBERNE.Program.ObterProdutosAtualizados(ErpBS erpBS, DateTime ultimaDataSincronizacao, String marcaFiltro) em C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\Program.cs:line 569
+   em LIBERNE.Program.<IniciarAplicacao>d__21.MoveNext() em C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\Program.cs:line 322
+--- Fim do rastreio da pilha da localização anterior em que a excepção foi emitida ---
+   em System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)
+   em System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   em LIBERNE.Program.<Main>d__20.MoveNext() em C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\Program.cs:line 163

@@ -13,6 +13,7 @@ class BackupRun extends Model
 
     protected $fillable = [
         'server_id',
+        'site_id',
         'agent_id',
         'status',
         'error',
@@ -34,9 +35,19 @@ class BackupRun extends Model
         ];
     }
 
+    /**
+     * A máquina onde o backup foi buscar os dados. Redundante com
+     * site->server, mas guardada à parte para o histórico sobreviver a um
+     * site apagado.
+     */
     public function server(): BelongsTo
     {
         return $this->belongsTo(Server::class);
+    }
+
+    public function site(): BelongsTo
+    {
+        return $this->belongsTo(Site::class);
     }
 
     public function agent(): BelongsTo

@@ -291,9 +291,44 @@ class SyncProjectResource extends Resource
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('Correr sincronizador')
-                    ->modalDescription(fn (SyncProject $record) => "Vai executar \"{$record->name}\" agora em segundo plano. O resultado fica no Histórico Sync.")
+                    ->modalDescription(fn (SyncProject $record) => $record->runner_mode === 'external'
+                        ? "Vai pedir ao sincronizador de \"{$record->name}\" (que corre no computador do cliente) para arrancar na próxima verificação — normalmente até 5 minutos."
+                        : "Vai executar \"{$record->name}\" agora em segundo plano. O resultado fica no Histórico Sync.")
                     ->action(function (SyncProject $record) {
                         try {
+                            // Runner EXTERNO (corre no cliente): não podemos lançar o processo
+                            // daqui — marcamos um pedido que o runner vai buscar por poll
+                            // (GET /api/sync/should-run, ex.: LIBERNE.exe --check-remote).
+                            if ($record->runner_mode === 'external') {
+                                $runningExternal = SyncRun::query()
+                                    ->where('sync_project_id', $record->id)
+                                    ->where('status', SyncStatus::Running)
+                                    ->where('started_at', '>', now()->subHours(2))
+                                    ->latest('started_at')
+                                    ->first();
+
+                                if ($runningExternal) {
+                                    Notification::make()
+                                        ->title('Sync já em curso')
+                                        ->body('Já existe uma execução ativa desde '.$runningExternal->started_at?->format('d/m/Y H:i').'. Consulta o Histórico Sync para acompanhar.')
+                                        ->warning()
+                                        ->persistent()
+                                        ->send();
+
+                                    return;
+                                }
+
+                                $record->forceFill(['run_requested_at' => now()])->save();
+
+                                Notification::make()
+                                    ->title('Pedido enviado')
+                                    ->body('O sincronizador no computador do cliente vai arrancar na próxima verificação (normalmente até 5 minutos). Quando arrancar, aparece "Em curso" no Histórico Sync.')
+                                    ->success()
+                                    ->send();
+
+                                return;
+                            }
+
                             if (blank($record->runner_script_path)) {
                                 Notification::make()
                                     ->title('Runner não configurado')

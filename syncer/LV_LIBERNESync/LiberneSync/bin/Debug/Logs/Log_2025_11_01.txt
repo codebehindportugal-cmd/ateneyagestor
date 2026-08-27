@@ -1,0 +1,5 @@
+[2025-11-01 15:15:04] [RegistrarProdutoSincronizado] Registro inserido para SKU: 99.8.CT326
+[2025-11-01 15:15:04] [RegistrarProdutoSincronizado] Registro inserido para SKU: 99.8.CT326.6
+[2025-11-01 15:15:06] Nenhuma promoção para atualizar.
+[2025-11-01 15:15:06] Caminhos retornados: produtosCsv=C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Debug\logs\queries\Query_ARTIGOS_2025_11_01_15-15-03.csv | promocoesCsv=C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Debug\logs\queries\Query_PROMOCOES_2025_11_01_15-15-06.csv | execCsv=C:\Desenvolvimento\LV_LIBERNESync\LiberneSync\bin\Debug\logs\queries\Execucao_ARTIGOS_2025_11_01_15-15-06.csv
+[2025-11-01 15:15:06] Existem? produtosCsv=True | promocoesCsv=False | execCsv=True

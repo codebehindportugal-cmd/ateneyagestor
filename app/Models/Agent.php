@@ -95,6 +95,16 @@ class Agent extends Model
             return 'Sem corridas reportadas';
         }
 
+        // last_backup_total a null significa que houve heartbeat mas nunca
+        // chegaram resultados — é o que acontece num --dry-run, que o painel
+        // responde com ignored_dry_run. Dizer "0 servidores" nesse caso seria
+        // tão enganador como o "Painel: ok" que o agente escrevia com 12 falhas.
+        if ($this->last_backup_total === null) {
+            return $this->lastBackupOk()
+                ? 'Comunicou sem erros (sem resultados registados — típico de dry-run)'
+                : 'Terminou com erro (código ' . (int) $this->last_backup_exit_code . '), sem resultados registados';
+        }
+
         $total  = (int) $this->last_backup_total;
         $failed = (int) $this->last_backup_failed;
 

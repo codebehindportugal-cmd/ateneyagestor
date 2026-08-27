@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BackupFrequency;
 use App\Enums\ServerType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,6 +28,7 @@ class Site extends Model
         'domain',
         'type',
         'is_active',
+        'backup_frequency',
         'wp_root',
         'app_path',
         'storage_paths',
@@ -38,6 +40,7 @@ class Site extends Model
         'max_wait_seconds',
         'retention_keep_days',
         'retention_keep_min_copies',
+        'retention_max_copies',
         'notes',
     ];
 
@@ -45,6 +48,7 @@ class Site extends Model
     {
         return [
             'type'              => ServerType::class,
+            'backup_frequency'  => BackupFrequency::class,
             'is_active'         => 'boolean',
             'storage_paths'     => 'array',
             'db_override'       => 'array',
@@ -83,6 +87,10 @@ class Site extends Model
                 ?: $this->server?->retention_keep_days,
             'keep_min_copies' => $this->retention_keep_min_copies
                 ?: $this->server?->retention_keep_min_copies,
+            // Limite superior: "guarda no máximo N". Não tem fallback para o
+            // servidor de propósito — é uma decisão por site, e um valor
+            // herdado sem se dar por isso apagaria cópias sem querer.
+            'max_copies' => $this->retention_max_copies,
         ]);
     }
 
@@ -93,8 +101,9 @@ class Site extends Model
     public function toAgentArray(): array
     {
         $base = [
-            'name' => $this->name,
-            'type' => $this->type->value,
+            'name'      => $this->name,
+            'type'      => $this->type->value,
+            'frequency' => ($this->backup_frequency ?? BackupFrequency::Daily)->value,
         ];
 
         $typeSpecific = match ($this->type) {

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources;
 
+use App\Enums\BackupFrequency;
 use App\Enums\ServerType;
 use App\Filament\Admin\Resources\SiteResource\Pages;
 use App\Models\Site;
@@ -80,6 +81,12 @@ class SiteResource extends Resource
                         ->live()
                         ->helperText('Plesk só funciona em máquinas que tenham mesmo o Plesk instalado.'),
                     Forms\Components\Toggle::make('is_active')->label('Ativo')->default(true),
+                    Forms\Components\Select::make('backup_frequency')
+                        ->label('Frequência de backup')
+                        ->options(BackupFrequency::options())
+                        ->default(BackupFrequency::Daily->value)
+                        ->required()
+                        ->helperText('Os mensais só correm no dia 1. O agente corre todas as noites e salta os restantes.'),
                 ]))),
 
             Forms\Components\Section::make('WordPress')
@@ -134,6 +141,11 @@ class SiteResource extends Resource
                         ->helperText('Em branco = usa a do servidor, e depois a global do agente.'),
                     Forms\Components\TextInput::make('retention_keep_min_copies')
                         ->label('Manter sempre no minimo X copias')->numeric(),
+                    Forms\Components\TextInput::make('retention_max_copies')
+                        ->label('Guardar no máximo X cópias')
+                        ->numeric()
+                        ->minValue(1)
+                        ->helperText('Apaga as mais antigas assim que passarem deste número, independentemente da idade. Em branco = sem limite.'),
                 ]),
 
             Forms\Components\Textarea::make('notes')->label('Notas internas')->columnSpanFull(),
@@ -173,6 +185,14 @@ class SiteResource extends Resource
                     ->placeholder('—')
                     ->formatStateUsing(fn (?int $state) => $state ? number_format($state / 1048576, 1) . ' MB' : '—')
                     ->toggleable(),
+                Tables\Columns\TextColumn::make('backup_frequency')
+                    ->label('Frequência')
+                    ->badge()
+                    ->formatStateUsing(fn (?BackupFrequency $state) => $state?->label() ?? '—')
+                    ->color(fn (?BackupFrequency $state) => $state === BackupFrequency::Monthly ? 'gray' : 'info')
+                    ->description(fn ($record) => $record->retention_max_copies
+                        ? 'guarda ' . $record->retention_max_copies
+                        : null),
                 Tables\Columns\IconColumn::make('is_active')->label('Ativo')->boolean(),
             ])
             ->filters([
@@ -187,6 +207,9 @@ class SiteResource extends Resource
                     ServerType::Plesk->value      => ServerType::Plesk->label(),
                     ServerType::Cpanel->value     => ServerType::Cpanel->label(),
                 ]),
+                Tables\Filters\SelectFilter::make('backup_frequency')
+                    ->label('Frequência')
+                    ->options(BackupFrequency::options()),
                 Tables\Filters\TernaryFilter::make('is_active')->label('Ativo'),
             ])
             ->actions([

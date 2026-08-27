@@ -314,8 +314,20 @@ def sweep_stale_partials(site_dir: Path, older_than_hours: int = 24) -> None:
             shutil.rmtree(leftover, ignore_errors=True)
 
 
-def prune(site_dir: Path, keep_days: int | None, keep_min_copies: int | None) -> None:
-    """Apaga snapshots antigos, garantindo sempre um mínimo de cópias."""
+def prune(site_dir: Path, keep_days: int | None, keep_min_copies: int | None,
+          max_copies: int | None = None) -> None:
+    """
+    Apaga snapshots antigos. Três controlos, aplicados por esta ordem:
+
+      keep_min_copies  mínimo intocável — nunca se desce abaixo disto
+      max_copies       máximo — acima deste número apaga-se por contagem,
+                       independentemente da idade ("guarda só as últimas 2")
+      keep_days        idade — apaga o que for mais velho do que isto
+
+    Sem max_copies nem keep_days não se apaga nada: era o comportamento
+    anterior, em que keep_min_copies (um mínimo) era o único controlo
+    existente e por isso os snapshots acumulavam indefinidamente.
+    """
     if not site_dir.is_dir():
         return
 
@@ -326,13 +338,29 @@ def prune(site_dir: Path, keep_days: int | None, keep_min_copies: int | None) ->
     )
 
     keep_min_copies = max(int(keep_min_copies or 1), 1)
+
+    if max_copies is not None:
+        max_copies = max(int(max_copies), 1)
+        # Um mínimo maior que o máximo é contraditório; o máximo manda, senão
+        # um valor herdado do servidor impedia o limite de alguma vez actuar.
+        keep_min_copies = min(keep_min_copies, max_copies)
+
     cutoff = time.time() - (int(keep_days or 0) * 86400)
 
     for idx, snap in enumerate(snapshots):
-        if idx < keep_min_copies or not keep_days:
+        if idx < keep_min_copies:
             continue
+
+        if max_copies is not None and idx >= max_copies:
+            log.info("    retenção: a apagar %s (acima do máximo de %d)", snap.name, max_copies)
+            shutil.rmtree(snap, ignore_errors=True)
+            continue
+
+        if not keep_days:
+            continue
+
         if snap.stat().st_mtime < cutoff:
-            log.info("    retenção: a apagar %s", snap.name)
+            log.info("    retenção: a apagar %s (mais de %d dias)", snap.name, int(keep_days))
             shutil.rmtree(snap, ignore_errors=True)
 
 
@@ -429,6 +457,7 @@ def run_site(server: dict, site: dict, global_cfg: dict, dry_run: bool) -> dict:
             site_dir,
             retention.get("keep_days", global_retention.get("keep_days")),
             retention.get("keep_min_copies", global_retention.get("keep_min_copies")),
+            retention.get("max_copies", global_retention.get("max_copies")),
         )
 
         log.info("    ✓ OK — %s em %s", human_size(total), dest_dir.name)
@@ -451,6 +480,18 @@ def run_site(server: dict, site: dict, global_cfg: dict, dry_run: bool) -> dict:
 
     result["finished_at"] = utc_now_iso()
     return result
+
+
+def site_due_today(site: dict, day_of_month: int) -> bool:
+    """
+    Um site mensal só corre no dia 1. O cron do agente é diário — é aqui que
+    se decide o que fica para trás, e não no crontab, para a periodicidade
+    viver no painel e não espalhada pela máquina.
+    """
+    freq = str(site.get("frequency") or "daily").lower()
+    if freq == "monthly":
+        return day_of_month == 1
+    return True
 
 
 def run_server(server: dict, global_cfg: dict, dry_run: bool, only: list[str]) -> list[dict]:
@@ -654,6 +695,8 @@ def main() -> int:
                         help="limita a um site ou a uma máquina (pode repetir)")
     parser.add_argument("--dry-run", action="store_true",
                         help="testa só o SSH, não transfere nada")
+    parser.add_argument("--ignore-frequency", action="store_true",
+                        help="corre também os mensais, mesmo não sendo dia 1")
     args = parser.parse_args()
 
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8")) or {}
@@ -672,6 +715,20 @@ def main() -> int:
             if s["name"] in args.only
             or any(site["name"] in args.only for site in (s.get("sites") or []))
         ]
+
+    # Um --only explícito é uma ordem directa: corre o que foi pedido,
+    # seja qual for a periodicidade.
+    if not args.only and not args.ignore_frequency:
+        hoje = datetime.now().day
+        saltados = 0
+        for server in servers:
+            todos = server.get("sites") or []
+            devidos = [site for site in todos if site_due_today(site, hoje)]
+            saltados += len(todos) - len(devidos)
+            server["sites"] = devidos
+        servers = [s for s in servers if s.get("sites")]
+        if saltados:
+            log.info("Frequência: %d site(s) mensais saltados (só correm no dia 1).", saltados)
 
     total_sites = sum(len(s.get("sites") or []) for s in servers)
     if not servers or not total_sites:

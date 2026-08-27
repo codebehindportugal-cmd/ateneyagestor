@@ -25,6 +25,79 @@
             </div>
         </div>
 
+        {{-- Estado da última corrida de cada agente de backups.
+             Antes só existia "online/offline", que diz apenas que o agente
+             falou com o painel — não que os backups tenham corrido.
+             As classes Tailwind estão escritas por extenso de propósito: o
+             purge varre estes ficheiros como texto e não vê classes montadas
+             por interpolação. --}}
+        @if($backupAgents->isNotEmpty())
+            <div class="space-y-2">
+                <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Agentes de backup</h3>
+                <div class="grid gap-3 md:grid-cols-2">
+                    @foreach($backupAgents as $agent)
+                        @php
+                            $ok    = $agent->lastBackupOk();
+                            $stale = $agent->backupIsStale();
+
+                            $state = $ok === null ? 'unknown' : ($ok === false ? 'failed' : ($stale ? 'stale' : 'ok'));
+
+                            $styles = [
+                                'ok' => [
+                                    'card'  => 'border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30',
+                                    'text'  => 'text-emerald-700 dark:text-emerald-300',
+                                    'pill'  => 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+                                    'label' => 'ok',
+                                ],
+                                'failed' => [
+                                    'card'  => 'border-rose-200 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/30',
+                                    'text'  => 'text-rose-700 dark:text-rose-300',
+                                    'pill'  => 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200',
+                                    'label' => 'com falhas',
+                                ],
+                                'stale' => [
+                                    'card'  => 'border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30',
+                                    'text'  => 'text-amber-700 dark:text-amber-300',
+                                    'pill'  => 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+                                    'label' => 'em silêncio',
+                                ],
+                                'unknown' => [
+                                    'card'  => 'border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900',
+                                    'text'  => 'text-gray-600 dark:text-gray-400',
+                                    'pill'  => 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+                                    'label' => 'sem dados',
+                                ],
+                            ][$state];
+                        @endphp
+                        <div class="flex items-start justify-between gap-4 rounded-lg border p-4 shadow-sm {{ $styles['card'] }}">
+                            <div>
+                                <p class="font-medium text-gray-950 dark:text-white">{{ $agent->name }}</p>
+                                <p class="mt-1 text-sm {{ $styles['text'] }}">
+                                    {{ $agent->lastBackupSummary() }}
+                                    @if($agent->last_backup_exit_code !== null && $agent->last_backup_exit_code !== 0)
+                                        <span class="text-xs opacity-75">(exit code {{ $agent->last_backup_exit_code }})</span>
+                                    @endif
+                                </p>
+                                <p class="mt-1 text-xs text-gray-500">
+                                    @if($agent->last_backup_at)
+                                        Última corrida: {{ $agent->last_backup_at->format('d/m/Y H:i') }}
+                                        @if($stale)
+                                            — <span class="font-medium text-amber-600">sem reportar há mais de 26h</span>
+                                        @endif
+                                    @else
+                                        Este agente nunca reportou uma corrida de backups.
+                                    @endif
+                                </p>
+                            </div>
+                            <span class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold {{ $styles['pill'] }}">
+                                {{ $styles['label'] }}
+                            </span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         <div class="flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-800">
             @foreach([
                 ['id' => 'sync', 'label' => 'Execuções Sync'],

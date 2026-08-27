@@ -129,9 +129,30 @@ class AgentController extends Controller
             Log::warning("Agent '{$agent->slug}' config merge issue: {$mergeError}");
         }
 
+        // Contagens da corrida, para o painel poder dizer "12 de 14 falharam"
+        // sem ter de percorrer o histórico de BackupRun a cada visita.
+        $total  = count($data['results']);
+        $failed = collect($data['results'])->reject(fn (array $r) => (bool) $r['success'])->count();
+
+        $agent->forceFill([
+            'last_backup_at'     => now(),
+            'last_backup_total'  => $total,
+            'last_backup_failed' => $failed,
+        ])->save();
+
+        if ($failed > 0) {
+            Log::warning("Agent '{$agent->slug}' reportou {$failed} de {$total} backups falhados");
+        }
+
         $agent->markOnline();
 
-        return response()->json(['status' => 'ok', 'stored' => $stored, 'skipped' => $skipped]);
+        return response()->json([
+            'status'  => 'ok',
+            'stored'  => $stored,
+            'skipped' => $skipped,
+            'failed'  => $failed,
+            'total'   => $total,
+        ]);
     }
 
     /**
@@ -145,11 +166,27 @@ class AgentController extends Controller
     {
         $agent = $this->authenticatedAgent($request);
 
-        $request->validate([
+        $data = $request->validate([
             'checked_in_at'    => ['sometimes', 'date', 'nullable'],
             'config_fetch_ok'  => ['sometimes', 'boolean', 'nullable'],
             'backup_exit_code' => ['sometimes', 'integer', 'nullable'],
         ]);
+
+        // Até 27/08/2026 o exit code era validado e descartado: o agente
+        // reportava 12 falhas em 14 e o painel mostrava o agente "online" e
+        // mais nada. Guardá-lo é o que torna a falha visível.
+        if (array_key_exists('backup_exit_code', $data) && $data['backup_exit_code'] !== null) {
+            $agent->forceFill([
+                'last_backup_exit_code' => (int) $data['backup_exit_code'],
+                'last_backup_at'        => now(),
+            ])->save();
+
+            if ((int) $data['backup_exit_code'] !== 0) {
+                Log::warning(
+                    "Agent '{$agent->slug}' terminou a corrida de backups com exit code {$data['backup_exit_code']}"
+                );
+            }
+        }
 
         $agent->markOnline();
 

@@ -186,7 +186,7 @@ class NasTest extends Command
 
             // A pública correspondente ajuda a comparar com o authorized_keys do NAS.
             $pub = $this->which('ssh-keygen')
-                ? $this->run(['ssh-keygen', '-y', '-f', $path], 15)
+                ? $this->runProcess(['ssh-keygen', '-y', '-f', $path], 15)
                 : null;
 
             if ($pub && $pub['ok']) {
@@ -261,7 +261,7 @@ class NasTest extends Command
         $cmd[] = "{$cfg['user']}@{$cfg['host']}";
         $cmd[] = 'echo NAS_OK; id; uname -a';
 
-        $result = $this->run($cmd, 60);
+        $result = $this->runProcess($cmd, 60);
         $all    = $result['out'] . "\n" . $result['err'];
 
         if ($this->option('full-verbose')) {
@@ -407,7 +407,13 @@ class NasTest extends Command
 
     // ------------------------------------------------------------------ helpers
 
-    private function run(array $cmd, int $timeout): array
+    /**
+     * NB: chama-se runProcess e nao run — Illuminate\Console\Command herda
+     * um run() publico do Symfony, e um run() privado aqui impede a classe
+     * de carregar ("Access level ... must be public"), o que rebenta com
+     * qualquer Artisan::call() da aplicacao inteira.
+     */
+    private function runProcess(array $cmd, int $timeout): array
     {
         $process = new Process($cmd, timeout: $timeout);
         $process->run();

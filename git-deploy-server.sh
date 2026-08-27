@@ -5,14 +5,36 @@
 
 set -euo pipefail
 
-REMOTE_DIR="/var/www/backup-manager"
+# O servidor é um Plesk: a app vive em /var/www/vhosts/<dominio>/httpdocs,
+# não em /var/www/backup-manager. Detecta o primeiro caminho que exista para
+# o script não morrer no "cd" (set -e) e abortar o deploy em silêncio.
+REMOTE_DIR="${REMOTE_DIR:-}"
+if [ -z "$REMOTE_DIR" ]; then
+  for candidate in \
+    /var/www/vhosts/gestao.ateneya.com/httpdocs \
+    /var/www/backup-manager \
+    /var/www/html/backup-manager
+  do
+    if [ -f "$candidate/artisan" ]; then
+      REMOTE_DIR="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ -z "$REMOTE_DIR" ]; then
+  echo "ERRO: nao encontrei a app (nenhum candidato tem artisan)." >&2
+  echo "Define REMOTE_DIR=/caminho/da/app antes de correr o script." >&2
+  exit 1
+fi
 
 if [ "${1:-}" != "--local" ]; then
   SERVER="gestao.ateneya.com"
   SSH_KEY="$HOME/.ssh/ateneya_vps_key"
   [ ! -f "$SSH_KEY" ] && SSH_KEY="$HOME/.ssh/id_rsa"
+  # bash -s envia este mesmo ficheiro por stdin: nao depende do caminho remoto.
   exec ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "root@$SERVER" \
-    "bash $REMOTE_DIR/git-deploy-server.sh --local"
+    "bash -s -- --local" < "$0"
 fi
 
 # ---------- corre NO SERVIDOR ----------
@@ -55,7 +77,13 @@ php artisan route:cache
 php artisan view:cache
 
 # 6. Permissões
-chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
+# Em Plesk o PHP corre como o utilizador da subscricao (ex.: gestao_ateneya),
+# NAO como www-data. Fazer chown para www-data partia as permissoes da app,
+# por isso herda-se o dono/grupo do proprio directorio da app.
+APP_OWNER="$(stat -c '%U:%G' "$REMOTE_DIR")"
+echo "==> Dono da app: $APP_OWNER"
+chown -R "$APP_OWNER" storage bootstrap/cache 2>/dev/null || true
+chmod -R ug+rwX storage bootstrap/cache 2>/dev/null || true
 
 echo ""
 echo "==> Agora: $(git log --oneline -1)"

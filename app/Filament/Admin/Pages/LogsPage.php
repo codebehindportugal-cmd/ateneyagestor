@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Pages;
 
+use App\Models\Agent;
 use App\Models\BackupRun;
 use App\Models\SyncProject;
 use App\Models\SyncRun;
@@ -46,6 +47,7 @@ class LogsPage extends Page
         return [
             'laravelLog'   => $this->readLaravelLog(),
             'scheduleList' => $this->getScheduleList(),
+            'backupAgents' => $this->getBackupAgents(),
             'backupErrors' => $this->getRecentBackupErrors(),
             'syncErrors'   => $this->getRecentSyncErrors(),
             'syncRuns'     => $this->getRecentSyncRuns(),
@@ -78,6 +80,19 @@ class LogsPage extends Page
     {
         Artisan::call('schedule:list');
         return Artisan::output();
+    }
+
+    /**
+     * Agentes de backup e o veredicto da última corrida de cada um.
+     * Um agente "online" que falhou 12 de 14 backups continua a parecer
+     * saudável em qualquer outra vista — é para isso que isto existe.
+     */
+    private function getBackupAgents(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Agent::where('agent_type', '!=', 'productivity')
+            ->orWhereNull('agent_type')
+            ->orderBy('name')
+            ->get();
     }
 
     private function getRecentBackupErrors(): \Illuminate\Database\Eloquent\Collection

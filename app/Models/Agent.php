@@ -27,6 +27,10 @@ class Agent extends Model
         'agent_type',
         'status',
         'last_seen_at',
+        'last_backup_exit_code',
+        'last_backup_at',
+        'last_backup_total',
+        'last_backup_failed',
         'computer_name',
         'assigned_user_name',
         'assigned_user_email',
@@ -56,6 +60,7 @@ class Agent extends Model
     {
         return [
             'last_seen_at' => 'datetime',
+            'last_backup_at' => 'datetime',
             'productivity_monitor_enabled' => 'boolean',
             'productivity_work_hours_enabled' => 'boolean',
             'productivity_work_weekdays' => 'array',
@@ -63,6 +68,59 @@ class Agent extends Model
             'notify_webhook_enabled' => 'boolean',
             'notify_sendmail_enabled' => 'boolean',
         ];
+    }
+
+    /**
+     * Veredicto da última corrida de backups deste agente.
+     *
+     * null   -> o agente ainda nunca reportou uma corrida
+     * true   -> correu tudo bem
+     * false  -> houve pelo menos uma falha (exit code != 0 ou falhas contadas)
+     */
+    public function lastBackupOk(): ?bool
+    {
+        if ($this->last_backup_at === null) {
+            return null;
+        }
+
+        return (int) $this->last_backup_exit_code === 0 && (int) $this->last_backup_failed === 0;
+    }
+
+    /**
+     * Uma linha legível para o painel: "12 de 14 falharam" / "14 de 14 ok".
+     */
+    public function lastBackupSummary(): string
+    {
+        if ($this->last_backup_at === null) {
+            return 'Sem corridas reportadas';
+        }
+
+        $total  = (int) $this->last_backup_total;
+        $failed = (int) $this->last_backup_failed;
+
+        if ($total === 0) {
+            return $this->lastBackupOk()
+                ? 'Corrida sem servidores a processar'
+                : 'Corrida terminou com erro (código ' . (int) $this->last_backup_exit_code . ')';
+        }
+
+        return $failed === 0
+            ? "{$total} de {$total} ok"
+            : "{$failed} de {$total} falharam";
+    }
+
+    /**
+     * Um agente de backups que não reporta há mais de 26h é tão preocupante
+     * como um que reporta falhas — o silêncio não aparece em lista de erros.
+     */
+    public function backupIsStale(): bool
+    {
+        if ($this->agent_type === 'productivity') {
+            return false;
+        }
+
+        return $this->last_backup_at === null
+            || $this->last_backup_at->lt(now()->subHours(26));
     }
 
     /**

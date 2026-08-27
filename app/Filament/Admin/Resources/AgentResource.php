@@ -204,6 +204,26 @@ class AgentResource extends Resource
                     ->color(fn (string $state) => $state === 'online' ? 'success' : 'gray')
                     ->formatStateUsing(fn (string $state) => $state === 'online' ? 'Online' : 'Offline'),
                 Tables\Columns\TextColumn::make('last_seen_at')->label('Ultimo contacto')->dateTime('d/m/Y H:i')->placeholder('Nunca'),
+                // "Online" só diz que o agente falou connosco, não que os backups
+                // correram. Esta coluna mostra o veredicto da última corrida.
+                Tables\Columns\TextColumn::make('last_backup_at')
+                    ->label('Ultimo backup')
+                    ->badge()
+                    ->state(fn (Agent $record) => $record->lastBackupSummary())
+                    ->description(fn (Agent $record) => $record->last_backup_at?->format('d/m/Y H:i'))
+                    ->color(fn (Agent $record) => match (true) {
+                        $record->lastBackupOk() === null  => 'gray',
+                        $record->lastBackupOk() === false => 'danger',
+                        $record->backupIsStale()          => 'warning',
+                        default                           => 'success',
+                    })
+                    ->icon(fn (Agent $record) => match (true) {
+                        $record->lastBackupOk() === null  => 'heroicon-o-question-mark-circle',
+                        $record->lastBackupOk() === false => 'heroicon-o-exclamation-triangle',
+                        $record->backupIsStale()          => 'heroicon-o-clock',
+                        default                           => 'heroicon-o-check-circle',
+                    })
+                    ->visible(fn (Agent $record) => $record->agent_type !== 'productivity'),
                 Tables\Columns\TextColumn::make('productivity_events_count')
                     ->label('Eventos')
                     ->counts('productivityEvents')

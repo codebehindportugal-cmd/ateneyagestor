@@ -29,6 +29,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -368,7 +369,10 @@ def run_site(server: dict, site: dict, global_cfg: dict, dry_run: bool) -> dict:
             result["finished_at"] = utc_now_iso()
             return result
 
-        site_dir = Path(global_cfg["backup_root"]) / server["name"] / name
+        root = Path(global_cfg["backup_root"])
+        assert_disk_alive(root)
+
+        site_dir = root / server["name"] / name
         site_dir.mkdir(parents=True, exist_ok=True)
         sweep_stale_partials(site_dir)
 
@@ -481,6 +485,101 @@ def run_server(server: dict, global_cfg: dict, dry_run: bool, only: list[str]) -
 
 
 # --------------------------------------------------------------------------
+# Manter o disco acordado
+#
+# O NAS é uma caixa externa (WD My Book) com um temporizador de inatividade no
+# firmware: adormece o disco sozinha, e não obedece ao hdparm. Quando volta a
+# ser preciso, o spin-up demora mais do que o timeout do kernel, o SCSI é
+# marcado offline e tudo o que se escreve a seguir dá Errno 5 — depois de o
+# backup já ter dito que estava a correr bem.
+#
+# Duas defesas: acordar e esperar antes de começar, e nunca deixar o disco
+# parado tempo suficiente para voltar a adormecer.
+# --------------------------------------------------------------------------
+
+KEEPALIVE_FILE = ".backup-agent-keepalive"
+
+
+def _touch_disk(root: Path) -> None:
+    """
+    Escrita minúscula com fsync. Tem de ser escrita: uma leitura pode ser
+    servida pela cache e não chega a acordar os pratos.
+    """
+    os.statvfs(root)
+    marker = root / KEEPALIVE_FILE
+    with open(marker, "w") as handle:
+        handle.write(utc_now_iso())
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def wake_disk(root: Path, timeout: int = 240) -> None:
+    """
+    Acorda o disco e espera que responda. Um WD Green a arrancar do standby
+    demora 15-30s; damos-lhe folga a sério antes de desistir.
+    """
+    deadline = time.monotonic() + timeout
+    attempt = 0
+    last_error: Exception | None = None
+
+    while time.monotonic() < deadline:
+        attempt += 1
+        try:
+            _touch_disk(root)
+            if attempt > 1:
+                log.info("NAS acordado à %da tentativa", attempt)
+            return
+        except OSError as exc:
+            last_error = exc
+            log.warning("NAS ainda não responde (%s) — a aguardar…", exc.strerror or exc)
+            time.sleep(5)
+
+    raise SystemExit(
+        f"O NAS não respondeu em {timeout}s ({last_error}). "
+        f"Nada foi copiado — melhor não ter backup do que ter um backup falso."
+    )
+
+
+class DiskKeepalive:
+    """
+    Mantém o disco acordado enquanto o backup corre. Os intervalos perigosos
+    não são entre sites: são dentro de um site, enquanto o mysqldump está a
+    ser gerado do outro lado e ainda não chegou um único byte cá.
+    """
+
+    def __init__(self, root: Path, interval: int = 120):
+        self.root = root
+        self.interval = interval
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, daemon=True, name="keepalive")
+        self.failures = 0
+
+    def _run(self) -> None:
+        while not self._stop.wait(self.interval):
+            try:
+                _touch_disk(self.root)
+                self.failures = 0
+            except OSError as exc:
+                self.failures += 1
+                log.warning("keepalive do NAS falhou (%dx): %s", self.failures, exc)
+
+    def __enter__(self) -> "DiskKeepalive":
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc_info) -> None:
+        self._stop.set()
+
+
+def assert_disk_alive(root: Path) -> None:
+    """Confirma entre sites que o disco continua a responder."""
+    try:
+        _touch_disk(root)
+    except OSError as exc:
+        raise BackupError(f"o NAS deixou de responder ({exc.strerror or exc})")
+
+
+# --------------------------------------------------------------------------
 # Guardas do disco de destino
 # --------------------------------------------------------------------------
 
@@ -583,14 +682,24 @@ def main() -> int:
                 encoding="utf-8")
         return 0
 
-    if not args.dry_run:
-        assert_backup_root(global_cfg)
-
-    log.info("Máquinas: %d   Sites: %d", len(servers), total_sites)
-
     results: list[dict] = []
-    for server in servers:
-        results.extend(run_server(server, global_cfg, args.dry_run, args.only))
+
+    if args.dry_run:
+        log.info("Máquinas: %d   Sites: %d", len(servers), total_sites)
+        for server in servers:
+            results.extend(run_server(server, global_cfg, args.dry_run, args.only))
+    else:
+        assert_backup_root(global_cfg)
+        root = Path(global_cfg["backup_root"])
+
+        log.info("A acordar o NAS…")
+        wake_disk(root)
+
+        log.info("Máquinas: %d   Sites: %d", len(servers), total_sites)
+
+        with DiskKeepalive(root):
+            for server in servers:
+                results.extend(run_server(server, global_cfg, args.dry_run, args.only))
 
     ok = sum(1 for r in results if r["success"])
     log.info("Resumo: ✓ %d   ✗ %d", ok, len(results) - ok)

@@ -15,7 +15,7 @@ Os segredos são por MÁQUINA, não por site: uma chave SSH abre o servidor e
 serve todos os domínios lá alojados.
 
 Uso:
-    python3 agent_sync.py [--dry-run] [--only nome] [--config-only]
+    python3 agent_sync.py [--dry-run] [--only nome] [--ignore-frequency] [--config-only]
 """
 
 from __future__ import annotations
@@ -124,6 +124,9 @@ def main() -> int:
                         help="testa a ligação SSH a todas as máquinas, não transfere nada")
     parser.add_argument("--only", action="append", default=[],
                         help="limita a um site ou a uma máquina (pode repetir)")
+    parser.add_argument("--ignore-frequency", action="store_true",
+                        help="corre todos os sites, mesmo os mensais fora do dia 1 "
+                             "(para testes; a corrida agendada nunca usa isto)")
     parser.add_argument("--config-only", action="store_true",
                         help="só gera o config.yaml e mostra-o")
     parser.add_argument("--verbose", "-v", action="store_true")
@@ -183,6 +186,8 @@ def main() -> int:
     ]
     if args.dry_run:
         cmd.append("--dry-run")
+    if args.ignore_frequency:
+        cmd.append("--ignore-frequency")
     for only in args.only:
         cmd += ["--only", only]
 

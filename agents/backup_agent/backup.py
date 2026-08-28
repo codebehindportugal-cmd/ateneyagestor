@@ -63,6 +63,30 @@ PIPEFAIL = "set -o pipefail 2>/dev/null || true; "
 # arquivo pode estar truncado. So o 1 e tolerado.
 TAR_WARN_EXIT_CODES = (1,)
 
+# Pastas que NUNCA devem entrar num backup de WordPress: ou sao backups de
+# plugins (fazer backup do backup duplica o site em disco todas as noites), ou
+# sao cache/estado regeneravel. Nada aqui contem dados que so existam aqui.
+#   Descoberto a 28/08/2026: faustinoclemente-pt tinha 25 GB e loja-amster
+#   passava dos 34 GB — quase tudo wp-content/updraft.
+WP_EXCLUDES = (
+    # backups de plugins
+    "./wp-content/updraft",              # UpdraftPlus
+    "./wp-content/ai1wm-backups",        # All-in-One WP Migration
+    "./wp-content/backups-dup-pro",      # Duplicator Pro
+    "./wp-content/backups-dup-lite",     # Duplicator Lite
+    "./wp-content/wpvivid-backup*",      # WPvivid
+    "./wp-content/uploads/backup*",      # BackupBuddy e afins
+    "./wp-content/uploads/backwpup*",    # BackWPup
+    "./wp-content/uploads/wp-migrate-db",
+    # cache e estado regeneravel
+    "./wp-content/cache",
+    "./wp-content/upgrade",              # temporarios de actualizacoes
+    "./wp-content/wflogs",               # Wordfence
+    "./wp-content/et-cache",             # Divi
+    "./wp-content/litespeed",
+)
+
+
 
 def install_signal_cleanup() -> None:
     """
@@ -278,11 +302,9 @@ def backup_wordpress(server: dict, site: dict, dest_dir: Path) -> list[dict]:
     artifacts.append(ssh_stream_to_file(server, db_cmd, dest_dir / "database.sql.gz"))
     assert_real_sql_dump(dest_dir / "database.sql.gz")
 
+    exclusoes = " ".join(f"--exclude={shlex.quote(e)}" for e in WP_EXCLUDES)
     files_cmd = (
-        f"{PIPEFAIL}tar czf - -C {root} "
-        f"--exclude=./wp-content/cache "
-        f"--exclude=./wp-content/uploads/backup* "
-        f"--exclude=./wp-content/ai1wm-backups "
+        f"{PIPEFAIL}tar czf - -C {root} {exclusoes} "
         f"--warning=no-file-changed --warning=no-file-removed "
         f"--ignore-failed-read ."
     )

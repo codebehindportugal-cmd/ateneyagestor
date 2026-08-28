@@ -13,6 +13,11 @@ class EditProject extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('tasks')
+                ->label('Tarefas')
+                ->icon('heroicon-o-clipboard-document-check')
+                ->color('info')
+                ->url(fn () => ProjectResource::getUrl('tasks', ['record' => $this->getRecord()])),
             Actions\DeleteAction::make(),
         ];
     }

@@ -6,9 +6,11 @@ use App\Filament\Admin\Resources\ProjectResource\Pages;
 use App\Models\Project;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Resources\Pages\Page;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
 class ProjectResource extends Resource
@@ -21,6 +23,14 @@ class ProjectResource extends Resource
     protected static ?int    $navigationSort  = 1;
     protected static ?string $modelLabel      = 'projecto';
     protected static ?string $pluralModelLabel = 'projectos';
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->withCount([
+            'tasks',
+            'tasks as tasks_done_count' => fn (Builder $query) => $query->where('status', 'done'),
+        ]);
+    }
 
     public static function form(Form $form): Form
     {
@@ -131,6 +141,24 @@ class ProjectResource extends Resource
                     ->placeholder('—')
                     ->description(fn ($record) => $record->server?->host)
                     ->searchable(),
+                Tables\Columns\TextColumn::make('tasks_count')
+                    ->label('Tarefas')
+                    ->badge()
+                    ->formatStateUsing(fn ($state, $record) => $state
+                        ? "{$record->tasks_done_count}/{$state} · {$record->progressPercent()}%"
+                        : '—')
+                    ->color(fn ($state, $record) => match (true) {
+                        ! $state                                        => 'gray',
+                        (int) $record->tasks_done_count === (int) $state => 'success',
+                        (int) $record->tasks_done_count > 0             => 'warning',
+                        default                                         => 'danger',
+                    })
+                    ->tooltip(fn ($record) => $record->tasks_count
+                        ? "{$record->tasks_done_count} feitas · " . ($record->tasks_count - $record->tasks_done_count) . ' por fazer'
+                        : 'Sem tarefas registadas')
+                    ->url(fn (Project $record) => static::getUrl('tasks', ['record' => $record]))
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('url')
                     ->label('URL')
                     ->url(fn ($record) => $record->url)
@@ -149,6 +177,11 @@ class ProjectResource extends Resource
                     ->label('Interno'),
             ])
             ->actions([
+                Tables\Actions\Action::make('tasks')
+                    ->label('Tarefas')
+                    ->icon('heroicon-o-clipboard-document-check')
+                    ->color('info')
+                    ->url(fn (Project $record) => static::getUrl('tasks', ['record' => $record])),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
@@ -159,12 +192,21 @@ class ProjectResource extends Resource
             ->defaultSort('is_internal', 'desc');
     }
 
+    public static function getRecordSubNavigation(Page $page): array
+    {
+        return $page->generateNavigationItems([
+            Pages\EditProject::class,
+            Pages\ManageProjectTasks::class,
+        ]);
+    }
+
     public static function getPages(): array
     {
         return [
             'index'  => Pages\ListProjects::route('/'),
             'create' => Pages\CreateProject::route('/create'),
             'edit'   => Pages\EditProject::route('/{record}/edit'),
+            'tasks'  => Pages\ManageProjectTasks::route('/{record}/tasks'),
         ];
     }
 }

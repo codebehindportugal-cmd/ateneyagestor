@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Project extends Model
@@ -44,6 +45,34 @@ class Project extends Model
     public function server(): BelongsTo
     {
         return $this->belongsTo(Server::class);
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(ProjectTask::class);
+    }
+
+    public function tasksTotal(): int
+    {
+        return $this->tasks_count ?? $this->tasks()->count();
+    }
+
+    public function tasksDone(): int
+    {
+        return $this->tasks_done_count ?? $this->tasks()->where('status', 'done')->count();
+    }
+
+    public function tasksOpen(): int
+    {
+        return max(0, $this->tasksTotal() - $this->tasksDone());
+    }
+
+    /** Percentagem de tarefas concluídas (0-100). */
+    public function progressPercent(): int
+    {
+        $total = $this->tasksTotal();
+
+        return $total > 0 ? (int) round($this->tasksDone() / $total * 100) : 0;
     }
 
     public static function typeOptions(): array

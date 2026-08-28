@@ -144,7 +144,15 @@ class AccountingDocumentResource extends Resource
                         ->downloadable()
                         ->openable()
                         ->storeFileNamesIn('file_name')
-                        ->helperText('Máximo 20 MB — PDF, JPG, PNG ou WebP.'),
+                        ->live()
+                        ->afterStateUpdated(function ($livewire) {
+                            // O upload sozinho basta: quem carrega um PDF quer
+                            // os campos preenchidos, nao quer carregar num botao.
+                            if (method_exists($livewire, 'autoReadUploadedInvoice')) {
+                                $livewire->autoReadUploadedInvoice();
+                            }
+                        })
+                        ->helperText('PDF da fatura, como vem por email. Os campos são lidos automaticamente.'),
                 ]),
 
             Forms\Components\Section::make('Imagens')
@@ -160,7 +168,14 @@ class AccountingDocumentResource extends Resource
                         ->openable()
                         ->storeFileNamesIn('image_names')
                         ->maxSize(20480)
-                        ->helperText('Podes guardar varias fotos/screenhots da fatura.'),
+                        ->live()
+                        ->afterStateUpdated(function ($livewire) {
+                            if (method_exists($livewire, 'autoReadUploadedInvoice')) {
+                                $livewire->autoReadUploadedInvoice();
+                            }
+                        })
+                        ->helperText('Fotos da fatura em papel. Apanha o QR code no enquadramento — '
+                            .'é de lá que saem o NIF, o número e o ATCUD sem depender do OCR.'),
                 ])
                 ->collapsed(false),
 

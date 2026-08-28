@@ -80,6 +80,50 @@ class CreateAccountingDocument extends CreateRecord
         return $this->getResource()::getUrl('index');
     }
 
+    /**
+     * Corre sozinho quando se carrega um PDF ou uma foto. Ao contrario do botao,
+     * NAO por cima do que ja la esta: se corrigiste o fornecedor a mao e depois
+     * juntas uma segunda foto, a tua correccao fica.
+     */
+    public function autoReadUploadedInvoice(): void
+    {
+        $paths = $this->uploadedAbsolutePaths($this->data ?? []);
+
+        if ($paths === []) {
+            return;
+        }
+
+        $extractor = app(PaperInvoiceExtractor::class);
+        $result = $this->extractDocuments($paths, $extractor);
+
+        $this->fillFromExtraction($result, keepCurrentPurpose: true, onlyEmpty: true);
+        $this->avisarFerramentasEmFalta($result['warnings'] ?? []);
+    }
+
+    /**
+     * Sem o Poppler/zbar/tesseract instalados a extraccao devolve tudo vazio e
+     * nao falha — o utilizador ficava a olhar para um formulario em branco sem
+     * perceber porque. Isto poe a razao a vista em vez de a esconder nas Notas.
+     */
+    private function avisarFerramentasEmFalta(array $warnings): void
+    {
+        $criticos = array_values(array_filter(
+            $warnings,
+            fn (string $w) => str_contains($w, 'indisponivel'),
+        ));
+
+        if ($criticos === []) {
+            return;
+        }
+
+        Notification::make()
+            ->warning()
+            ->title('Leitura automática indisponível no servidor')
+            ->body(implode("\n", $criticos))
+            ->persistent()
+            ->send();
+    }
+
     public function readUploadedInvoice(PaperInvoiceExtractor $extractor): void
     {
         $state = $this->data ?? [];
@@ -96,6 +140,7 @@ class CreateAccountingDocument extends CreateRecord
 
         $result = $this->extractDocuments($paths, $extractor);
         $this->fillFromExtraction($result, keepCurrentPurpose: true);
+        $this->avisarFerramentasEmFalta($result['warnings'] ?? []);
 
         Notification::make()
             ->title('Fatura lida')
@@ -159,8 +204,11 @@ class CreateAccountingDocument extends CreateRecord
         };
     }
 
-    private function fillFromExtraction(array $result, bool $keepCurrentPurpose = false): void
-    {
+    private function fillFromExtraction(
+        array $result,
+        bool $keepCurrentPurpose = false,
+        bool $onlyEmpty = false,
+    ): void {
         $state = $this->data ?? $this->form->getState();
         $supplier = $result['supplier'] ?? [];
         $invoice = $result['invoice'] ?? [];
@@ -178,7 +226,7 @@ class CreateAccountingDocument extends CreateRecord
             $notes[] = "Texto OCR:\n".mb_substr((string) $result['rawText'], 0, 4000);
         }
 
-        $this->form->fill(array_merge($state, [
+        $novos = [
             'tipo' => $this->mapDocumentType($invoice['type'] ?? null),
             'estado' => $state['estado'] ?? 'pendente',
             'title' => $keepCurrentPurpose && filled($state['title'] ?? null)
@@ -195,7 +243,17 @@ class CreateAccountingDocument extends CreateRecord
             'category' => $state['category'] ?? 'fornecedores',
             'products' => $this->normalizeProducts($products),
             'notes' => implode("\n\n", array_filter($notes)),
-        ]));
+        ];
+
+        if ($onlyEmpty) {
+            $novos = array_filter(
+                $novos,
+                fn (string $campo) => blank($state[$campo] ?? null),
+                ARRAY_FILTER_USE_KEY,
+            );
+        }
+
+        $this->form->fill(array_merge($state, $novos));
     }
 
     private function uploadedAbsolutePaths(array $state): array

@@ -62,6 +62,19 @@ PIPEFAIL = "set -o pipefail 2>/dev/null || true; "
 # arquivo pode estar truncado. So o 1 e tolerado.
 TAR_WARN_EXIT_CODES = (1,)
 
+# Em maquinas Plesk/cPanel o wp-cli esta instalado mas o binario php nao vive
+# no PATH de uma sessao SSH nao interactiva — vive em /opt/plesk/php/<v>/bin.
+# O wp-cli tem shebang "#!/usr/bin/env php" e morre com
+# "/usr/bin/env: 'php': No such file or directory". So mexemos no PATH quando
+# o php realmente falta, para nao trocar a versao aos servidores que ja funcionam.
+PHP_FALLBACK = (
+    "command -v php >/dev/null 2>&1 || "
+    "for d in $(ls -d /opt/plesk/php/*/bin /opt/cpanel/ea-php*/root/usr/bin "
+    "/usr/local/php*/bin 2>/dev/null | sort -Vr) /usr/local/bin; do "
+    "[ -x \"$d/php\" ] && { PATH=\"$d:$PATH\"; export PATH; break; }; done; "
+)
+
+
 
 class BackupError(RuntimeError):
     """Falha num site — apanhada e reportada, nunca aborta o lote todo."""
@@ -228,8 +241,8 @@ def backup_wordpress(server: dict, site: dict, dest_dir: Path) -> list[dict]:
     artifacts = []
 
     db_cmd = (
-        f"{PIPEFAIL}cd {root} && "
-        f"if command -v wp >/dev/null 2>&1; then "
+        f"{PIPEFAIL}{PHP_FALLBACK}cd {root} && "
+        f"if command -v wp >/dev/null 2>&1 && command -v php >/dev/null 2>&1; then "
         f"  wp db export - --single-transaction --quick --allow-root | gzip -c; "
         f"else "
         f"  DB_NAME=$(php -r \"include '{wp_root}/wp-config.php'; echo DB_NAME;\"); "

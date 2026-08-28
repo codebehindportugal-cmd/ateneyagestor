@@ -57,6 +57,11 @@ STAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{4}(_\d+)?$")
 # correu bem. Foi assim que um backup de 376 bytes passou por bom.
 PIPEFAIL = "set -o pipefail 2>/dev/null || true; "
 
+# O tar distingue aviso de erro pelo codigo de saida: 1 = "alguns ficheiros
+# diferem" (mudaram ou desapareceram durante a leitura), 2 = erro fatal, o
+# arquivo pode estar truncado. So o 1 e tolerado.
+TAR_WARN_EXIT_CODES = (1,)
+
 
 class BackupError(RuntimeError):
     """Falha num site — apanhada e reportada, nunca aborta o lote todo."""
@@ -113,7 +118,8 @@ def ssh_check(server: dict, timeout: int = 30) -> None:
 
 
 def ssh_stream_to_file(server: dict, remote_cmd: str, dest: Path,
-                       timeout: int | None = None) -> dict:
+                       timeout: int | None = None,
+                       warn_exit_codes: tuple[int, ...] = ()) -> dict:
     """
     Corre um comando remoto que escreve para stdout e guarda esse stream em
     `dest`, calculando o sha256 pelo caminho. Nada toca no disco de origem —
@@ -148,7 +154,7 @@ def ssh_stream_to_file(server: dict, remote_cmd: str, dest: Path,
     err = stderr_file.read().decode("utf-8", "replace").strip()
     stderr_file.close()
 
-    if rc != 0:
+    if rc != 0 and rc not in warn_exit_codes:
         dest.unlink(missing_ok=True)
         raise BackupError(f"falha ao gerar {dest.name}: {err[:300] or f'exit {rc}'}")
 
@@ -156,7 +162,16 @@ def ssh_stream_to_file(server: dict, remote_cmd: str, dest: Path,
         dest.unlink(missing_ok=True)
         raise BackupError(f"{dest.name} veio vazio — {err[:200] or 'sem erro reportado'}")
 
-    log.info("    %s — %s", dest.name, human_size(total))
+    if rc != 0:
+        # O tar devolve 1 quando um ficheiro mudou ou desapareceu enquanto era
+        # lido — num site vivo isso acontece sempre (caches, sessoes, logs). O
+        # arquivo esta completo e legivel; so aquele ficheiro pode estar
+        # inconsistente. Apagar o backup por causa disto era deitar fora horas
+        # de transferencia por um aviso. Exit 2 continua a ser fatal.
+        log.warning("    %s — %s (aviso do tar, exit %d: ficheiros mudaram durante a leitura)",
+                    dest.name, human_size(total), rc)
+    else:
+        log.info("    %s — %s", dest.name, human_size(total))
     return {"file": dest.name, "bytes": total, "sha256": digest.hexdigest()}
 
 
@@ -233,9 +248,11 @@ def backup_wordpress(server: dict, site: dict, dest_dir: Path) -> list[dict]:
         f"--exclude=./wp-content/cache "
         f"--exclude=./wp-content/uploads/backup* "
         f"--exclude=./wp-content/ai1wm-backups "
-        f"--warning=no-file-changed ."
+        f"--warning=no-file-changed --warning=no-file-removed "
+        f"--ignore-failed-read ."
     )
-    artifacts.append(ssh_stream_to_file(server, files_cmd, dest_dir / "files.tar.gz"))
+    artifacts.append(ssh_stream_to_file(server, files_cmd, dest_dir / "files.tar.gz",
+                                        warn_exit_codes=TAR_WARN_EXIT_CODES))
     return artifacts
 
 
@@ -273,15 +290,20 @@ def backup_vps_laravel(server: dict, site: dict, dest_dir: Path) -> list[dict]:
         f"--exclude=./vendor --exclude=./node_modules "
         f"--exclude=./storage/framework/cache --exclude=./storage/framework/sessions "
         f"--exclude=./storage/framework/views --exclude=./storage/logs "
-        f"--warning=no-file-changed ."
+        f"--warning=no-file-changed --warning=no-file-removed "
+        f"--ignore-failed-read ."
     )
-    artifacts.append(ssh_stream_to_file(server, files_cmd, dest_dir / "app.tar.gz"))
+    artifacts.append(ssh_stream_to_file(server, files_cmd, dest_dir / "app.tar.gz",
+                                        warn_exit_codes=TAR_WARN_EXIT_CODES))
 
     for idx, extra in enumerate(site.get("storage_paths") or [], start=1):
         safe_name = Path(extra.rstrip("/")).name or f"storage{idx}"
-        cmd = f"{PIPEFAIL}tar czf - -C {shlex.quote(extra)} --warning=no-file-changed ."
+        cmd = (f"{PIPEFAIL}tar czf - -C {shlex.quote(extra)} "
+               f"--warning=no-file-changed --warning=no-file-removed "
+               f"--ignore-failed-read .")
         artifacts.append(
-            ssh_stream_to_file(server, cmd, dest_dir / f"storage-{safe_name}.tar.gz")
+            ssh_stream_to_file(server, cmd, dest_dir / f"storage-{safe_name}.tar.gz",
+                               warn_exit_codes=TAR_WARN_EXIT_CODES)
         )
 
     return artifacts

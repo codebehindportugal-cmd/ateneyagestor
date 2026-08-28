@@ -72,7 +72,9 @@ WorkingDirectory=$INSTALL_DIR
 ExecStart=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/agent_sync.py
 StandardOutput=append:$INSTALL_DIR/logs/agent.log
 StandardError=append:$INSTALL_DIR/logs/agent.log
-TimeoutStartSec=21600
+# 20h. Nao e generosidade: quando este limite dispara, o systemd manda
+# SIGTERM a meio de uma transferencia e perde-se a corrida inteira.
+TimeoutStartSec=72000
 EOF
 
 cat > /etc/systemd/system/backup-agent.timer <<EOF

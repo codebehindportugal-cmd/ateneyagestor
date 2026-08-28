@@ -26,6 +26,7 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -61,6 +62,19 @@ PIPEFAIL = "set -o pipefail 2>/dev/null || true; "
 # diferem" (mudaram ou desapareceram durante a leitura), 2 = erro fatal, o
 # arquivo pode estar truncado. So o 1 e tolerado.
 TAR_WARN_EXIT_CODES = (1,)
+
+
+def install_signal_cleanup() -> None:
+    """
+    Por omissao o SIGTERM mata o Python sem desenrolar a pilha, e o ficheiro
+    a meio fica no disco. Transformamo-lo em excepcao para que a limpeza do
+    ssh_stream_to_file corra.
+    """
+    def _handler(signum, _frame):
+        raise KeyboardInterrupt(f"interrompido pelo sinal {signum}")
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, _handler)
 
 # Em maquinas Plesk/cPanel o wp-cli esta instalado mas o binario php nao vive
 # no PATH de uma sessao SSH nao interactiva — vive em /opt/plesk/php/<v>/bin.
@@ -148,20 +162,28 @@ def ssh_stream_to_file(server: dict, remote_cmd: str, dest: Path,
     log.debug("stream: %s", remote_cmd)
     started = time.monotonic()
 
-    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr_file) as proc, \
-            open(dest, "wb") as out:
-        assert proc.stdout is not None
-        while True:
-            chunk = proc.stdout.read(1024 * 512)
-            if not chunk:
-                break
-            out.write(chunk)
-            digest.update(chunk)
-            total += len(chunk)
-            if timeout and (time.monotonic() - started) > timeout:
-                proc.kill()
-                raise BackupError(f"timeout ao transferir {dest.name}")
-        rc = proc.wait()
+    try:
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr_file) as proc, \
+                open(dest, "wb") as out:
+            assert proc.stdout is not None
+            while True:
+                chunk = proc.stdout.read(1024 * 512)
+                if not chunk:
+                    break
+                out.write(chunk)
+                digest.update(chunk)
+                total += len(chunk)
+                if timeout and (time.monotonic() - started) > timeout:
+                    proc.kill()
+                    raise BackupError(f"timeout ao transferir {dest.name}")
+            rc = proc.wait()
+    except BaseException:
+        # Interrompidos a meio (SIGTERM do systemd, Ctrl-C, erro inesperado)
+        # ficava um .tar.gz truncado no NAS com ar de backup valido. Um backup
+        # que nao existe e melhor do que um que mente.
+        dest.unlink(missing_ok=True)
+        stderr_file.close()
+        raise
 
     stderr_file.seek(0)
     err = stderr_file.read().decode("utf-8", "replace").strip()
@@ -723,6 +745,8 @@ def notify(global_cfg: dict, results: list[dict]) -> None:
 # --------------------------------------------------------------------------
 
 def main() -> int:
+    install_signal_cleanup()
+
     parser = argparse.ArgumentParser(description="Puxa os backups dos sites para o NAS.")
     parser.add_argument("--config", required=True, help="config.yaml gerado pelo agent_sync.py")
     parser.add_argument("--results-json", help="ficheiro onde escrever os resultados")

@@ -48,6 +48,29 @@ class AccountingDocument extends Model
         ];
     }
 
+    /**
+     * O QR das facturas portuguesas traz o NIF do emitente (campo A) mas nao
+     * traz o nome. Em vez de o adivinhar a partir da disposicao do texto —
+     * que e' onde estas leituras costumam errar — reaproveitamos o nome que ja
+     * foi usado para este NIF. Acerta sempre a partir da segunda factura do
+     * mesmo fornecedor e nao depende de nenhum servico externo.
+     */
+    public static function fornecedorPorNif(?string $nif): ?string
+    {
+        $nif = trim((string) $nif);
+
+        if ($nif === '') {
+            return null;
+        }
+
+        return static::query()
+            ->where('supplier_nif', $nif)
+            ->whereNotNull('fornecedor')
+            ->where('fornecedor', '!=', '')
+            ->orderByDesc('date')
+            ->value('fornecedor');
+    }
+
     public static function tipos(): array
     {
         return [

@@ -89,17 +89,24 @@ class PaperInvoiceExtractor
                 $warnings[] = 'Falha ao extrair texto do PDF: '.$e->getMessage();
             }
         } else {
-            $warnings[] = 'Leitor PDF local indisponivel: instala Poppler/pdftotext para ler PDFs.';
+            $warnings[] = 'Leitor PDF local indisponivel: instala Poppler/pdftotext para ler PDFs.'.$this->toolingHint();
         }
 
-        if ($text !== '') {
-            return [$text, $qrData];
-        }
+        // Sem camada de texto o PDF e' uma digitalizacao: e' preciso OCR.
+        $precisaOcr = ($text === '');
 
+        // O QR e' lido SEMPRE, haja texto ou nao. Antes so se tentava quando o
+        // pdftotext nao devolvia nada — ou seja, nunca nas facturas que vem por
+        // email, que sao justamente as que trazem QR legivel. E o QR e' a unica
+        // fonte exacta do NIF (campo A), do numero (G) e do ATCUD (H); tudo o
+        // resto e' adivinhar a partir da disposicao do texto.
         $pdfToPpm = $this->commandPath('pdftoppm');
 
         if (! $pdfToPpm) {
-            $warnings[] = 'PDF sem texto legivel e pdftoppm indisponivel para converter paginas em imagem.';
+            $warnings[] = $precisaOcr
+                ? 'PDF sem texto legivel e pdftoppm indisponivel para converter paginas em imagem.'.$this->toolingHint()
+                : 'pdftoppm indisponivel: nao foi possivel ler o QR code, os campos vieram do texto e podem estar errados.'.$this->toolingHint();
+
             return [$text, $qrData];
         }
 
@@ -115,8 +122,17 @@ class PaperInvoiceExtractor
             $process->setTimeout(90)->mustRun();
 
             foreach (glob($tmpDir.DIRECTORY_SEPARATOR.'*.png') ?: [] as $imagePath) {
-                $qrData ??= $this->readQrCode($imagePath, $warnings);
-                $text .= "\n".$this->runOcr($imagePath, $warnings);
+                $qrData ??= $this->readQrCode($imagePath, $warnings, reportMissing: false);
+
+                if ($precisaOcr) {
+                    $text .= "\n".$this->runOcr($imagePath, $warnings);
+                } elseif ($qrData !== null) {
+                    break; // ja temos texto e QR, nao ha nada a ganhar nas paginas seguintes
+                }
+            }
+
+            if ($qrData === null) {
+                $warnings[] = 'QR code nao encontrado no PDF: os campos foram lidos do texto e convem conferir.';
             }
         } catch (ProcessFailedException|\Throwable $e) {
             $warnings[] = 'Falha ao converter PDF para OCR: '.$e->getMessage();
@@ -130,12 +146,12 @@ class PaperInvoiceExtractor
         return [trim($text), $qrData];
     }
 
-    private function readQrCode(string $imagePath, array &$warnings): ?string
+    private function readQrCode(string $imagePath, array &$warnings, bool $reportMissing = true): ?string
     {
         $zbarImg = $this->commandPath('zbarimg');
 
         if (! $zbarImg) {
-            $warnings[] = 'Leitor QR local indisponivel: instala zbarimg para ler QR codes.';
+            $warnings[] = 'Leitor QR local indisponivel: instala zbarimg para ler QR codes.'.$this->toolingHint();
             return null;
         }
 
@@ -145,7 +161,12 @@ class PaperInvoiceExtractor
 
             return trim($process->getOutput()) ?: null;
         } catch (ProcessFailedException|\Throwable) {
-            $warnings[] = 'QR code nao encontrado ou nao legivel.';
+            // Ao varrer varias paginas so uma costuma ter o QR: avisar por
+            // pagina encheria as Notas de ruido. Quem chama avisa uma vez.
+            if ($reportMissing) {
+                $warnings[] = 'QR code nao encontrado ou nao legivel.';
+            }
+
             return null;
         }
     }
@@ -155,7 +176,7 @@ class PaperInvoiceExtractor
         $tesseract = $this->commandPath('tesseract');
 
         if (! $tesseract) {
-            $warnings[] = 'OCR local indisponivel: instala Tesseract para extrair texto.';
+            $warnings[] = 'OCR local indisponivel: instala Tesseract para extrair texto.'.$this->toolingHint();
             return '';
         }
 
@@ -199,6 +220,23 @@ class PaperInvoiceExtractor
         return is_dir($local) ? $local : null;
     }
 
+    /**
+     * Em Plesk e cPanel é vulgar o PHP da web correr com proc_open desactivado.
+     * Nesse caso nenhum destes programas pode ser invocado, por muito bem
+     * instalados que estejam — e dizer "instala o Poppler" manda a pessoa para
+     * o caminho errado durante horas.
+     */
+    private function toolingHint(): string
+    {
+        if (! function_exists('proc_open')) {
+            return ' ATENÇÃO: este PHP tem proc_open desactivado, por isso nenhum'
+                .' programa externo pode ser executado — instalar não resolve.'
+                .' Retira proc_open de disable_functions nas definições PHP do site.';
+        }
+
+        return '';
+    }
+
     private function commandPath(string $command): ?string
     {
         static $paths = [];
@@ -207,7 +245,7 @@ class PaperInvoiceExtractor
             return $paths[$command];
         }
 
-        $configured = env(strtoupper($command).'_BINARY');
+        $configured = config('paper_invoice.binaries.'.$command);
         if (is_string($configured) && $configured !== '' && is_file($configured)) {
             return $paths[$command] = $configured;
         }

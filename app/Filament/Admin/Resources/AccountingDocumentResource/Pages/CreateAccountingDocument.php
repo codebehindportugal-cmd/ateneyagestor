@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources\AccountingDocumentResource\Pages;
 
 use App\Filament\Admin\Resources\AccountingDocumentResource;
+use App\Models\AccountingDocument;
 use App\Services\PaperInvoice\PaperInvoiceExtractor;
 use Carbon\Carbon;
 use Filament\Actions;
@@ -226,6 +227,9 @@ class CreateAccountingDocument extends CreateRecord
             $notes[] = "Texto OCR:\n".mb_substr((string) $result['rawText'], 0, 4000);
         }
 
+        // O nome que ja usaste para este NIF vale mais do que o palpite do texto.
+        $nomeConhecido = AccountingDocument::fornecedorPorNif($supplier['taxNumber'] ?? null);
+
         $novos = [
             'tipo' => $this->mapDocumentType($invoice['type'] ?? null),
             'estado' => $state['estado'] ?? 'pendente',
@@ -233,7 +237,7 @@ class CreateAccountingDocument extends CreateRecord
                 ? $state['title']
                 : ($state['title'] ?? ($supplier['name'] ?: ($invoice['number'] ? 'Fatura '.$invoice['number'] : 'Fatura'))),
             'invoice_number' => $invoice['number'] ?: ($state['invoice_number'] ?? null),
-            'fornecedor' => $supplier['name'] ?: ($state['fornecedor'] ?? null),
+            'fornecedor' => $nomeConhecido ?: ($supplier['name'] ?: ($state['fornecedor'] ?? null)),
             'supplier_nif' => $supplier['taxNumber'] ?: ($state['supplier_nif'] ?? null),
             'atcud' => $invoice['atcud'] ?: ($state['atcud'] ?? null),
             'date' => $this->parseExtractedDate($invoice['date'] ?? null),

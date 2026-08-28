@@ -95,6 +95,12 @@ def install_signal_cleanup() -> None:
     ssh_stream_to_file corra.
     """
     def _handler(signum, _frame):
+        # Desarma-se a si proprio antes de levantar. Sem isto o handler e
+        # reentrante: um segundo SIGTERM apanha o processo ja dentro da
+        # limpeza e rebenta outra vez, deixando o ficheiro parcial no disco.
+        # Visto em producao a 28/08/2026 no traceback do backup-manual.
+        for s in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(s, signal.SIG_IGN)
         raise KeyboardInterrupt(f"interrompido pelo sinal {signum}")
 
     for sig in (signal.SIGTERM, signal.SIGINT):
@@ -186,9 +192,9 @@ def ssh_stream_to_file(server: dict, remote_cmd: str, dest: Path,
     log.debug("stream: %s", remote_cmd)
     started = time.monotonic()
 
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr_file)
     try:
-        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr_file) as proc, \
-                open(dest, "wb") as out:
+        with open(dest, "wb") as out:
             assert proc.stdout is not None
             while True:
                 chunk = proc.stdout.read(1024 * 512)
@@ -198,16 +204,23 @@ def ssh_stream_to_file(server: dict, remote_cmd: str, dest: Path,
                 digest.update(chunk)
                 total += len(chunk)
                 if timeout and (time.monotonic() - started) > timeout:
-                    proc.kill()
                     raise BackupError(f"timeout ao transferir {dest.name}")
-            rc = proc.wait()
+        rc = proc.wait()
     except BaseException:
-        # Interrompidos a meio (SIGTERM do systemd, Ctrl-C, erro inesperado)
+        # Interrompidos a meio (SIGTERM do systemd, Ctrl-C, timeout, erro)
         # ficava um .tar.gz truncado no NAS com ar de backup valido. Um backup
         # que nao existe e melhor do que um que mente.
+        proc.kill()
+        try:
+            proc.wait(timeout=10)
+        except Exception:
+            pass
         dest.unlink(missing_ok=True)
         stderr_file.close()
         raise
+    finally:
+        if proc.stdout is not None:
+            proc.stdout.close()
 
     stderr_file.seek(0)
     err = stderr_file.read().decode("utf-8", "replace").strip()

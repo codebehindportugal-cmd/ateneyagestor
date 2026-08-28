@@ -8,6 +8,14 @@ use Illuminate\Support\Facades\Auth;
 
 class ProjectTask extends Model
 {
+    /**
+     * Estados em que uma tarefa nunca conta como "em atraso": ou já terminou,
+     * ou a bola está do lado do cliente e o prazo não é falha nossa.
+     * Vive aqui e não no filtro do Filament para não haver duas versões da
+     * mesma regra a divergirem com o tempo.
+     */
+    public const NOT_OVERDUE_STATUSES = ['done', 'cancelled', 'waiting_client'];
+
     protected $fillable = [
         'project_id',
         'title',
@@ -64,20 +72,22 @@ class ProjectTask extends Model
     public static function statusOptions(): array
     {
         return [
-            'pending'     => 'Por fazer',
-            'in_progress' => 'Em curso',
-            'done'        => 'Feito',
-            'cancelled'   => 'Cancelado',
+            'pending'        => 'Por fazer',
+            'in_progress'    => 'Em curso',
+            'waiting_client' => 'A aguardar cliente',
+            'done'           => 'Feito',
+            'cancelled'      => 'Cancelado',
         ];
     }
 
     public static function statusColor(?string $status): string
     {
         return match ($status) {
-            'done'        => 'success',
-            'in_progress' => 'warning',
-            'cancelled'   => 'danger',
-            default       => 'gray',
+            'done'           => 'success',
+            'in_progress'    => 'warning',
+            'waiting_client' => 'info',
+            'cancelled'      => 'danger',
+            default          => 'gray',
         };
     }
 
@@ -94,8 +104,27 @@ class ProjectTask extends Model
     public function isOverdue(): bool
     {
         return $this->due_date !== null
-            && ! in_array($this->status, ['done', 'cancelled'], true)
+            && ! in_array($this->status, self::NOT_OVERDUE_STATUSES, true)
             && $this->due_date->isPast();
+    }
+
+    public function isWaitingOnClient(): bool
+    {
+        return $this->status === 'waiting_client';
+    }
+
+    /** Marca que ficámos à espera do cliente. */
+    public function markWaitingOnClient(): void
+    {
+        $this->status = 'waiting_client';
+        $this->save();
+    }
+
+    /** O cliente respondeu — a tarefa volta para as nossas mãos. */
+    public function resumeFromClient(): void
+    {
+        $this->status = 'in_progress';
+        $this->save();
     }
 
     public function markDone(): void

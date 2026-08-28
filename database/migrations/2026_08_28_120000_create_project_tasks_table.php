@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('project_id')->constrained()->cascadeOnDelete();
             $table->string('title');
             $table->text('description')->nullable();
-            $table->string('status')->default('pending'); // pending, in_progress, done, cancelled
+            $table->string('status')->default('pending'); // valores em ProjectTask::statusOptions()
             $table->unsignedInteger('position')->default(0);
             $table->date('due_date')->nullable();
             $table->decimal('hours', 6, 2)->nullable();

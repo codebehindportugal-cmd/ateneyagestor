@@ -161,7 +161,11 @@ class ManageProjectTasks extends ManageRelatedRecords
                     ->query(fn (Builder $query) => $query
                         ->whereNotNull('due_date')
                         ->whereDate('due_date', '<', now())
-                        ->whereNotIn('status', ['done', 'cancelled'])),
+                        ->whereNotIn('status', ProjectTask::NOT_OVERDUE_STATUSES)),
+
+                Tables\Filters\Filter::make('a_aguardar_cliente')
+                    ->label('A aguardar cliente')
+                    ->query(fn (Builder $query) => $query->where('status', 'waiting_client')),
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()
@@ -178,6 +182,21 @@ class ManageProjectTasks extends ManageRelatedRecords
                         Notification::make()
                             ->success()
                             ->title($record->isDone() ? 'Tarefa concluída' : 'Tarefa reaberta')
+                            ->send();
+                    }),
+                Tables\Actions\Action::make('toggleWaiting')
+                    ->label(fn (ProjectTask $record) => $record->isWaitingOnClient() ? 'Retomar' : 'Aguardar cliente')
+                    ->icon(fn (ProjectTask $record) => $record->isWaitingOnClient() ? 'heroicon-o-play' : 'heroicon-o-pause')
+                    ->color(fn (ProjectTask $record) => $record->isWaitingOnClient() ? 'gray' : 'info')
+                    // Não faz sentido pôr à espera do cliente o que já terminou.
+                    ->visible(fn (ProjectTask $record) => ! in_array($record->status, ['done', 'cancelled'], true))
+                    ->action(function (ProjectTask $record) {
+                        $estava = $record->isWaitingOnClient();
+                        $estava ? $record->resumeFromClient() : $record->markWaitingOnClient();
+
+                        Notification::make()
+                            ->success()
+                            ->title($estava ? 'Tarefa retomada' : 'A aguardar resposta do cliente')
                             ->send();
                     }),
                 Tables\Actions\EditAction::make()->label('Editar'),

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Support\ClaudeBinary;
 use App\Support\ClaudeTaskPrompt;
 use App\Support\ClaudeWorkspace;
 use Illuminate\Console\Command;
@@ -27,11 +28,26 @@ class ClaudeWork extends Command
 
     protected $description = 'Corre no PC os pedidos ao Claude feitos nas tarefas do painel';
 
+    /**
+     * A unica coisa que vai na linha de comandos. Uma linha, sem quebras, para
+     * atravessar o cmd do Windows sem se estragar. O trabalho a serio chega
+     * pela entrada padrao.
+     */
+    private const INSTRUCAO = 'Le com atencao as instrucoes completas que te chegam pela entrada padrao e responde exactamente ao que elas pedem. Nao pecas o enunciado: esta tudo na entrada padrao.';
+
     public function handle(): int
     {
         if (blank(config('claude.panel.url')) || blank(config('claude.panel.token'))) {
             $this->error('Falta CLAUDE_PANEL_URL ou CLAUDE_PANEL_TOKEN no .env desta máquina.');
             $this->line('O token gera-se no painel, em Projectos > Token do worker.');
+
+            return 1;
+        }
+
+        try {
+            $this->line('Claude: ' . ClaudeBinary::resolve()['label']);
+        } catch (\Throwable $e) {
+            $this->error($e->getMessage());
 
             return 1;
         }
@@ -106,20 +122,34 @@ class ClaudeWork extends Command
             return;
         }
 
-        $prompt = ClaudeTaskPrompt::compose(
-            $workspace->summary,
-            (string) $trabalho['prompt_body'],
-            $workspace->kind === 'none',
-        );
+        $seguimento = (string) ($trabalho['run']['follow_up'] ?? '');
+        $escreve    = (bool) ($trabalho['run']['writes'] ?? false);
+        $sessao     = $trabalho['run']['previous_session_id'] ?? null;
 
-        $this->info("[#{$runId}] {$nome} — {$titulo} ({$workspace->kind})");
+        $prompt = $seguimento !== ''
+            ? ClaudeTaskPrompt::composeFollowUp(
+                $workspace->summary,
+                $seguimento,
+                $escreve,
+                // Sem sessao para retomar, a continuacao leva o enunciado todo.
+                $sessao ? null : (string) $trabalho['prompt_body'],
+            )
+            : ClaudeTaskPrompt::compose(
+                $workspace->summary,
+                (string) $trabalho['prompt_body'],
+                $workspace->kind === 'none',
+            );
+
+        $etiqueta = $seguimento !== '' ? ($escreve ? 'continuar, com escrita' : 'continuar') : $workspace->kind;
+        $this->info("[#{$runId}] {$nome} — {$titulo} ({$etiqueta})");
 
         $process = new Process(
-            $this->buildCommand($prompt, $trabalho['run']['previous_session_id'] ?? null),
+            $this->buildCommand($sessao, $escreve),
             $workspace->path,
             $this->environment(),
         );
         $process->setTimeout((float) config('claude.timeout'));
+        $process->setInput($prompt);
 
         $inicio = microtime(true);
 
@@ -177,25 +207,18 @@ class ClaudeWork extends Command
     }
 
     /** @return list<string> */
-    private function buildCommand(string $prompt, ?string $sessaoAnterior): array
+    private function buildCommand(?string $sessaoAnterior, bool $escreve = false): array
     {
-        // Apara aspas que tenham ficado agarradas ao valor no .env. Em Windows o
-        // caminho leva espacos, e quem o mete entre aspas duplas acaba com elas
-        // dentro do valor — o cmd recebe o caminho com aspas a mais e nao arranca.
-        $binario = trim((string) config('claude.binary'), " \t\n\r\0\x0B\"'");
-        $script  = trim((string) config('claude.node_script'), " \t\n\r\0\x0B\"'");
-
-        // Com o cli.js configurado, o executavel passa a ser o node e o caminho
-        // dificil vai como argumento — e o que faz isto funcionar em Windows
-        // quando a pasta do utilizador tem espacos ou acentos.
-        $arranque = $script !== '' ? ['node', $script] : [$binario];
-
         $comando = [
-            ...$arranque,
-            '-p', $prompt,
+            ...ClaudeBinary::resolve()['command'],
+            // O prompt NAO vai aqui: em Windows um argumento com varias linhas e
+            // mutilado pelo cmd, e leva atras as flags que vierem a seguir. Vai
+            // pela entrada padrao (ver setInput no process()), que aguenta o
+            // texto todo intacto.
+            '-p', self::INSTRUCAO,
             '--output-format', 'json',
-            '--permission-mode', (string) config('claude.permission_mode'),
-            '--allowedTools', (string) config('claude.allowed_tools'),
+            '--permission-mode', (string) config($escreve ? 'claude.permission_mode_write' : 'claude.permission_mode'),
+            '--allowedTools', (string) config($escreve ? 'claude.allowed_tools_write' : 'claude.allowed_tools'),
         ];
 
         if ($negados = config('claude.disallowed_tools')) {

@@ -38,6 +38,21 @@
         </div>
     @endif
 
+    {{-- Retomar a conversa no terminal, onde ele pode mesmo alterar ficheiros --}}
+    @if ($run->session_id)
+        @php($pasta = $run->task?->project?->code_path)
+        <div>
+            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Continuar esta conversa</div>
+            <div class="rounded-lg bg-gray-950 p-3">
+<pre class="text-xs text-green-400 whitespace-pre-wrap font-mono select-all">@if ($pasta)cd {{ $pasta }}
+@endif claude --resume {{ $run->session_id }}</pre>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Abre a mesma sessão no terminal, com o contexto já carregado. Aí é uma sessão normal do Claude Code — pode alterar ficheiros, ao contrário do botão, que corre só em leitura.
+            </p>
+        </div>
+    @endif
+
     {{-- O prompt que foi mesmo enviado, para se poder auditar --}}
     @if ($run->prompt)
         <details>

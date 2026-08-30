@@ -106,6 +106,30 @@ O worker leva no `code` da resposta da API tudo o que precisa (host, porta,
 utilizador, caminho). Segredos nao passam: a chave SSH e a que a maquina do
 worker ja tem no `~/.ssh`.
 
+### Continuar a conversa
+
+O `claude -p` e um tiro unico: responde e sai. Para avancar ha o botao **Continuar**
+na linha da tarefa, com uma caixa de texto. Escreve-se a instrucao, o worker retoma a
+sessao anterior com `--resume` e manda so o que e novo — o contexto ja la esta.
+
+Como o painel e web, isto funciona do telemovel: escreve-se a instrucao de qualquer
+lado, fica na fila, e o worker executa quando estiver a correr.
+
+O interruptor **Pode alterar ficheiros** decide o modo:
+
+| | Permissoes | O que faz |
+|---|---|---|
+| Desligado (`continue`) | `dontAsk` + leitura | Responde. Nao toca em nada. |
+| Ligado (`apply`) | `acceptEdits` + Read/Edit/Write | Altera os ficheiros e **para ai**. |
+
+Em modo `apply` ele nao faz commit, nao cria ramos, nao faz push, nao corre migrations
+e nao instala pacotes — a entrega e o trabalho por commitar, para se ver com `git diff`
+e enviar com o `enviar-producao.bat` como sempre. O bloqueio a `.env` e chaves mantem-se
+nos dois modos.
+
+Tambem se pode retomar a conversa no terminal: o modal mostra o `claude --resume <id>`
+ja com a pasta do projecto.
+
 ### O resto
 
 - Modo actual: **so diagnostico**. `CLAUDE_PERMISSION_MODE=dontAsk` com uma lista

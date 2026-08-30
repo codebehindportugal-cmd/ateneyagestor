@@ -33,6 +33,48 @@ class ClaudeTaskPrompt
     }
 
     /**
+     * Prompt de uma continuacao: a sessao anterior ja tem todo o contexto, por
+     * isso so vai o que e novo. O corpo da tarefa so se junta quando nao houve
+     * sessao anterior para retomar.
+     */
+    public static function composeFollowUp(string $contexto, string $instrucao, bool $escreve, ?string $corpo = null): string
+    {
+        $linhas = [];
+
+        $linhas[] = 'Es o programador da Ateneya a continuar uma tarefa do painel de gestao.';
+        $linhas[] = $contexto;
+
+        if ($corpo !== null) {
+            $linhas[] = '';
+            $linhas[] = '(Nao ha sessao anterior para retomar, por isso segue o enunciado completo.)';
+            $linhas[] = '';
+            $linhas[] = $corpo;
+        }
+
+        $linhas[] = '';
+        $linhas[] = '## O que o Andre te pede agora';
+        $linhas[] = '';
+        $linhas[] = self::delimit($instrucao);
+        $linhas[] = '';
+
+        if ($escreve) {
+            $linhas[] = 'Podes alterar ficheiros nesta pasta. Regras:';
+            $linhas[] = '- NAO fazes commit, NAO crias ramos, NAO fazes push e NAO fazes deploy. Deixas o trabalho por commitar.';
+            $linhas[] = '- NAO corres migrations, NAO instalas pacotes e NAO tocas em base de dados.';
+            $linhas[] = '- NAO abres nem alteras .env, chaves ou ficheiros de credenciais.';
+            $linhas[] = '- No fim, diz em poucas linhas que ficheiros mexeste e porque, para o Andre ler o `git diff` a saber o que procurar.';
+            $linhas[] = '- Se a instrucao for ambigua ao ponto de arriscares fazer o errado, pergunta em vez de adivinhar.';
+        } else {
+            $linhas[] = 'Nesta ronda NAO alteras ficheiros: respondes e mais nada.';
+        }
+
+        $linhas[] = '';
+        $linhas[] = 'Responde em portugues europeu, direto ao assunto.';
+
+        return implode("\n", $linhas);
+    }
+
+    /**
      * O corpo do prompt: projecto, tarefa e instrucoes. Nao inclui a linha que
      * diz onde ele esta, porque isso so se sabe depois de a pasta estar pronta.
      */

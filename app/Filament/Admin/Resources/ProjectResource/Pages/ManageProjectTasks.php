@@ -204,6 +204,48 @@ class ManageProjectTasks extends ManageRelatedRecords
                             ->send();
                     }),
 
+                // Continuar a conversa. A sessao anterior ja tem o contexto todo, por
+                // isso so vai a instrucao nova — e daqui, ao contrario do botao de
+                // cima, ele pode mexer nos ficheiros.
+                Tables\Actions\Action::make('continuarClaude')
+                    ->label('Continuar')
+                    ->icon('heroicon-o-arrow-right-circle')
+                    ->color('warning')
+                    ->visible(fn (ProjectTask $record) => $record->lastClaudeRun?->isDone() === true)
+                    ->modalHeading(fn (ProjectTask $record) => 'Continuar com o Claude · ' . $record->title)
+                    ->modalDescription('Ele retoma a conversa anterior, com tudo o que já leu e concluiu.')
+                    ->modalSubmitActionLabel('Enviar')
+                    ->form([
+                        Forms\Components\Textarea::make('instrucao')
+                            ->label('O que queres que ele faça agora')
+                            ->rows(5)
+                            ->required()
+                            ->placeholder('Ex: avança com o ponto 1 do plano, mas deixa a facturação como está.')
+                            ->columnSpanFull(),
+
+                        Forms\Components\Toggle::make('pode_alterar')
+                            ->label('Pode alterar ficheiros')
+                            ->default(true)
+                            ->helperText('Altera e pára: não faz commit, não cria ramos, não corre migrations nem toca no .env. Vês o resultado com `git diff`.'),
+                    ])
+                    ->action(function (ProjectTask $record, array $data) {
+                        ClaudeRun::create([
+                            'project_task_id' => $record->id,
+                            'status'          => 'queued',
+                            'mode'            => $data['pode_alterar'] ? 'apply' : 'continue',
+                            'follow_up'       => $data['instrucao'],
+                            'requested_by'    => Auth::id(),
+                        ]);
+
+                        Notification::make()
+                            ->success()
+                            ->title('Enviado ao Claude')
+                            ->body($data['pode_alterar']
+                                ? 'Vai retomar a conversa e alterar os ficheiros. Depois confirma com git diff.'
+                                : 'Vai retomar a conversa e responder, sem tocar em ficheiros.')
+                            ->send();
+                    }),
+
                 Tables\Actions\Action::make('verClaude')
                     ->label(fn (ProjectTask $record) => match ($record->lastClaudeRun?->status) {
                         'done'   => 'Ver resposta',
@@ -215,7 +257,7 @@ class ManageProjectTasks extends ManageRelatedRecords
                     ->visible(fn (ProjectTask $record) => $record->lastClaudeRun !== null)
                     ->modalHeading(fn (ProjectTask $record) => 'Claude · ' . $record->title)
                     ->modalContent(fn (ProjectTask $record) => view('filament.claude-run-modal', [
-                        'run' => $record->lastClaudeRun->loadMissing('requestedBy'),
+                        'run' => $record->lastClaudeRun->loadMissing('requestedBy', 'task.project'),
                     ]))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Fechar'),

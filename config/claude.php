@@ -52,6 +52,19 @@ return [
     */
     'permission_mode' => env('CLAUDE_PERMISSION_MODE', 'dontAsk'),
 
+    /*
+    | Ferramentas quando o pedido e de alterar ficheiros (modo apply).
+    | Escreve e edita, mas nao corre migrations, nao instala pacotes, nao faz
+    | commit e nao faz deploy — a entrega e deixar o trabalho por commitar,
+    | para o Andre ver com `git diff` antes de enviar.
+    */
+    'permission_mode_write' => env('CLAUDE_PERMISSION_MODE_WRITE', 'acceptEdits'),
+
+    'allowed_tools_write' => env(
+        'CLAUDE_ALLOWED_TOOLS_WRITE',
+        'Read,Edit,Write,Grep,Glob,Bash(git diff *),Bash(git status *),Bash(git log *)'
+    ),
+
     'allowed_tools' => env(
         'CLAUDE_ALLOWED_TOOLS',
         'Read,Grep,Glob,Bash(git log *),Bash(git status *),Bash(git diff *)'

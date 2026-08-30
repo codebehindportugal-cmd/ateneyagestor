@@ -90,6 +90,8 @@ class ClaudeController extends Controller
             'run' => [
                 'id'                 => $run->id,
                 'mode'               => $run->mode,
+                'follow_up'          => $run->follow_up,
+                'writes'             => $run->writes(),
                 'previous_session_id' => $sessaoAnterior,
             ],
             'task' => [

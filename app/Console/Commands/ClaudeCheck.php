@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Symfony\Component\Process\Process;
+use App\Support\ClaudeBinary;
 
 /**
  * Descobre como arrancar o Claude Code nesta maquina.
@@ -27,11 +27,11 @@ class ClaudeCheck extends Command
         $this->info('A procurar o Claude Code…');
         $this->line('');
 
-        $candidatos = $this->candidates();
+        $candidatos = ClaudeBinary::candidates();
         $vencedor   = null;
 
         foreach ($candidatos as $nome => $comando) {
-            $resultado = $this->try($comando);
+            $resultado = ClaudeBinary::probe($comando);
 
             if ($resultado['ok']) {
                 $this->line("  <fg=green>✔</> {$nome} — {$resultado['saida']}");
@@ -76,68 +76,4 @@ class ClaudeCheck extends Command
         return 0;
     }
 
-    /** @return array<string, list<string>> */
-    private function candidates(): array
-    {
-        $candidatos = ['claude (do PATH)' => ['claude']];
-
-        if ($configurado = trim((string) config('claude.binary'), " \t\"'")) {
-            if ($configurado !== 'claude') {
-                $candidatos["CLAUDE_BINARY ({$configurado})"] = [$configurado];
-            }
-        }
-
-        foreach ($this->nodeScriptCandidates() as $script) {
-            if (is_file($script)) {
-                $candidatos["node + cli.js"] = ['node', $script];
-                break;
-            }
-        }
-
-        return $candidatos;
-    }
-
-    /** @return list<string> */
-    private function nodeScriptCandidates(): array
-    {
-        $caminhos = [];
-
-        if ($configurado = trim((string) config('claude.node_script'), " \t\"'")) {
-            $caminhos[] = $configurado;
-        }
-
-        $sufixo = DIRECTORY_SEPARATOR . 'node_modules' . DIRECTORY_SEPARATOR
-            . '@anthropic-ai' . DIRECTORY_SEPARATOR . 'claude-code' . DIRECTORY_SEPARATOR . 'cli.js';
-
-        foreach ([getenv('APPDATA'), getenv('HOME'), '/usr/lib/node_modules/..', '/usr/local/lib/node_modules/..'] as $base) {
-            if ($base) {
-                $caminhos[] = rtrim($base, '\\/') . DIRECTORY_SEPARATOR . 'npm' . $sufixo;
-                $caminhos[] = rtrim($base, '\\/') . $sufixo;
-            }
-        }
-
-        return $caminhos;
-    }
-
-    /**
-     * @param  list<string>  $comando
-     * @return array{ok: bool, saida: string}
-     */
-    private function try(array $comando): array
-    {
-        try {
-            $processo = new Process([...$comando, '--version']);
-            $processo->setTimeout(30);
-            $processo->run();
-        } catch (\Throwable $e) {
-            return ['ok' => false, 'saida' => $e->getMessage()];
-        }
-
-        $saida = trim($processo->getOutput()) ?: trim($processo->getErrorOutput());
-
-        return [
-            'ok'    => $processo->isSuccessful() && $saida !== '',
-            'saida' => mb_substr($saida ?: 'sem resposta (código ' . $processo->getExitCode() . ')', 0, 160),
-        ];
-    }
 }

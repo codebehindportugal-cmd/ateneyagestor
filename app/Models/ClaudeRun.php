@@ -18,6 +18,7 @@ class ClaudeRun extends Model
         'project_task_id',
         'status',
         'mode',
+        'follow_up',
         'prompt',
         'result',
         'error',
@@ -73,7 +74,21 @@ class ClaudeRun extends Model
     {
         return [
             'diagnose' => 'Diagnosticar e propor',
+            'continue' => 'Continuar a conversa',
+            'apply'    => 'Continuar e alterar ficheiros',
         ];
+    }
+
+    /** Este pedido pode mexer em ficheiros? */
+    public function writes(): bool
+    {
+        return $this->mode === 'apply';
+    }
+
+    /** E uma continuacao, e nao um diagnostico de raiz? */
+    public function isFollowUp(): bool
+    {
+        return filled($this->follow_up);
     }
 
     public function statusLabel(): string

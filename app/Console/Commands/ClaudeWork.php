@@ -187,6 +187,10 @@ class ClaudeWork extends Command
             '--allowedTools', (string) config('claude.allowed_tools'),
         ];
 
+        if ($negados = config('claude.disallowed_tools')) {
+            array_push($comando, '--disallowedTools', (string) $negados);
+        }
+
         if (config('claude.bare')) {
             $comando[] = '--bare';
         }

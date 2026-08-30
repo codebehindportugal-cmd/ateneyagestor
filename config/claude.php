@@ -54,6 +54,20 @@ return [
     */
     'api_key' => env('ANTHROPIC_API_KEY'),
 
+    /*
+    | Ficheiros que ele nunca abre, mesmo estando o Read permitido.
+    |
+    | Importa sobretudo quando o worker corre no proprio servidor: a pasta de
+    | trabalho de um projecto "local" pode ser a mesma onde vive o .env de
+    | producao, e a resposta fica guardada na base de dados do painel. Isto e
+    | mitigacao, nao garantia — a protecao a serio e o worker nao correr onde
+    | estao os segredos.
+    */
+    'disallowed_tools' => env(
+        'CLAUDE_DISALLOWED_TOOLS',
+        'Read(**/.env),Read(**/.env.*),Read(**/*.pem),Read(**/*.key),Read(**/auth.json),Read(**/id_rsa*)'
+    ),
+
     /* Segundos entre sondagens quando a fila esta vazia. */
     'sleep' => (int) env('CLAUDE_WORKER_SLEEP', 5),
 

@@ -79,6 +79,10 @@ class ClaudeTaskPrompt
         $linhas[] = '';
         $linhas[] = '## O que tens de fazer';
         $linhas[] = '';
+        $linhas[] = 'Nunca abras ficheiros de credenciais (.env, chaves privadas, auth.json) e nunca reproduzas';
+        $linhas[] = 'passwords, tokens ou chaves na resposta, nem que os encontres por acaso. A resposta fica';
+        $linhas[] = 'guardada na base de dados do painel.';
+        $linhas[] = '';
         $linhas[] = 'Le o codigo a que tens acesso e percebe o que esta tarefa exige. NAO alteres nenhum ficheiro,';
         $linhas[] = 'nao corras migrations, nao facas commits e nao toques em servidores. Esta ronda e so de';
         $linhas[] = 'diagnostico: o Andre le a tua resposta no painel e decide.';

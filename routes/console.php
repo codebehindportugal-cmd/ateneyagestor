@@ -25,6 +25,18 @@ Schedule::call(function () {
         ->update(['status' => 'offline']);
 })->everyFifteenMinutes()->name('agents:mark-stale-offline');
 
+// A Claude run stuck in "running" means the worker died mid-task. Without this
+// the task would never be askable again.
+Schedule::call(function () {
+    \App\Models\ClaudeRun::where('status', 'running')
+        ->where('started_at', '<', now()->subMinutes((int) config('claude.stale_after_minutes')))
+        ->update([
+            'status'      => 'failed',
+            'error'       => 'O worker parou a meio da execução (ou nunca chegou a entregar o resultado).',
+            'finished_at' => now(),
+        ]);
+})->everyFifteenMinutes()->name('claude:reclaim-stale-runs');
+
 // Flags invoices that are issued, unpaid, and past their due date.
 Schedule::call(function () {
     \App\Models\Invoice::where('status', 'issued')

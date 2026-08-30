@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AgentController;
+use App\Http\Controllers\Api\ClaudeController;
 use App\Http\Controllers\Api\PaperInvoiceExtractionController;
 use App\Http\Controllers\Api\ProductivityController;
 use App\Http\Controllers\Api\SyncController;
@@ -43,6 +44,23 @@ Route::middleware('auth:sanctum')->prefix('sync')->group(function () {
     Route::post('/runs/start', [SyncController::class, 'startRun']);    // início → aparece "Em curso"
     Route::post('/runs/{run}/progress', [SyncController::class, 'progressRun']);
     Route::post('/runs/{run}/finish', [SyncController::class, 'finishRun']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Claude API
+|--------------------------------------------------------------------------
+|
+| Chamada pelo worker (`php artisan claude:work`) na maquina onde os
+| repositorios estao. O painel corre em producao, o codigo esta no PC do
+| Andre -- por isso e o worker que vem buscar, como o Pi dos backups.
+|
+| Token emitido a um User admin em Projectos > Token do worker.
+|
+*/
+Route::middleware('auth:sanctum')->prefix('claude')->group(function () {
+    Route::get('/next', [ClaudeController::class, 'next']);
+    Route::post('/runs/{run}/finish', [ClaudeController::class, 'finish']);
 });
 
 Route::middleware('auth:sanctum')->post('/invoices/paper/extract', PaperInvoiceExtractionController::class);

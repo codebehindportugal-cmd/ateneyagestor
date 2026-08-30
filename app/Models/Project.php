@@ -18,6 +18,9 @@ class Project extends Model
         'type',
         'status',
         'url',
+        'code_source',
+        'code_path',
+        'site_id',
         'notes',
     ];
 
@@ -45,6 +48,12 @@ class Project extends Model
     public function server(): BelongsTo
     {
         return $this->belongsTo(Server::class);
+    }
+
+    /** O site de onde se tira a copia do codigo, quando code_source = remote. */
+    public function site(): BelongsTo
+    {
+        return $this->belongsTo(Site::class);
     }
 
     public function tasks(): HasMany
@@ -93,6 +102,71 @@ class Project extends Model
             'development' => 'Em desenvolvimento',
             'suspended'   => 'Suspenso',
         ];
+    }
+
+    /**
+     * De onde o Claude le o codigo deste projecto.
+     *
+     * `none` e o valor por defeito de proposito: sem configuracao nenhuma o
+     * botao continua a funcionar, so que o Claude planeia sem ver ficheiros.
+     */
+    public static function codeSourceOptions(): array
+    {
+        return [
+            'none'   => 'Sem código — só planeia',
+            'local'  => 'Pasta local nesta máquina',
+            'remote' => 'Servidor (cópia só de leitura)',
+        ];
+    }
+
+    public function codeSourceLabel(): string
+    {
+        return self::codeSourceOptions()[$this->code_source] ?? (string) $this->code_source;
+    }
+
+    /**
+     * O que o worker precisa de saber para preparar a pasta de trabalho.
+     *
+     * Vai por HTTP para uma maquina que nao tem acesso a esta base de dados,
+     * por isso leva tudo resolvido. Nao leva segredos: no caso remoto leva o
+     * host e o utilizador, e a chave e a que essa maquina ja tem no ~/.ssh.
+     */
+    public function codeDescriptor(): array
+    {
+        $descritor = [
+            'source'  => $this->code_source ?: 'none',
+            'project' => $this->name,
+            'slug'    => $this->slug,
+            'path'    => $this->code_path,
+            'remote'  => null,
+        ];
+
+        if ($this->code_source === 'remote' && $this->site && $this->site->server) {
+            $site   = $this->site;
+            $server = $site->server;
+
+            $descritor['remote'] = [
+                'host'     => $server->host,
+                'port'     => (int) ($server->port ?: 22),
+                'user'     => $server->user ?: 'root',
+                'key_path' => $server->ssh_key_path,
+                'path'     => $site->wp_root ?: $site->app_path,
+                'type'     => $site->type instanceof \BackedEnum ? $site->type->value : (string) $site->type,
+                'domain'   => $site->domain ?: $site->name,
+            ];
+        }
+
+        return $descritor;
+    }
+
+    /** Ha configuracao suficiente para o Claude chegar ao codigo? */
+    public function hasCode(): bool
+    {
+        return match ($this->code_source) {
+            'local'  => filled($this->code_path),
+            'remote' => $this->site_id !== null,
+            default  => false,
+        };
     }
 
     public function typeLabel(): string

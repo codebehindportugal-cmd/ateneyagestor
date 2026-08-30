@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources\ProjectResource\Pages;
 
 use App\Filament\Admin\Resources\ProjectResource;
+use App\Models\ClaudeRun;
 use App\Models\ProjectTask;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -12,6 +13,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
 
 class ManageProjectTasks extends ManageRelatedRecords
 {
@@ -89,6 +91,7 @@ class ManageProjectTasks extends ManageRelatedRecords
     {
         return $table
             ->recordTitleAttribute('title')
+            ->modifyQueryUsing(fn (Builder $query) => $query->with('lastClaudeRun'))
             ->reorderable('position')
             ->defaultSort('position')
             ->columns([
@@ -172,6 +175,51 @@ class ManageProjectTasks extends ManageRelatedRecords
                     ->label('Nova tarefa'),
             ])
             ->actions([
+                // Manda a tarefa ao Claude. O painel so poe o pedido na fila; quem
+                // corre e o `claude:work`, na maquina onde o repositorio vive.
+                Tables\Actions\Action::make('pedirClaude')
+                    ->label('Resolver com o Claude')
+                    ->icon('heroicon-o-sparkles')
+                    ->color('primary')
+                    ->visible(fn (ProjectTask $record) => ! in_array($record->status, ['done', 'cancelled'], true)
+                        && ! ($record->lastClaudeRun?->isPending() && ! $record->lastClaudeRun->isStale()))
+                    ->requiresConfirmation()
+                    ->modalHeading('Mandar esta tarefa ao Claude')
+                    ->modalDescription(fn () => $this->getOwnerRecord()->hasCode()
+                        ? 'Ele lê o código do projecto (' . $this->getOwnerRecord()->codeSourceLabel() . ') e escreve aqui o diagnóstico e o plano. Não altera ficheiros, não faz commits e não toca em servidores.'
+                        : 'Este projecto não tem código configurado, por isso ele planeia com o contexto do painel. Para lhe dar o código, preenche a secção Código na ficha do projecto.')
+                    ->modalSubmitActionLabel('Mandar')
+                    ->action(function (ProjectTask $record) {
+                        ClaudeRun::create([
+                            'project_task_id' => $record->id,
+                            'status'          => 'queued',
+                            'mode'            => 'diagnose',
+                            'requested_by'    => Auth::id(),
+                        ]);
+
+                        Notification::make()
+                            ->success()
+                            ->title('Enviado ao Claude')
+                            ->body('Fica na fila ate o worker o apanhar. A resposta aparece nesta linha.')
+                            ->send();
+                    }),
+
+                Tables\Actions\Action::make('verClaude')
+                    ->label(fn (ProjectTask $record) => match ($record->lastClaudeRun?->status) {
+                        'done'   => 'Ver resposta',
+                        'failed' => 'Ver erro',
+                        default  => 'Claude a trabalhar',
+                    })
+                    ->icon('heroicon-o-chat-bubble-left-right')
+                    ->color(fn (ProjectTask $record) => ClaudeRun::statusColor($record->lastClaudeRun?->status))
+                    ->visible(fn (ProjectTask $record) => $record->lastClaudeRun !== null)
+                    ->modalHeading(fn (ProjectTask $record) => 'Claude · ' . $record->title)
+                    ->modalContent(fn (ProjectTask $record) => view('filament.claude-run-modal', [
+                        'run' => $record->lastClaudeRun->loadMissing('requestedBy'),
+                    ]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fechar'),
+
                 Tables\Actions\Action::make('toggleDone')
                     ->label(fn (ProjectTask $record) => $record->isDone() ? 'Reabrir' : 'Concluir')
                     ->icon(fn (ProjectTask $record) => $record->isDone() ? 'heroicon-o-arrow-uturn-left' : 'heroicon-o-check')

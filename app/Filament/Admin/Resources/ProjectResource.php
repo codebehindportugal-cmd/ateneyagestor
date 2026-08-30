@@ -88,6 +88,36 @@ class ProjectResource extends Resource
                         ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->name} ({$record->host})"),
                 ]),
 
+            Forms\Components\Section::make('Código')
+                ->description('De onde é que o Claude lê o código quando se manda uma tarefa deste projecto.')
+                ->columns(2)
+                ->schema([
+                    Forms\Components\Select::make('code_source')
+                        ->label('Fonte')
+                        ->options(Project::codeSourceOptions())
+                        ->default('none')
+                        ->required()
+                        ->live()
+                        ->helperText('Sem código ele continua a responder — só planeia em vez de ler ficheiros.'),
+
+                    Forms\Components\TextInput::make('code_path')
+                        ->label('Pasta local')
+                        ->placeholder('C:\\laragon\\www\\exemplo')
+                        ->helperText('Na máquina que corre o worker. Não precisa de ser um repositório git.')
+                        ->required(fn (Forms\Get $get) => $get('code_source') === 'local')
+                        ->visible(fn (Forms\Get $get) => $get('code_source') === 'local'),
+
+                    Forms\Components\Select::make('site_id')
+                        ->label('Site a copiar')
+                        ->relationship('site', 'name')
+                        ->searchable()
+                        ->preload()
+                        ->helperText('O caminho sai do wp_root (ou app_path) do site. Traz-se uma cópia só de leitura do tema e dos plugins — nunca uploads, wp-config.php ou .env.')
+                        ->getOptionLabelFromRecordUsing(fn ($record) => trim("{$record->name} · " . ($record->domain ?: '') . ' · ' . ($record->wp_root ?: $record->app_path ?: 'sem caminho'), ' ·'))
+                        ->required(fn (Forms\Get $get) => $get('code_source') === 'remote')
+                        ->visible(fn (Forms\Get $get) => $get('code_source') === 'remote'),
+                ]),
+
             Forms\Components\Textarea::make('notes')
                 ->label('Notas')
                 ->rows(3)

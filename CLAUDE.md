@@ -55,3 +55,65 @@ php artisan db:seed   # cria admin + cliente demo + token Pi (só aparecem uma v
 ```
 
 Cron: `* * * * * php artisan schedule:run`
+
+## Resolver tarefas com o Claude
+
+Cada tarefa de projecto tem um botao **Resolver com o Claude**. O painel so cria um
+registo em `claude_runs` com estado `queued` — nunca chama nada para fora. Quem
+executa e um worker que **vem buscar por HTTP**, com um token Sanctum:
+
+```
+GET  /api/claude/next               -> entrega o pedido mais antigo e marca-o a correr
+POST /api/claude/runs/{id}/finish   -> devolve a resposta (ou o erro)
+```
+
+E o mesmo sentido de conversa dos sincronizadores: o painel esta em producao e o
+codigo esta noutro sitio, por isso a ligacao e sempre de fora para dentro. Uma
+consequencia util: **o worker corre onde quiseres** — o PC com o laragon, um LXC no
+Proxmox, ou a propria VPS. Muda-se o `.env` da maquina, nao o painel.
+
+```bash
+php artisan claude:work          # fica a correr (claude-worker.bat / claude-worker.sh)
+php artisan claude:work --once   # apanha um pedido e sai, para cron
+```
+
+No `.env` **da maquina do worker** (nunca no do servidor):
+
+```
+CLAUDE_PANEL_URL=https://gestao.ateneya.com
+CLAUDE_PANEL_TOKEN=...     # Projectos > Token do worker
+CLAUDE_BINARY=claude       # em Windows, o caminho completo do .cmd
+```
+
+### De onde vem o codigo (`projects.code_source`)
+
+| Fonte | Onde ele trabalha | Para que projectos |
+|---|---|---|
+| `local` | a pasta em `projects.code_path` | codigo que ja esta no disco da maquina do worker |
+| `remote` | copia so de leitura em `storage/app/claude/snapshots/<slug>` | sites que so existem no servidor |
+| `none` | pasta vazia — planeia sem ler codigo | tarefas de manutencao: passwords, backups, actualizacoes |
+
+No caso `remote` o caminho nao se repete no projecto: sai do `Site` associado
+(`wp_root` ou `app_path`) e a ligacao sai do `Server` ao lado. O worker traz por
+SSH o tema, os plugins e os mu-plugins num `tar`, e **nunca** `wp-config.php`,
+`.env`, uploads ou binarios. A copia dura `CLAUDE_SNAPSHOT_TTL` minutos antes de
+ser puxada outra vez. Producao nunca e escrita.
+
+`none` e o valor por defeito de proposito: um projecto novo funciona sem
+configuracao nenhuma, so com respostas mais fracas.
+
+O worker leva no `code` da resposta da API tudo o que precisa (host, porta,
+utilizador, caminho). Segredos nao passam: a chave SSH e a que a maquina do
+worker ja tem no `~/.ssh`.
+
+### O resto
+
+- Modo actual: **so diagnostico**. `CLAUDE_PERMISSION_MODE=dontAsk` com uma lista
+  curta de ferramentas de leitura — nao altera ficheiros nem toca em servidores.
+- A resposta, o custo, a duracao e o prompt exacto ficam no `ClaudeRun` e aparecem
+  na linha da tarefa, em **Ver resposta**.
+- Um segundo pedido na mesma tarefa continua a conversa anterior (`--resume`).
+- Um pedido preso em "a correr" e limpo pelo agendador
+  (`claude:reclaim-stale-runs`, de 15 em 15 minutos).
+- Texto escrito por terceiros (notas, e um dia tickets) vai delimitado no prompt e
+  marcado como dados. Ver `App\Support\ClaudeTaskPrompt`.

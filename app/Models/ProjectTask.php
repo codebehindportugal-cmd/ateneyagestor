@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 
 class ProjectTask extends Model
@@ -67,6 +69,20 @@ class ProjectTask extends Model
     public function completedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'completed_by');
+    }
+
+    public function claudeRuns(): HasMany
+    {
+        return $this->hasMany(ClaudeRun::class);
+    }
+
+    /**
+     * O ultimo pedido feito ao Claude sobre esta tarefa. E uma relacao (e nao um
+     * metodo que faz query) para a listagem poder carregar tudo de uma vez.
+     */
+    public function lastClaudeRun(): HasOne
+    {
+        return $this->hasOne(ClaudeRun::class)->latestOfMany();
     }
 
     public static function statusOptions(): array

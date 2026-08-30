@@ -32,6 +32,16 @@ class CalendarioPage extends Page
     /** Mês a ver, no formato Y-m. Fica no URL para o link ser partilhável. */
     public string $mes = '';
 
+    /** Dia aberto no painel de baixo (Y-m-d), ou null se estiver fechado. */
+    public ?string $diaAberto = null;
+
+    /**
+     * A agregação é cara (quatro consultas) e é pedida três vezes por render —
+     * grelha, resumo e painel. Sem isto eram doze.
+     */
+    private ?array $cacheEventos = null;
+    private ?string $cacheChave = null;
+
     public function mount(): void
     {
         $this->mes = $this->mes ?: CarbonImmutable::today()->format('Y-m');
@@ -69,6 +79,32 @@ class CalendarioPage extends Page
         $this->mes = CarbonImmutable::createFromFormat('Y-m-d', $this->mes.'-01')
             ->addMonths($delta)
             ->format('Y-m');
+
+        // Um painel de um dia que já não está à vista só confunde.
+        $this->diaAberto = null;
+        $this->cacheEventos = null;
+    }
+
+    public function abrirDia(string $data): void
+    {
+        $this->diaAberto = $this->diaAberto === $data ? null : $data;
+    }
+
+    public function fecharDia(): void
+    {
+        $this->diaAberto = null;
+    }
+
+    /** Tudo o que cai no dia aberto, para o painel de baixo. */
+    public function eventosDoDia(): array
+    {
+        if (! $this->diaAberto) {
+            return [];
+        }
+
+        $dia = CarbonImmutable::parse($this->diaAberto);
+
+        return $this->eventosPorDia($dia, $dia)[$this->diaAberto] ?? [];
     }
 
     public function primeiroDia(): CarbonImmutable
@@ -115,6 +151,12 @@ class CalendarioPage extends Page
      */
     private function eventosPorDia(CarbonImmutable $de, CarbonImmutable $ate): array
     {
+        $chave = $de->toDateString().'|'.$ate->toDateString();
+
+        if ($this->cacheChave === $chave && $this->cacheEventos !== null) {
+            return $this->cacheEventos;
+        }
+
         $porDia = [];
 
         $juntar = function (?string $data, array $evento) use (&$porDia) {
@@ -198,6 +240,9 @@ class CalendarioPage extends Page
                 ],
             ));
 
+        $this->cacheChave = $chave;
+        $this->cacheEventos = $porDia;
+
         return $porDia;
     }
 
@@ -212,6 +257,10 @@ class CalendarioPage extends Page
 
         $ocorrencia->estaPendente() ? $ocorrencia->marcarFeito() : $ocorrencia->reabrir();
 
+        // Sem isto o render seguinte servia o estado antigo do cache.
+        $this->cacheEventos = null;
+        $this->cacheChave = null;
+
         Notification::make()
             ->success()
             ->title($ocorrencia->estaPendente() ? 'Reaberta' : 'Marcada como feita')
@@ -221,10 +270,16 @@ class CalendarioPage extends Page
     /** Totais do mês, para o cabeçalho responder a "quanto sai e quanto entra". */
     public function resumo(): array
     {
-        $de = $this->primeiroDia();
-        $ate = $de->endOfMonth();
+        $inicio = $this->primeiroDia();
+        $fim = $inicio->endOfMonth();
 
-        $eventos = collect($this->eventosPorDia($de, $ate))->flatten(1);
+        // A mesma janela alargada que a grelha usa, para aproveitar o cache.
+        $de = $inicio->subDays($inicio->dayOfWeekIso - 1);
+        $ate = $fim->addDays(7 - $fim->dayOfWeekIso);
+
+        $eventos = collect($this->eventosPorDia($de, $ate))
+            ->filter(fn ($_, $data) => str_starts_with($data, $this->mes))
+            ->flatten(1);
 
         $soma = fn (string $tipo) => $eventos
             ->where('tipo', $tipo)

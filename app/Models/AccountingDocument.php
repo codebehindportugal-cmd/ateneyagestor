@@ -122,17 +122,58 @@ class AccountingDocument extends Model
         return self::categories()[$this->category] ?? ucfirst($this->category);
     }
 
+    /**
+     * Para que serviu a compra — o que o contabilista precisa de saber para
+     * decidir o tratamento fiscal. É diferente da categoria, que diz o que se
+     * comprou: gasóleo para revenda e gasóleo para as carrinhas caem os dois
+     * em "Combustíveis", mas não têm o mesmo destino contabilístico.
+     */
+    public static function finalidades(): array
+    {
+        return [
+            'consumo_empresa' => 'Consumo da empresa',
+            'revenda'         => 'Para venda / revenda',
+            'cliente'         => 'Para cliente / projecto',
+            'equipamento'     => 'Equipamento / imobilizado',
+            'servico'         => 'Serviço contratado',
+            'deslocacao'      => 'Deslocação',
+            'manutencao'      => 'Manutenção e reparação',
+            'formacao'        => 'Formação',
+            'outro'           => 'Outro',
+        ];
+    }
+
+    public static function finalidadeLabel(?string $valor): string
+    {
+        // Devolve o proprio valor quando nao esta na lista: os documentos
+        // antigos tem texto livre neste campo e nao podem ficar em branco.
+        return self::finalidades()[$valor] ?? (string) $valor;
+    }
+
     public static function categories(): array
     {
         return [
-            'fornecedores'  => 'Fornecedores',
+            'fornecedores'   => 'Fornecedores',
             'gastos_empresa' => 'Gastos para empresa',
-            'servicos'      => 'Serviços',
-            'software'      => 'Software & Subscrições',
-            'material'      => 'Material & Equipamento',
-            'comunicacoes'  => 'Comunicações',
-            'rph'           => 'Rec. Honorários',
-            'outros'        => 'Outros',
+            'servicos'       => 'Serviços',
+            'software'       => 'Software & Subscrições',
+            'material'       => 'Material & Equipamento',
+            'comunicacoes'   => 'Comunicações',
+            'combustiveis'   => 'Combustíveis',
+            'viaturas'       => 'Viaturas (portagens, estacionamento, reparações)',
+            'deslocacoes'    => 'Deslocações e estadias',
+            'refeicoes'      => 'Refeições e representação',
+            'rendas'         => 'Rendas e espaços',
+            'energia_agua'   => 'Energia e água',
+            'seguros'        => 'Seguros',
+            'impostos'       => 'Impostos e taxas',
+            'bancos'         => 'Encargos bancários',
+            'publicidade'    => 'Publicidade e marketing',
+            'contabilidade'  => 'Contabilidade e serviços jurídicos',
+            'formacao'       => 'Formação',
+            'mercadorias'    => 'Mercadorias para revenda',
+            'rph'            => 'Rec. Honorários',
+            'outros'         => 'Outros',
         ];
     }
 

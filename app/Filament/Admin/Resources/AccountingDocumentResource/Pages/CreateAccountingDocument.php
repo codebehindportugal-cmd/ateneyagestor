@@ -86,6 +86,9 @@ class CreateAccountingDocument extends CreateRecord
      * NAO por cima do que ja la esta: se corrigiste o fornecedor a mao e depois
      * juntas uma segunda foto, a tua correccao fica.
      */
+    /** A primeira leitura enche o formulario; as seguintes so tapam buracos. */
+    private bool $jaLeuFicheiro = false;
+
     public function autoReadUploadedInvoice(): void
     {
         $paths = $this->uploadedAbsolutePaths($this->data ?? []);
@@ -97,7 +100,13 @@ class CreateAccountingDocument extends CreateRecord
         $extractor = app(PaperInvoiceExtractor::class);
         $result = $this->extractDocuments($paths, $extractor);
 
-        $this->fillFromExtraction($result, keepCurrentPurpose: true, onlyEmpty: true);
+        // Na primeira leitura escreve tudo. Se so preenchesse o que esta vazio,
+        // campos com valor por omissao — a Data comeca em hoje, o Estado em
+        // "pendente" — nunca seriam corrigidos, e a data da factura ficava a de
+        // hoje. A partir da segunda ja respeita o que la esta, para nao apagar
+        // correccoes tuas quando juntas outra foto.
+        $this->fillFromExtraction($result, keepCurrentPurpose: true, onlyEmpty: $this->jaLeuFicheiro);
+        $this->jaLeuFicheiro = true;
         $this->avisarFerramentasEmFalta($result['warnings'] ?? []);
     }
 
@@ -233,16 +242,23 @@ class CreateAccountingDocument extends CreateRecord
         $novos = [
             'tipo' => $this->mapDocumentType($invoice['type'] ?? null),
             'estado' => $state['estado'] ?? 'pendente',
-            'title' => $keepCurrentPurpose && filled($state['title'] ?? null)
-                ? $state['title']
-                : ($state['title'] ?? ($supplier['name'] ?: ($invoice['number'] ? 'Fatura '.$invoice['number'] : 'Fatura'))),
+            // A Finalidade e' uma escolha tua, nao se le do PDF: nenhuma factura
+            // diz se o gasoleo foi para as carrinhas ou para revender. Antes
+            // enchia-se com o nome do fornecedor, o que so dava trabalho a
+            // apagar — e agora nem seria uma opcao valida da lista.
+            'title' => $state['title'] ?? null,
             'invoice_number' => $invoice['number'] ?: ($state['invoice_number'] ?? null),
             'fornecedor' => $nomeConhecido ?: ($supplier['name'] ?: ($state['fornecedor'] ?? null)),
             'supplier_nif' => $supplier['taxNumber'] ?: ($state['supplier_nif'] ?? null),
             'atcud' => $invoice['atcud'] ?: ($state['atcud'] ?? null),
             'date' => $this->parseExtractedDate($invoice['date'] ?? null),
-            'amount_cents' => ($invoice['total'] ?? 0) > 0 ? (float) $invoice['total'] : ($state['amount_cents'] ?? 0),
-            'iva_cents' => ($invoice['vatTotal'] ?? 0) > 0 ? (float) $invoice['vatTotal'] : ($state['iva_cents'] ?? 0),
+            // O campo mostra euros mas a coluna guarda centimos: o
+            // afterStateHydrated divide por 100 ao preencher. Entregar 553.75
+            // fazia aparecer 5,54 €. E o valor que ja esta no formulario tambem
+            // vem em euros, por isso leva a mesma conversao — sem isto, carregar
+            // duas vezes no botao dividia o total por 100 de cada vez.
+            'amount_cents' => $this->paraCentimos($invoice['total'] ?? 0, $state['amount_cents'] ?? 0),
+            'iva_cents' => $this->paraCentimos($invoice['vatTotal'] ?? 0, $state['iva_cents'] ?? 0),
             'currency' => $invoice['currency'] ?? ($state['currency'] ?? 'EUR'),
             'category' => $state['category'] ?? 'fornecedores',
             'products' => $this->normalizeProducts($products),
@@ -258,6 +274,14 @@ class CreateAccountingDocument extends CreateRecord
         }
 
         $this->form->fill(array_merge($state, $novos));
+    }
+
+    /** Euros (do QR ou do formulario) para centimos, que e' o que o fill() espera. */
+    private function paraCentimos(mixed $extraido, mixed $atual): int
+    {
+        $euros = ((float) $extraido) > 0 ? (float) $extraido : (float) $atual;
+
+        return (int) round($euros * 100);
     }
 
     private function uploadedAbsolutePaths(array $state): array

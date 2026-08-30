@@ -536,15 +536,21 @@ class PaperInvoiceExtractor
     {
         $ignored = '/^(original|duplicado|exmo\.?\s*srs?\.?|v\/?\s*refer[eÃª]ncia|refer[eÃª]ncia|data|cid|v\/?\s*contribuinte)$/iu';
 
-        foreach ($lines as $line) {
-            if (preg_match('/([\p{L}0-9 .,&-]+?Lda\.?)/iu', $line, $matches)
-                && ! preg_match('/\b(cliente|exmo|atenea|ateneya|nif|morada|sentido\s+da\s+fruta\s+-)\b/iu', $matches[1])) {
-                return trim($matches[1]);
-            }
+        // A forma juridica tem de ser um termo por si so. Sem isto, o "SA" da
+        // alternativa casava com o "ssa" de "Remessa" e a linha
+        // "Guia(s) de Remessa:" devolvia "de Remessa" como nome do fornecedor.
+        // O parentese nao pertence a classe de caracteres, por isso a captura
+        // comecava a meio da linha. Visto numa factura da PRIO em 29/08/2026.
+        $formaJuridica = '(?:Unipessoal(?:\s+Lda\.?)?|Unip\.?|Lda\.?|Limitada|S\.?\s?A\.?|SGPS|ACE)';
+        $naoEOFornecedor = '/\b(cliente|exmo|atenea|ateneya|nif|morada|sentido\s+da\s+fruta\s+-)\b/iu';
 
-            if (preg_match('/([\p{L}0-9 .,&-]+?(?:Unipessoal|Unip\.?|Lda\.?|Limitada|S\.A\.|SA))\b/iu', $line, $matches)
-                && ! preg_match('/\b(cliente|exmo|atenea|ateneya|nif|morada|sentido\s+da\s+fruta\s+-)\b/iu', $matches[1])) {
-                return trim($matches[1]);
+        foreach ($lines as $line) {
+            // O sufixo tem de vir precedido de espaco ou virgula e nao pode ter
+            // uma letra a seguir — e' assim que deixa de casar dentro de palavras.
+            if (preg_match('/([\p{L}0-9 .,&-]{2,70}?[,\s]+'.$formaJuridica.')(?![\p{L}])/iu', $line, $matches)
+                && ! preg_match($naoEOFornecedor, $matches[1])) {
+                // Nao se tira o ponto final: faz parte de "S.A." e do nome legal.
+                return trim($matches[1], " \t,");
             }
         }
 

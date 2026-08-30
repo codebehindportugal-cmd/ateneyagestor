@@ -32,11 +32,23 @@ class AccountingDocumentResource extends Resource
             Forms\Components\Section::make('Identificação')
                 ->columns(3)
                 ->schema([
-                    Forms\Components\TextInput::make('title')
-                        ->label('Finalidade / descrição')
+                    Forms\Components\Select::make('title')
+                        ->label('Finalidade')
                         ->required()
-                        ->maxLength(255)
-                        ->helperText('Texto curto para o contabilista perceber para que e a fatura.')
+                        ->searchable()
+                        // Os documentos criados antes desta lista tem texto livre
+                        // aqui. Acrescentar o valor actual as opcoes evita que
+                        // apareçam em branco e que uma edicao inocente o apague.
+                        ->options(function (?string $state) {
+                            $opcoes = AccountingDocument::finalidades();
+
+                            if (filled($state) && ! array_key_exists($state, $opcoes)) {
+                                $opcoes[$state] = $state.' (valor antigo)';
+                            }
+
+                            return $opcoes;
+                        })
+                        ->helperText('Para que serviu a compra — é o que o contabilista precisa de saber.')
                         ->columnSpanFull(),
 
                     Forms\Components\Select::make('tipo')
@@ -261,6 +273,10 @@ class AccountingDocumentResource extends Resource
 
                 Tables\Columns\TextColumn::make('title')
                     ->label('Finalidade')
+                    ->badge()
+                    ->color('gray')
+                    // Sem isto a tabela mostrava a chave crua (consumo_empresa).
+                    ->formatStateUsing(fn (?string $state) => AccountingDocument::finalidadeLabel($state))
                     ->searchable()
                     ->limit(35),
 
@@ -364,6 +380,10 @@ class AccountingDocumentResource extends Resource
                 Tables\Filters\SelectFilter::make('estado')
                     ->label('Estado')
                     ->options(AccountingDocument::estados()),
+
+                Tables\Filters\SelectFilter::make('title')
+                    ->label('Finalidade')
+                    ->options(AccountingDocument::finalidades()),
 
                 Tables\Filters\SelectFilter::make('category')
                     ->label('Categoria')

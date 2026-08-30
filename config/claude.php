@@ -22,6 +22,16 @@ return [
     */
     'binary' => env('CLAUDE_BINARY', 'claude'),
 
+    /*
+    | Alternativa ao binario: o cli.js do Claude Code arrancado pelo node.
+    | Em Windows e o caminho fiavel quando a pasta do utilizador tem espacos ou
+    | acentos — o executavel passa a ser 'node' (sem nada de especial) e o
+    | caminho complicado vai como argumento, que o Symfony escapa bem.
+    | Descobre-se com `php artisan claude:check`. Quando esta preenchido,
+    | manda sobre o CLAUDE_BINARY.
+    */
+    'node_script' => env('CLAUDE_NODE_SCRIPT'),
+
     /* Tempo maximo de uma execucao, em segundos. */
     'timeout' => (int) env('CLAUDE_TIMEOUT', 900),
 

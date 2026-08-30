@@ -101,3 +101,11 @@ try {
 } catch (\Throwable) {
     // DB not ready yet, for example during first deploy before migrations run.
 }
+
+// Materializa as rotinas (tarefas e pagamentos recorrentes) em datas concretas.
+// De madrugada e com 120 dias de janela: o calendario tem sempre uns meses para
+// a frente sem depender de alguem se lembrar de correr o comando.
+Schedule::command('routines:generate --dias=120')
+    ->dailyAt('02:15')
+    ->name('routines:generate')
+    ->withoutOverlapping();

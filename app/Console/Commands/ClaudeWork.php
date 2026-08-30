@@ -179,8 +179,19 @@ class ClaudeWork extends Command
     /** @return list<string> */
     private function buildCommand(string $prompt, ?string $sessaoAnterior): array
     {
+        // Apara aspas que tenham ficado agarradas ao valor no .env. Em Windows o
+        // caminho leva espacos, e quem o mete entre aspas duplas acaba com elas
+        // dentro do valor — o cmd recebe o caminho com aspas a mais e nao arranca.
+        $binario = trim((string) config('claude.binary'), " \t\n\r\0\x0B\"'");
+        $script  = trim((string) config('claude.node_script'), " \t\n\r\0\x0B\"'");
+
+        // Com o cli.js configurado, o executavel passa a ser o node e o caminho
+        // dificil vai como argumento — e o que faz isto funcionar em Windows
+        // quando a pasta do utilizador tem espacos ou acentos.
+        $arranque = $script !== '' ? ['node', $script] : [$binario];
+
         $comando = [
-            (string) config('claude.binary'),
+            ...$arranque,
             '-p', $prompt,
             '--output-format', 'json',
             '--permission-mode', (string) config('claude.permission_mode'),

@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\ClaudeAgenda;
+
 use App\Http\Controllers\AccountantViewController;
 use App\Http\Controllers\ClientDocumentController;
 use App\Http\Controllers\SupplierInvoiceController;
@@ -58,3 +60,14 @@ Route::middleware('auth:web')->group(function () {
 Route::middleware('auth:web')
     ->get('/admin/client-documents/{document}', [ClientDocumentController::class, 'show'])
     ->name('admin.client-documents.show');
+
+
+/*
+| A mesma agenda da API, mas protegida pela sessao do painel em vez de um token.
+| Existe para a rotina da manha: nem a nuvem nem a shell da maquina do Andre
+| chegam ao painel pela rede, so o browser dele — e assim le tudo numa pagina
+| em vez de abrir os 30 projectos.
+*/
+Route::middleware(['web', 'auth'])->get('/admin/claude/agenda.json', function () {
+    return response()->json(ClaudeAgenda::payload(request()->integer('projecto') ?: null));
+})->name('claude.agenda.web');

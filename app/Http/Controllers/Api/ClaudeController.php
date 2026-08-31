@@ -7,6 +7,7 @@ use App\Models\ClaudeRun;
 use App\Models\Project;
 use App\Models\ProjectTask;
 use App\Models\User;
+use App\Support\ClaudeAgenda;
 use App\Support\ClaudeTaskPrompt;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,6 +34,27 @@ class ClaudeController extends Controller
         abort_unless($tokenable instanceof User, 403, 'Token nao pertence a um utilizador do painel.');
 
         return $tokenable;
+    }
+
+    /**
+     * O token do worker pode tudo; o da rotina da manha so pode ler a agenda e
+     * por tarefas na fila.
+     *
+     * Existe porque esse segundo token vive fora da maquina do Andre — no texto
+     * de uma tarefa agendada — e um token que so sabe fazer duas coisas e muito
+     * menos mau de perder do que um que fecha execucoes e le respostas.
+     */
+    private function authenticatedForAgenda(Request $request): User
+    {
+        $user = $this->authenticatedUser($request);
+
+        abort_unless(
+            $request->user()->tokenCan('agenda') || $request->user()->tokenCan('*'),
+            403,
+            'Este token nao pode consultar a agenda.'
+        );
+
+        return $user;
     }
 
     /**
@@ -120,53 +142,9 @@ class ClaudeController extends Controller
      */
     public function agenda(Request $request): JsonResponse
     {
-        $this->authenticatedUser($request);
+        $this->authenticatedForAgenda($request);
 
-        $projectos = Project::query()
-            ->with(['tasks' => fn ($q) => $q
-                ->whereNotIn('status', ['done', 'cancelled'])
-                ->with('lastClaudeRun')
-                ->orderBy('position')])
-            ->when($request->integer('projecto'), fn ($q, $id) => $q->where('id', $id))
-            ->where('status', '!=', 'suspended')
-            ->orderBy('name')
-            ->get()
-            ->filter(fn (Project $p) => $p->tasks->isNotEmpty())
-            ->values();
-
-        $linhas = $projectos->map(fn (Project $p) => [
-            'id'            => $p->id,
-            'nome'          => $p->name,
-            'estado'        => $p->statusLabel(),
-            'fonte_codigo'  => $p->code_source,
-            'tem_codigo'    => $p->hasCode(),
-            'url'           => $p->url,
-            'tarefas'       => $p->tasks->map(fn (ProjectTask $t) => [
-                'id'              => $t->id,
-                'titulo'          => $t->title,
-                'notas'           => $t->description,
-                'estado'          => $t->status,
-                'estado_label'    => $t->statusLabel(),
-                'prazo'           => $t->due_date?->toDateString(),
-                'atrasada'        => $t->isOverdue(),
-                'ja_respondida'   => $t->lastClaudeRun?->isDone() === true,
-                'pedido_pendente' => $t->lastClaudeRun?->isPending() === true,
-            ])->values(),
-        ]);
-
-        $tarefas = $linhas->flatMap(fn ($p) => $p['tarefas']);
-
-        return response()->json([
-            'gerado_em' => now()->toIso8601String(),
-            'resumo'    => [
-                'projectos'          => $linhas->count(),
-                'tarefas'            => $tarefas->count(),
-                'atrasadas'          => $tarefas->where('atrasada', true)->count(),
-                'a_aguardar_cliente' => $tarefas->where('estado', 'waiting_client')->count(),
-                'ja_na_fila'         => $tarefas->where('pedido_pendente', true)->count(),
-            ],
-            'projectos' => $linhas,
-        ]);
+        return response()->json(ClaudeAgenda::payload($request->integer('projecto') ?: null));
     }
 
     /**
@@ -177,7 +155,7 @@ class ClaudeController extends Controller
      */
     public function queue(Request $request, ProjectTask $task): JsonResponse
     {
-        $user = $this->authenticatedUser($request);
+        $user = $this->authenticatedForAgenda($request);
 
         $data = $request->validate([
             'mode'      => ['required', 'string', 'in:diagnose,continue,apply'],

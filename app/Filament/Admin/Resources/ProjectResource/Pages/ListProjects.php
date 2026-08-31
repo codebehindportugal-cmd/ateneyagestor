@@ -32,7 +32,7 @@ class ListProjects extends ListRecords
                     $user = Auth::user();
 
                     $user->tokens()->where('name', 'claude_worker')->delete();
-                    $token = $user->createToken('claude_worker')->plainTextToken;
+                    $token = $user->createToken('claude_worker', ['*'])->plainTextToken;
 
                     Notification::make()
                         ->title('Token gerado — copia agora')
@@ -41,6 +41,31 @@ class ListProjects extends ListRecords
                             . 'CLAUDE_PANEL_URL=' . rtrim(config('app.url'), '/') . "\n"
                             . "CLAUDE_PANEL_TOKEN={$token}"
                         )
+                        ->success()
+                        ->persistent()
+                        ->send();
+                }),
+
+            // Token separado, de poderes curtos, para a rotina da manha. Vive
+            // fora da maquina do Andre (no texto da tarefa agendada), por isso
+            // so pode ler a agenda e por tarefas na fila — nada mais.
+            Actions\Action::make('claudeAgendaToken')
+                ->label('Token da rotina')
+                ->icon('heroicon-o-clock')
+                ->color('gray')
+                ->requiresConfirmation()
+                ->modalHeading('Token da rotina da manhã')
+                ->modalDescription('Só consegue ler a agenda e pôr tarefas na fila. Não fecha execuções nem lê respostas. Isto revoga o token anterior da rotina.')
+                ->modalSubmitActionLabel('Gerar')
+                ->action(function () {
+                    $user = Auth::user();
+
+                    $user->tokens()->where('name', 'claude_agenda')->delete();
+                    $token = $user->createToken('claude_agenda', ['agenda'])->plainTextToken;
+
+                    Notification::make()
+                        ->title('Token da rotina — copia agora')
+                        ->body("Só é mostrado uma vez. Cola-o na tarefa agendada, onde diz COLA-AQUI-O-TOKEN:\n\n{$token}")
                         ->success()
                         ->persistent()
                         ->send();

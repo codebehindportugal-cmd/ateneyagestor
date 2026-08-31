@@ -47,10 +47,40 @@ class ClaudeWorkspace
         }
 
         if (! is_dir($path)) {
-            throw new RuntimeException("A pasta do projecto '{$nome}' não existe nesta máquina: {$path}");
+            // O caminho e do PC do Andre; aqui pode viver noutro sitio.
+            $alternativo = self::naBaseLocal($path);
+
+            if ($alternativo === null) {
+                throw new RuntimeException("A pasta do projecto '{$nome}' não existe nesta máquina: {$path}");
+            }
+
+            $path = $alternativo;
         }
 
         return new self('local', $path, "Estás na pasta de trabalho do projecto, em {$path}. É o código a sério — mas nesta ronda não alteras nada.");
+    }
+
+    /**
+     * O mesmo repositorio, procurado em CLAUDE_REPOS_BASE. Aceita caminhos de
+     * Windows vindos do painel mesmo quando se corre em Linux.
+     */
+    private static function naBaseLocal(string $path): ?string
+    {
+        $base = trim((string) config('claude.repos_base'), " \t\"'");
+
+        if ($base === '') {
+            return null;
+        }
+
+        $pasta = basename(str_replace('\\', '/', rtrim($path, '\\/')));
+
+        if ($pasta === '') {
+            return null;
+        }
+
+        $tentativa = rtrim($base, '\\/') . DIRECTORY_SEPARATOR . $pasta;
+
+        return is_dir($tentativa) ? $tentativa : null;
     }
 
     private static function none(): self

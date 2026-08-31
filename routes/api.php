@@ -59,6 +59,8 @@ Route::middleware('auth:sanctum')->prefix('sync')->group(function () {
 |
 */
 Route::middleware('auth:sanctum')->prefix('claude')->group(function () {
+    Route::get('/agenda', [ClaudeController::class, 'agenda']);
+    Route::post('/tasks/{task}/queue', [ClaudeController::class, 'queue']);
     Route::get('/next', [ClaudeController::class, 'next']);
     Route::post('/runs/{run}/finish', [ClaudeController::class, 'finish']);
 });

@@ -32,6 +32,17 @@ return [
     */
     'node_script' => env('CLAUDE_NODE_SCRIPT'),
 
+    /*
+    | Pasta onde os repositorios vivem NESTA maquina.
+    |
+    | O painel guarda um caminho por projecto, mas esse caminho e do PC do Andre
+    | (C:\laragon\www\entregas). Quando o worker corre noutro sitio — um LXC do
+    | Proxmox, por exemplo — o caminho nao existe. Com isto preenchido, o worker
+    | tenta <base>/<ultima-pasta-do-caminho> antes de desistir, e o mesmo registo
+    | no painel serve as duas maquinas sem se tocar em nada.
+    */
+    'repos_base' => env('CLAUDE_REPOS_BASE'),
+
     /* Tempo maximo de uma execucao, em segundos. */
     'timeout' => (int) env('CLAUDE_TIMEOUT', 900),
 

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClaudeRun;
+use App\Models\Project;
+use App\Models\ProjectTask;
 use App\Models\User;
 use App\Support\ClaudeTaskPrompt;
 use Illuminate\Http\JsonResponse;
@@ -105,6 +107,100 @@ class ClaudeController extends Controller
             'code'        => $project->codeDescriptor(),
             'prompt_body' => ClaudeTaskPrompt::body($task),
         ]);
+    }
+
+    /**
+     * GET /api/claude/agenda
+     *
+     * O que esta por fazer em todos os projectos, numa so chamada. Existe para a
+     * rotina da manha nao ter de abrir o painel projecto a projecto no browser.
+     *
+     * So devolve titulos e estados — nada de credenciais, notas de servidor ou
+     * caminhos. Aceita ?projecto={id} para limitar a um.
+     */
+    public function agenda(Request $request): JsonResponse
+    {
+        $this->authenticatedUser($request);
+
+        $projectos = Project::query()
+            ->with(['tasks' => fn ($q) => $q
+                ->whereNotIn('status', ['done', 'cancelled'])
+                ->with('lastClaudeRun')
+                ->orderBy('position')])
+            ->when($request->integer('projecto'), fn ($q, $id) => $q->where('id', $id))
+            ->where('status', '!=', 'suspended')
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Project $p) => $p->tasks->isNotEmpty())
+            ->values();
+
+        $linhas = $projectos->map(fn (Project $p) => [
+            'id'            => $p->id,
+            'nome'          => $p->name,
+            'estado'        => $p->statusLabel(),
+            'fonte_codigo'  => $p->code_source,
+            'tem_codigo'    => $p->hasCode(),
+            'url'           => $p->url,
+            'tarefas'       => $p->tasks->map(fn (ProjectTask $t) => [
+                'id'              => $t->id,
+                'titulo'          => $t->title,
+                'notas'           => $t->description,
+                'estado'          => $t->status,
+                'estado_label'    => $t->statusLabel(),
+                'prazo'           => $t->due_date?->toDateString(),
+                'atrasada'        => $t->isOverdue(),
+                'ja_respondida'   => $t->lastClaudeRun?->isDone() === true,
+                'pedido_pendente' => $t->lastClaudeRun?->isPending() === true,
+            ])->values(),
+        ]);
+
+        $tarefas = $linhas->flatMap(fn ($p) => $p['tarefas']);
+
+        return response()->json([
+            'gerado_em' => now()->toIso8601String(),
+            'resumo'    => [
+                'projectos'          => $linhas->count(),
+                'tarefas'            => $tarefas->count(),
+                'atrasadas'          => $tarefas->where('atrasada', true)->count(),
+                'a_aguardar_cliente' => $tarefas->where('estado', 'waiting_client')->count(),
+                'ja_na_fila'         => $tarefas->where('pedido_pendente', true)->count(),
+            ],
+            'projectos' => $linhas,
+        ]);
+    }
+
+    /**
+     * POST /api/claude/tasks/{task}/queue
+     *
+     * Poe uma tarefa na fila sem passar pelos botoes do painel. E o que permite
+     * a rotina da manha fazer o trabalho todo por API.
+     */
+    public function queue(Request $request, ProjectTask $task): JsonResponse
+    {
+        $user = $this->authenticatedUser($request);
+
+        $data = $request->validate([
+            'mode'      => ['required', 'string', 'in:diagnose,continue,apply'],
+            'follow_up' => ['nullable', 'string', 'max:20000', 'required_unless:mode,diagnose'],
+        ]);
+
+        // Nao vale a pena empilhar pedidos na mesma tarefa.
+        if ($task->lastClaudeRun?->isPending() && ! $task->lastClaudeRun->isStale()) {
+            return response()->json([
+                'ok'   => false,
+                'erro' => 'Já há um pedido por acabar nesta tarefa.',
+            ], 409);
+        }
+
+        $run = ClaudeRun::create([
+            'project_task_id' => $task->id,
+            'status'          => 'queued',
+            'mode'            => $data['mode'],
+            'follow_up'       => $data['follow_up'] ?? null,
+            'requested_by'    => $user->id,
+        ]);
+
+        return response()->json(['ok' => true, 'run_id' => $run->id]);
     }
 
     /**

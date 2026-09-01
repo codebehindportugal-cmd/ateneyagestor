@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources;
 use App\Filament\Admin\Resources\SiteUpdateResource\Pages;
 use App\Models\SiteUpdate;
 use Filament\Infolists;
+use Filament\Notifications\Notification;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -94,6 +95,22 @@ class SiteUpdateResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make()->label('Ver'),
+                Tables\Actions\Action::make('cancelar')
+                    ->label('Cancelar')
+                    ->icon('heroicon-o-x-mark')
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->modalDescription('O pedido ainda nao chegou ao agente, por isso cancelar nao mexe em nada no site.')
+                    ->visible(fn (SiteUpdate $record) => $record->status === 'queued')
+                    ->action(function (SiteUpdate $record) {
+                        $record->update([
+                            'status'      => 'aborted',
+                            'error'       => 'Cancelado no painel antes de arrancar.',
+                            'finished_at' => now(),
+                        ]);
+
+                        Notification::make()->title('Pedido cancelado')->success()->send();
+                    }),
             ]);
     }
 

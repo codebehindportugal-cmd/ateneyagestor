@@ -17,11 +17,14 @@ return [
     'snapshot_dir' => env('ATUALIZACOES_SNAPSHOT_DIR', '/var/backups/ateneya-updates'),
 
     /*
-    | Espaco livre minimo, em multiplos do tamanho do que se vai copiar. Abaixo
-    | disto nem se comeca: um disco cheio a meio de um tar deixa o site sem
-    | copia E sem actualizacao.
+    | Espaco livre minimo, em multiplos do que se vai copiar (ja sem os uploads,
+    | as caches e os backups de plugins). Abaixo disto nem se comeca: um disco
+    | cheio a meio de um tar deixa o site sem copia E prestes a ser actualizado.
+    |
+    | 1.2 chega: o tar sai comprimido, tipicamente a menos de metade do
+    | tamanho da origem, e ainda sobra folga para o dump da base de dados.
     */
-    'espaco_minimo_factor' => (float) env('ATUALIZACOES_ESPACO_FACTOR', 2.5),
+    'espaco_minimo_factor' => (float) env('ATUALIZACOES_ESPACO_FACTOR', 1.2),
 
     /*
     | Quanto a pagina pode encolher antes de contar como partida. Um site que

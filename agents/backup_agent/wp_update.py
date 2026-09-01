@@ -354,8 +354,7 @@ def tirar_copia(servidor: Servidor, wp: WordPress, destino: str) -> str:
 
     servidor.exigir(
         f"cd {shlex.quote(wp.root)} && tar czf {shlex.quote(pasta + '/files.tar.gz')} "
-        f"--exclude=wp-content/uploads --exclude=wp-content/cache "
-        f"--exclude=wp-content/upgrade --exclude=wp-content/ai1wm-backups "
+        + " ".join(f"--exclude={shlex.quote(c)}" for c in NAO_COPIAR) + " "
         f"wp-admin wp-includes wp-content $(ls -1 *.php 2>/dev/null | tr '\\n' ' ')",
         "copiar os ficheiros", timeout=1800,
     )

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AgentController;
 use App\Http\Controllers\Api\ClaudeController;
 use App\Http\Controllers\Api\PaperInvoiceExtractionController;
 use App\Http\Controllers\Api\ProductivityController;
+use App\Http\Controllers\Api\SiteUpdateController;
 use App\Http\Controllers\Api\SyncController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,6 +27,11 @@ Route::middleware('auth:sanctum')->prefix('agent')->group(function () {
     Route::get('/config', [AgentController::class, 'config']);
     Route::post('/runs', [AgentController::class, 'storeRunResults']);
     Route::post('/heartbeat', [AgentController::class, 'heartbeat']);
+
+    // Actualizacoes de WordPress (wp_update.py), mesma fila-puxada dos backups.
+    Route::get('/updates/next', [SiteUpdateController::class, 'next']);
+    Route::post('/updates/{update}/progress', [SiteUpdateController::class, 'progress']);
+    Route::post('/updates/{update}/finish', [SiteUpdateController::class, 'finish']);
 });
 
 /*

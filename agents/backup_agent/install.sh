@@ -25,10 +25,10 @@ apt-get install -y -qq python3 python3-venv python3-pip openssh-client gzip tar 
 
 echo "==> $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"/{keys,logs}
-for f in agent_sync.py backup.py requirements.txt agent.example.yaml secrets.example.yaml README.md; do
+for f in agent_sync.py backup.py wp_update.py requirements.txt agent.example.yaml secrets.example.yaml README.md; do
   [[ -f "$SRC_DIR/$f" ]] && install -m 0644 "$SRC_DIR/$f" "$INSTALL_DIR/$f"
 done
-chmod 0755 "$INSTALL_DIR/agent_sync.py" "$INSTALL_DIR/backup.py"
+chmod 0755 "$INSTALL_DIR/agent_sync.py" "$INSTALL_DIR/backup.py" "$INSTALL_DIR/wp_update.py"
 chmod 0700 "$INSTALL_DIR/keys"
 
 echo "==> Ambiente Python"
@@ -51,6 +51,13 @@ cat > "$INSTALL_DIR/run.sh" <<EOF
 exec "$INSTALL_DIR/venv/bin/python" "$INSTALL_DIR/agent_sync.py" "\$@"
 EOF
 chmod 0755 "$INSTALL_DIR/run.sh"
+
+cat > "$INSTALL_DIR/actualizar.sh" <<EOF
+#!/usr/bin/env bash
+# Atalho: apanha da fila do painel um site para actualizar.
+exec "$INSTALL_DIR/venv/bin/python" "$INSTALL_DIR/wp_update.py" "\$@"
+EOF
+chmod 0755 "$INSTALL_DIR/actualizar.sh"
 
 echo "==> Chave SSH do agente"
 if [[ ! -f "$INSTALL_DIR/keys/ateneya_vps" ]]; then
@@ -90,6 +97,27 @@ RandomizedDelaySec=300
 WantedBy=timers.target
 EOF
 
+# As actualizacoes de WordPress ficam a sondar o painel em permanencia: quando
+# o Andre carrega no botao, quer ver aquilo a andar, nao esperar pela hora certa.
+cat > /etc/systemd/system/wp-updater.service <<EOF
+[Unit]
+Description=Actualizacoes de WordPress da fila do painel Ateneya
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=$INSTALL_DIR
+ExecStart=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/wp_update.py --sleep 30
+Restart=always
+RestartSec=30
+StandardOutput=append:$INSTALL_DIR/logs/wp-updater.log
+StandardError=append:$INSTALL_DIR/logs/wp-updater.log
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 cat > /etc/logrotate.d/backup-agent <<EOF
 $INSTALL_DIR/logs/*.log {
     weekly
@@ -103,6 +131,7 @@ EOF
 
 systemctl daemon-reload
 systemctl enable --now backup-agent.timer >/dev/null
+systemctl enable --now wp-updater.service >/dev/null
 
 echo
 echo "Instalado. Falta:"
@@ -112,6 +141,7 @@ echo "  3. Preencher $INSTALL_DIR/secrets.yaml (um agent_secret_ref por servidor
 echo "  4. Copiar a chave pública para cada VPS:"
 echo "       cat $INSTALL_DIR/keys/ateneya_vps.pub"
 echo "  5. Testar:  $INSTALL_DIR/run.sh --dry-run"
+echo "  6. Actualizacoes: $INSTALL_DIR/actualizar.sh --once -v  (o servico wp-updater ja esta a sondar)"
 echo
 echo "Próxima execução automática:"
 systemctl list-timers backup-agent.timer --no-pager | sed -n '2p'

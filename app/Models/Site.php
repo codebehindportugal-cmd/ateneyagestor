@@ -42,6 +42,8 @@ class Site extends Model
         'retention_keep_min_copies',
         'retention_max_copies',
         'notes',
+        'update_check_urls',
+        'updates_enabled',
     ];
 
     protected function casts(): array
@@ -53,6 +55,8 @@ class Site extends Model
             'storage_paths'     => 'array',
             'db_override'       => 'array',
             'plesk_backup_args' => 'array',
+            'update_check_urls' => 'array',
+            'updates_enabled'   => 'boolean',
         ];
     }
 
@@ -136,5 +140,24 @@ class Site extends Model
             array_merge($base, $typeSpecific),
             fn ($value) => ! is_null($value) && $value !== []
         );
+    }
+
+    public function updates(): HasMany
+    {
+        return $this->hasMany(SiteUpdate::class);
+    }
+
+    public function lastUpdate(): HasOne
+    {
+        return $this->hasOne(SiteUpdate::class)->latestOfMany();
+    }
+
+    /** So faz sentido actualizar o que e WordPress e nao foi desligado a mao. */
+    public function podeActualizar(): bool
+    {
+        return $this->type === ServerType::WordPress
+            && $this->is_active
+            && ($this->updates_enabled ?? true)
+            && filled($this->wp_root);
     }
 }

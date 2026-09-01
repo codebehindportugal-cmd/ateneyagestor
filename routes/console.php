@@ -117,3 +117,27 @@ Schedule::command('ntfy:estado')
     ->dailyAt('08:00')
     ->timezone('Europe/Lisbon')
     ->name('ntfy:estado');
+
+// Uma actualizacao presa em "a actualizar" significa que o agente morreu a
+// meio. Marca-se como falhada para o botao voltar a estar disponivel — mas
+// com um aviso, porque o site pode ter ficado a meio de uma actualizacao e
+// isso e para se ir ver, nao para se limpar em silencio.
+Schedule::call(function () {
+    \App\Models\SiteUpdate::where('status', 'running')
+        ->where('started_at', '<', now()->subMinutes((int) config('atualizacoes.stale_after_minutes')))
+        ->get()
+        ->each(function ($update) {
+            $update->update([
+                'status'      => 'failed',
+                'error'       => 'O agente parou a meio. O site pode ter ficado a meio de uma actualizacao — confirmar a mao antes de repetir.',
+                'finished_at' => now(),
+            ]);
+
+            \App\Support\Ntfy::falhou(
+                'sites',
+                'Actualizacao presa: ' . ($update->site?->name ?? 'site'),
+                'O agente parou a meio. Confirmar o site a mao.',
+                rtrim((string) config('app.url'), '/') . '/admin/site-updates',
+            );
+        });
+})->everyFifteenMinutes()->name('atualizacoes:reclaim');

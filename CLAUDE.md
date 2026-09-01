@@ -177,3 +177,110 @@ telemovel: *Subscribe to topic* com exactamente o mesmo nome.
 ```bash
 php artisan ntfy:test           # confirma que chega ao telemovel
 ```
+
+## Actualizar WordPress com reposicao automatica
+
+Cada site WordPress tem na linha um botao **Actualizar**. O painel poe o pedido
+em fila (`site_updates`); quem executa e o **agente dos backups**, que ja tem SSH
+a todas as VPS e vem buscar o trabalho por HTTP — o mesmo sentido de conversa do
+resto do painel.
+
+```
+GET  /api/agent/updates/next               -> entrega o pedido e marca-o a correr
+POST /api/agent/updates/{id}/progress      -> linhas de log enquanto corre
+POST /api/agent/updates/{id}/finish        -> resultado final
+```
+
+No agente: `wp_update.py`, com o servico `wp-updater` a sondar de 30 em 30
+segundos (`actualizar.sh --once -v` para correr a mao).
+
+### O que ele faz, por esta ordem
+
+1. **Nao comeca se o site ja estiver mal.** Mede a homepage e as paginas extra
+   antes de tocar em nada. Um site que ja dava erro fica como estava — nao se
+   actualiza por cima de um problema, e depois nao se sabe qual e qual.
+2. **Copia no proprio servidor** — ficheiros e base de dados, em
+   `ATUALIZACOES_SNAPSHOT_DIR`. No servidor e nao no NAS de proposito: a graca
+   de ter copia e voltar atras em segundos. Os uploads ficam de fora — sao a
+   maior parte do disco e nenhuma actualizacao lhes toca.
+3. **Um item de cada vez**, core primeiro, depois plugins, depois temas. A
+   seguir a cada um testa o site.
+4. **O que partir o site e reposto na hora** — so esse item, dos ficheiros da
+   copia. O resto continua actualizado e fica registado qual foi o culpado.
+
+Actualizar tudo de uma vez e depois descobrir que o site esta em baixo obriga a
+repor tudo e a nao saber qual dos vinte plugins foi. Um de cada vez custa uns
+minutos e da uma resposta.
+
+### Como se decide que "partiu"
+
+Nao chega HTTP 200 — o WordPress esconde os fatais atras de uma pagina simpatica.
+Sao quatro sinais, sempre comparados com o estado de ANTES:
+
+| Sinal | Apanha |
+|---|---|
+| Codigo HTTP piorou | o classico 500 |
+| Marcas no HTML (`critical error`, `Fatal error`, `wp-recovery-mode`, ...) | o fatal disfarcado |
+| A pagina encolheu mais do que `ATUALIZACOES_ENCOLHIMENTO` | o plugin que morre em silencio e deixa meia pagina |
+| `wp option get siteurl` deixou de responder | o fatal que a cache do site ainda esconde |
+
+Compara-se sempre com antes, nunca com um ideal: uma pagina que ja dava 404 nao
+passa a ser culpa da actualizacao.
+
+### A janela da noite
+
+O botao pergunta **esta noite** (a partir das `ATUALIZACOES_JANELA_INICIO`, por
+omissao as 02:00) ou **agora**. Por omissao e a noite: mesmo com reposicao
+automatica, ninguem quer descobrir que um plugin partiu a loja as tres da tarde.
+
+Nao ha agendador nenhum a fazer isto. Um pedido da noite nasce com
+`agendado_para`; um pedido "agora" nasce sem hora nenhuma. O
+`/api/agent/updates/next` da sempre os que nao tem hora, e da os outros so
+**dentro** da janela — se o agente estiver em baixo as 2h, o trabalho espera
+pela noite seguinte em vez de arrancar as 9 da manha com o site cheio de gente.
+Uma simulacao nao espera pela noite: nao toca em nada.
+
+### Escada de reposicao
+
+Correr de madrugada e o que torna o ultimo degrau aceitavel.
+
+| Degrau | O que repoe | Custo |
+|---|---|---|
+| 1 | So a pasta do item que partiu | nenhum |
+| 2 | Todos os ficheiros (`wp-admin`, `wp-includes`, `wp-content`) | o resto das actualizacoes dessa noite |
+| 3 | A base de dados, do dump da copia | so avanca se nao custar nada — ver abaixo |
+
+O degrau 3 so entra depois de o 1 e o 2 falharem, e **nao e uma opcao, e uma
+contagem**. Antes de repor, o agente conta o que entrou no site desde a copia:
+encomendas (`wc_orders` e `shop_order`), comentarios, utilizadores e conteudos.
+
+- **nada entrou** -> repoe. Nao custa nada a ninguem.
+- **entrou alguma coisa** -> nao mexe, e a mensagem diz o que era
+  ("entraram 2 encomendas desde a copia"). O site fica em baixo e o Andre e
+  avisado. Uma encomenda das 3 da manha nao existe em mais lado nenhum: repor
+  a base por cima dela apagava-a sem deixar rasto, e ninguem daria por isso.
+
+`ATUALIZACOES_REPOR_BD`: `auto` (o acima, por omissao), `nunca`, `sempre`.
+
+Antes de repor a base, guarda sempre um dump do estado actual em
+`database-antes-de-repor.sql.gz`, dentro da mesma pasta da copia. Nenhuma
+reposicao pode ser um caminho sem volta.
+
+Depois de qualquer reposicao ele **para ali** e avisa no ntfy. O resto fica por
+actualizar de proposito: um site que acabou de partir nao e sitio para continuar
+a mexer.
+
+### O que NAO faz
+
+- Nao actualiza sozinho: e sempre por botao, mesmo quando corre a noite.
+
+### Paginas a testar
+
+Em cada site, na seccao **Actualizacoes**, pode-se juntar paginas alem da
+homepage. Numa loja vale mesmo a pena por o carrinho e uma ficha de produto — e
+onde os plugins partem, nao na entrada.
+
+### Simulacao
+
+O botao tem um interruptor **So ver o que ha para actualizar**: lista o que esta
+por actualizar sem tocar em nada.

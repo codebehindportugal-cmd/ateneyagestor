@@ -6,6 +6,9 @@ use App\Enums\BackupFrequency;
 use App\Enums\ServerType;
 use App\Filament\Admin\Resources\SiteResource\Pages;
 use App\Models\Site;
+use App\Models\SiteUpdate;
+use App\Filament\Admin\Resources\SiteUpdateResource;
+use Filament\Notifications\Notification;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -149,6 +152,22 @@ class SiteResource extends Resource
                 ]),
 
             Forms\Components\Textarea::make('notes')->label('Notas internas')->columnSpanFull(),
+
+            Forms\Components\Section::make('Actualizacoes')
+                ->description('So para sites WordPress. Depois de cada plugin actualizado o agente testa estas paginas; se alguma partir, repoe esse plugin.')
+                ->visible(fn (Get $get) => $get('type') === ServerType::WordPress->value)
+                ->columnSpanFull()
+                ->collapsed()
+                ->schema([
+                    Forms\Components\Toggle::make('updates_enabled')
+                        ->label('Permitir actualizar este site')
+                        ->default(true),
+                    Forms\Components\TagsInput::make('update_check_urls')
+                        ->label('Paginas a testar, alem da entrada')
+                        ->placeholder('https://exemplo.pt/loja')
+                        ->helperText('Numa loja vale a pena por o carrinho e uma ficha de produto — e onde os plugins partem, nao na homepage.')
+                        ->columnSpanFull(),
+                ]),
         ]));
     }
 
@@ -193,6 +212,13 @@ class SiteResource extends Resource
                     ->description(fn ($record) => $record->retention_max_copies
                         ? 'guarda ' . $record->retention_max_copies
                         : null),
+                Tables\Columns\TextColumn::make('lastUpdate.status')
+                    ->label('Actualizacoes')
+                    ->badge()
+                    ->placeholder('—')
+                    ->color(fn (?string $state) => SiteUpdate::statusColors()[$state] ?? 'gray')
+                    ->formatStateUsing(fn (?string $state) => SiteUpdate::statusOptions()[$state] ?? '—')
+                    ->description(fn (Site $record) => $record->lastUpdate?->finished_at?->diffForHumans()),
                 Tables\Columns\IconColumn::make('is_active')->label('Ativo')->boolean(),
             ])
             ->filters([
@@ -212,7 +238,77 @@ class SiteResource extends Resource
                     ->options(BackupFrequency::options()),
                 Tables\Filters\TernaryFilter::make('is_active')->label('Ativo'),
             ])
+            ->modifyQueryUsing(fn ($query) => $query->with('lastUpdate'))
             ->actions([
+                Tables\Actions\Action::make('actualizar')
+                    ->label(function (Site $record) {
+                        $ultima = $record->lastUpdate;
+
+                        if ($ultima?->estaAEsperaDaNoite()) {
+                            return 'Esta noite';
+                        }
+
+                        return $ultima?->isPending() ? 'Na fila' : 'Actualizar';
+                    })
+                    ->icon('heroicon-o-arrow-path')
+                    ->color(fn (Site $record) => $record->lastUpdate?->isPending() ? 'gray' : 'warning')
+                    ->visible(fn (Site $record) => $record->podeActualizar())
+                    ->disabled(fn (Site $record) => (bool) $record->lastUpdate?->isPending())
+                    ->modalHeading(fn (Site $record) => "Actualizar {$record->name}")
+                    ->modalDescription('O agente tira uma copia no proprio servidor, actualiza um item de cada vez e testa o site a seguir a cada um. O que partir o site e reposto na hora.')
+                    ->modalSubmitActionLabel('Por na fila')
+                    ->form([
+                        Forms\Components\Radio::make('quando')
+                            ->label('Quando')
+                            ->options([
+                                'noite' => 'Esta noite, a partir das ' . config('atualizacoes.janela_inicio'),
+                                'agora' => 'Agora',
+                            ])
+                            ->descriptions([
+                                'noite' => 'Com o site sem visitas, uma reposicao nao custa nada a ninguem.',
+                                'agora' => 'Para testar, ou quando e mesmo urgente.',
+                            ])
+                            ->default('noite')
+                            ->required(),
+                        Forms\Components\Toggle::make('simular')
+                            ->label('So ver o que ha para actualizar')
+                            ->helperText('Nao mexe em nada, e corre logo. Serve para saber o que esta por actualizar antes de decidir.')
+                            ->default(false),
+                    ])
+                    ->action(function (Site $record, array $data) {
+                        $simular = (bool) ($data['simular'] ?? false);
+
+                        // Uma simulacao nao toca em nada, por isso nao ha razao
+                        // para a fazer esperar pela noite.
+                        $quando = $simular ? 'agora' : ($data['quando'] ?? 'noite');
+                        // "Agora" fica sem hora marcada de proposito: e assim
+                        // que o painel distingue um pedido urgente de um da
+                        // noite, e so os da noite respeitam a janela.
+                        $agendado = $quando === 'agora' ? null : SiteUpdate::proximaJanela();
+
+                        $update = SiteUpdate::create([
+                            'site_id'       => $record->id,
+                            'requested_by'  => auth()->id(),
+                            'status'        => 'queued',
+                            'mode'          => $simular ? 'dry_run' : 'apply',
+                            'agendado_para' => $agendado,
+                        ]);
+
+                        Notification::make()
+                            ->title($simular ? 'Simulacao na fila' : 'Actualizacao na fila')
+                            ->body($agendado === null
+                                ? "Pedido #{$update->id}. O agente apanha-o na proxima sondagem."
+                                : "Pedido #{$update->id}. Corre a partir das "
+                                    . $agendado->setTimezone(config('atualizacoes.fuso'))->format('H:i \d\e d/m') . '.')
+                            ->success()
+                            ->send();
+                    }),
+                Tables\Actions\Action::make('verActualizacoes')
+                    ->label('Historico')
+                    ->icon('heroicon-o-clock')
+                    ->color('gray')
+                    ->visible(fn (Site $record) => $record->updates()->exists())
+                    ->url(fn (Site $record) => SiteUpdateResource::getUrl('index', ['tableFilters' => ['site_id' => ['value' => $record->id]]])),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([

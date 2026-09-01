@@ -381,22 +381,40 @@ def tirar_copia(servidor: Servidor, wp: WordPress, destino: str) -> str:
             f"nao foi possivel copiar a base de dados: {(proc.stderr or '').strip()[:300]}"
         )
 
-    servidor.exigir(
+    # Codigo 1 do tar e AVISO, nao falha. Num site vivo ha sempre um ficheiro de
+    # cache ou de sessao a mudar enquanto se le ("file changed as we read it") —
+    # o arquivo fica bom, so aquele ficheiro e que pode ter ficado a meio, e
+    # nenhum deles interessa. So o codigo 2 e que e erro a serio.
+    proc = servidor.correr(
         f"cd {shlex.quote(wp.root)} && tar czf {shlex.quote(pasta + '/files.tar.gz')} "
         + " ".join(f"--exclude={shlex.quote(c)}" for c in NAO_COPIAR) + " "
         + " ".join(PASTAS_A_COPIAR) + " "
         f"$(ls -1 *.php 2>/dev/null | tr '\\n' ' ')",
-        "copiar os ficheiros", timeout=1800,
+        timeout=1800,
     )
 
+    if proc.returncode > 1:
+        raise ErroDeActualizacao(
+            f"copiar os ficheiros: {(proc.stderr or proc.stdout or '').strip()[:400]}"
+        )
+
     # Um tar de 0 bytes e a maneira classica de descobrir tarde de mais que a
-    # copia nunca existiu.
+    # copia nunca existiu. E, como se tolerou o aviso acima, confirma-se tambem
+    # que o arquivo abre — tolerar um aviso sem verificar seria abrir a porta a
+    # actualizar em cima de uma copia partida.
     proc = servidor.correr(f"stat -c %s {shlex.quote(pasta + '/files.tar.gz')}", timeout=60)
     try:
         if int((proc.stdout or "0").strip()) < 10240:
             raise ValueError
     except ValueError:
         raise ErroDeActualizacao("a copia dos ficheiros saiu vazia — nao se avanca sem copia")
+
+    proc = servidor.correr(f"tar tzf {shlex.quote(pasta + '/files.tar.gz')} >/dev/null", timeout=900)
+    if proc.returncode != 0:
+        raise ErroDeActualizacao(
+            "a copia dos ficheiros nao abre — nao se avanca sem copia boa: "
+            + (proc.stderr or "").strip()[:300]
+        )
 
     return pasta
 

@@ -223,7 +223,9 @@ class AgentResource extends Resource
                         $record->backupIsStale()          => 'heroicon-o-clock',
                         default                           => 'heroicon-o-check-circle',
                     })
-                    ->visible(fn (Agent $record) => $record->agent_type !== 'productivity'),
+                    // Sem registo quando o Filament monta o formulario de alternar
+                    // colunas — o tipo estrito rebentava a pagina inteira.
+                    ->visible(fn (?Agent $record) => $record === null || $record->agent_type !== 'productivity'),
                 Tables\Columns\TextColumn::make('productivity_events_count')
                     ->label('Eventos')
                     ->counts('productivityEvents')

@@ -37,9 +37,18 @@ class SiteUpdateResource extends Resource
         return false;
     }
 
+    /**
+     * A insignia corre em TODAS as paginas do painel. Se a migracao ainda nao
+     * tiver corrido, uma excepcao aqui deita o painel inteiro abaixo — nao so
+     * esta pagina. Um numero na navegacao nunca justifica isso.
+     */
     public static function getNavigationBadge(): ?string
     {
-        $pendentes = SiteUpdate::whereIn('status', ['queued', 'running'])->count();
+        try {
+            $pendentes = SiteUpdate::whereIn('status', ['queued', 'running'])->count();
+        } catch (\Throwable) {
+            return null;
+        }
 
         return $pendentes > 0 ? (string) $pendentes : null;
     }
@@ -74,7 +83,7 @@ class SiteUpdateResource extends Resource
                     ->dateTime('d/m H:i')
                     ->placeholder('—')
                     ->color(fn (SiteUpdate $record) => $record->estaAEsperaDaNoite() ? 'info' : 'gray')
-                    ->visible(fn () => SiteUpdate::where('status', 'queued')->whereNotNull('agendado_para')->exists())
+                    ->visible(fn () => rescue(fn () => SiteUpdate::where('status', 'queued')->whereNotNull('agendado_para')->exists(), false, false))
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('finished_at')
                     ->label('Terminou')

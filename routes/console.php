@@ -109,3 +109,11 @@ Schedule::command('routines:generate --dias=120')
     ->dailyAt('02:15')
     ->name('routines:generate')
     ->withoutOverlapping();
+
+// Resumo diario para o telemovel. Os avisos normais so tocam em transicoes, por
+// isso silencio pode significar "esta tudo bem" ou "isto deixou de funcionar".
+// Este resumo chega todos os dias: se faltar, ha alguma coisa partida no painel.
+Schedule::command('ntfy:estado')
+    ->dailyAt('08:00')
+    ->timezone('Europe/Lisbon')
+    ->name('ntfy:estado');

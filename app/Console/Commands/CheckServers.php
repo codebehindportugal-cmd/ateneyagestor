@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Server;
+use App\Support\Ntfy;
 use Illuminate\Console\Command;
 
 class CheckServers extends Command
@@ -36,6 +37,8 @@ class CheckServers extends Command
             $host  = $server->host;
             $start = microtime(true);
 
+            $estavaEmBaixo = $server->ping_status === 'down';
+
             $conn = @fsockopen($host, $port, $errno, $errstr, 5);
             $ms   = (int) ((microtime(true) - $start) * 1000);
 
@@ -47,6 +50,10 @@ class CheckServers extends Command
                     'ping_response_ms'     => $ms,
                     'ping_error'           => null,
                 ]);
+                if ($estavaEmBaixo) {
+                    Ntfy::recuperou('servidores', "Voltou: {$server->name}", "{$host}:{$port} responde outra vez ({$ms}ms).");
+                }
+
                 $up++;
                 $this->line(" ✓ {$server->name} ({$host}:{$port}) — {$ms}ms");
             } else {
@@ -57,6 +64,10 @@ class CheckServers extends Command
                     'ping_response_ms'     => $ms,
                     'ping_error'           => $error,
                 ]);
+                if (! $estavaEmBaixo) {
+                    Ntfy::emBaixo('servidores', "Servidor em baixo: {$server->name}", "{$host}:{$port} não responde.\n{$error}");
+                }
+
                 $down++;
                 $this->line(" ✗ {$server->name} ({$host}:{$port}) — {$error}");
             }

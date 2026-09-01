@@ -6,8 +6,10 @@ use App\Enums\SyncStatus;
 use App\Http\Controllers\Controller;
 use App\Models\SyncProject;
 use App\Models\SyncRun;
+use App\Support\Ntfy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 /**
  * Backs the /api/sync/* routes called by phc_woo_sync, wintouch_woo_sync,
@@ -73,10 +75,14 @@ class SyncController extends Controller
             'metadata' => $data['metadata'] ?? null,
         ]);
 
+        $estadoAnterior = $project->status;
+
         $project->forceFill([
             'last_run_at' => now(),
             'status' => $data['status'] === 'failed' ? 'error' : 'ok',
         ])->save();
+
+        $this->avisar($project, $estadoAnterior, $data, $run);
 
         return response()->json(['status' => 'ok', 'run_id' => $run->id]);
     }
@@ -202,11 +208,54 @@ class SyncController extends Controller
             'metadata' => $metadata ?? $run->metadata,
         ]);
 
+        $estadoAnterior = $project->status;
+
         $project->forceFill([
             'last_run_at' => now(),
             'status' => $data['status'] === 'failed' ? 'error' : 'ok',
         ])->save();
 
+        $this->avisar($project, $estadoAnterior, $data, $run);
+
         return response()->json(['status' => 'ok', 'run_id' => $run->id]);
+    }
+
+    /**
+     * Avisa no telemovel quando um sincronizador passa a falhar e quando volta
+     * ao normal. So em transicoes: um sync que corre de hora a hora e que esta
+     * partido ha tres dias daria 72 notificacoes iguais.
+     */
+    private function avisar(SyncProject $project, ?string $estadoAnterior, array $data, SyncRun $run): void
+    {
+        $falhou = ($data['status'] ?? null) === 'failed';
+        $estavaEmErro = $estadoAnterior === 'error';
+
+        if ($falhou === $estavaEmErro) {
+            return;
+        }
+
+        $nome = $project->name;
+        $link = rtrim((string) config('app.url'), '/') . '/admin/sync-projects/' . $project->id . '/edit';
+
+        if (! $falhou) {
+            Ntfy::recuperou(
+                'sincronizadores',
+                "Voltou: {$nome}",
+                'A sincronizacao voltou a correr sem erros.',
+                $link,
+            );
+
+            return;
+        }
+
+        $erros = (int) ($data['errors_count'] ?? $run->errors_count ?? 0);
+        $detalhe = $erros > 0 ? "{$erros} erro(s)." : 'A execucao terminou em falha.';
+
+        $log = trim((string) ($data['log'] ?? ''));
+        if ($log !== '') {
+            $detalhe .= "\n" . Str::limit(Str::afterLast(rtrim($log), "\n"), 300);
+        }
+
+        Ntfy::falhou('sincronizadores', "Sincronizacao falhou: {$nome}", $detalhe, $link);
     }
 }

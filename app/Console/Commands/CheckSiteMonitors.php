@@ -6,6 +6,7 @@ use App\Enums\MonitorStatus;
 use App\Models\SiteMonitor;
 use App\Models\SiteMonitorCheck;
 use Illuminate\Console\Command;
+use App\Support\Ntfy;
 use Illuminate\Support\Facades\Http;
 
 class CheckSiteMonitors extends Command
@@ -72,6 +73,8 @@ class CheckSiteMonitors extends Command
                 'checked_at'      => now(),
             ]);
 
+            $this->avisar($monitor, $wasDown, $isUp, $error ?? "HTTP {$response->status()}");
+
             $icon = $isUp ? '✓' : '✗';
             $this->line(" {$icon} {$monitor->name} — HTTP {$response->status()} ({$ms}ms)");
         } catch (\Exception $e) {
@@ -94,7 +97,38 @@ class CheckSiteMonitors extends Command
                 'checked_at'      => now(),
             ]);
 
+            $this->avisar($monitor, $wasDown, false, $error);
+
             $this->line(" ✗ {$monitor->name} — {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Avisa so na transicao: quando cai e quando volta.
+     *
+     * Sem isto, um site em baixo verificado de 5 em 5 minutos dava 288
+     * notificacoes por dia e ninguem voltava a olhar para elas.
+     */
+    private function avisar(SiteMonitor $monitor, bool $estavaEmBaixo, bool $estaEmCima, ?string $erro): void
+    {
+        if ($estaEmCima === $estavaEmBaixo) {
+            $nome = $monitor->name;
+            $url  = $monitor->url;
+
+            if ($estaEmCima) {
+                $desde = $monitor->went_down_at?->diffForHumans(null, true);
+
+                Ntfy::recuperou(
+                    'sites',
+                    "Voltou: {$nome}",
+                    $desde ? "{$url} está outra vez de pé. Esteve em baixo {$desde}." : "{$url} está outra vez de pé.",
+                    $url,
+                );
+
+                return;
+            }
+
+            Ntfy::emBaixo('sites', "Site em baixo: {$nome}", trim("{$url}\n{$erro}"), $url);
         }
     }
 }

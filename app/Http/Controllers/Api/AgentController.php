@@ -8,6 +8,7 @@ use App\Models\Agent;
 use App\Models\BackupRun;
 use App\Models\Server;
 use App\Models\Site;
+use App\Support\Ntfy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -134,11 +135,15 @@ class AgentController extends Controller
         $total  = count($data['results']);
         $failed = collect($data['results'])->reject(fn (array $r) => (bool) $r['success'])->count();
 
+        $falhasAnteriores = (int) ($agent->last_backup_failed ?? 0);
+
         $agent->forceFill([
             'last_backup_at'     => now(),
             'last_backup_total'  => $total,
             'last_backup_failed' => $failed,
         ])->save();
+
+        $this->avisar($agent, $falhasAnteriores, $failed, $total, $data['results']);
 
         if ($failed > 0) {
             Log::warning("Agent '{$agent->slug}' reportou {$failed} de {$total} backups falhados");
@@ -191,5 +196,44 @@ class AgentController extends Controller
         $agent->markOnline();
 
         return response()->json(['status' => 'ok']);
+    }
+
+    /**
+     * Avisa no telemovel quando os backups de um agente comecam a falhar e
+     * quando voltam a correr todos. So em transicoes — o agente reporta todos
+     * os dias e um backup partido ha uma semana nao merece sete avisos iguais.
+     */
+    private function avisar(Agent $agent, int $falhasAnteriores, int $falhas, int $total, array $resultados): void
+    {
+        if (($falhas > 0) === ($falhasAnteriores > 0)) {
+            return;
+        }
+
+        $nome = $agent->name ?: $agent->slug;
+        $link = rtrim((string) config('app.url'), '/') . '/admin/backup-runs';
+
+        if ($falhas === 0) {
+            Ntfy::recuperou(
+                'backups',
+                "Backups recuperados: {$nome}",
+                "Os {$total} backups correram todos bem.",
+                $link,
+            );
+
+            return;
+        }
+
+        $nomes = collect($resultados)
+            ->reject(fn (array $r) => (bool) $r['success'])
+            ->pluck('name')
+            ->take(5)
+            ->implode(', ');
+
+        Ntfy::falhou(
+            'backups',
+            "Backups a falhar: {$nome}",
+            trim("{$falhas} de {$total} falharam.\n{$nomes}"),
+            $link,
+        );
     }
 }

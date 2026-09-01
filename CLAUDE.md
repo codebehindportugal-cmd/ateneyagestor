@@ -141,3 +141,39 @@ ja com a pasta do projecto.
   (`claude:reclaim-stale-runs`, de 15 em 15 minutos).
 - Texto escrito por terceiros (notas, e um dia tickets) vai delimitado no prompt e
   marcado como dados. Ver `App\Support\ClaudeTaskPrompt`.
+
+## Avisos no telemovel (ntfy)
+
+A app **ntfy** recebe um push sempre que alguma coisa cai. Serve-se de
+`App\Support\Ntfy` e configura-se em `config/ntfy.php`.
+
+Duas regras que fazem isto ser util em vez de irritante:
+
+1. **So se avisa em transicoes** — quando cai e quando volta. Um site verificado
+   de 5 em 5 minutos daria 288 avisos por dia; assim da dois.
+2. **Nunca deita nada abaixo.** Se o ntfy nao responder, fica um `Log::warning` e
+   a verificacao segue. Um site em baixo e um problema; nao conseguir avisar
+   disso nao pode ser um segundo problema.
+
+Onde esta ligado:
+
+| Aviso | Onde | Dispara quando |
+|---|---|---|
+| `sites` | `CheckSiteMonitors` | o monitor passa a `down`, e quando volta a `up` |
+| `servidores` | `CheckServers` | o ping deixa de responder, e quando volta |
+| `sincronizadores` | `SyncController` (`storeRun`, `finishRun`) | o projecto passa a `error`, e quando volta a `ok` |
+| `backups` | `AgentController::storeRunResults` | o agente passa a ter falhas, e quando deixa de ter |
+
+No `.env` **do servidor de producao** (e quem corre as verificacoes):
+
+```
+NTFY_TOPIC=<nome longo e aleatorio>
+```
+
+O topico e a unica coisa que protege isto no `ntfy.sh` publico — quem souber o
+nome le tudo o que la passa, por isso nao pode ser "ateneya". Na app do
+telemovel: *Subscribe to topic* com exactamente o mesmo nome.
+
+```bash
+php artisan ntfy:test           # confirma que chega ao telemovel
+```

@@ -60,6 +60,27 @@ MARCAS_DE_ERRO = (
 
 UA = "Mozilla/5.0 (compatible; AteneyaUpdater/1.0)"
 
+# O que NAO entra na copia. Sao pastas que nenhuma actualizacao toca e que
+# valem gigabytes: os uploads de uma loja, as caches, e os backups que plugins
+# como o All-in-One WP Migration ou o UpdraftPlus deixam dentro do wp-content.
+#
+# Esta lista tem de ser usada TANTO na medicao do espaco COMO no tar. Estavam
+# diferentes, e o resultado foi medir 11 GB para copiar uma fraccao disso — e
+# recusar comecar por falta de espaco que existia de sobra.
+# O que entra na copia: o codigo do WordPress e nada mais. Os ficheiros .php
+# da raiz vao a parte, no proprio comando do tar.
+PASTAS_A_COPIAR = ["wp-admin", "wp-includes", "wp-content"]
+
+NAO_COPIAR = [
+    "wp-content/uploads",
+    "wp-content/cache",
+    "wp-content/upgrade",
+    "wp-content/ai1wm-backups",
+    "wp-content/updraft",
+    "wp-content/backup",
+    "wp-content/backups",
+]
+
 
 class ErroDeActualizacao(Exception):
     """Erro que impede continuar, mas que deixa o site como estava."""
@@ -305,8 +326,15 @@ def espaco_suficiente(servidor: Servidor, wp_root: str, destino: str, factor: fl
     Um disco cheio a meio do tar deixa o site sem copia E prestes a ser
     actualizado. Mede-se antes, e desiste-se antes.
     """
+    excluir = " ".join(f"--exclude={shlex.quote(c)}" for c in NAO_COPIAR)
+
+    # Mede-se EXACTAMENTE as mesmas pastas que o tar leva — nem o wp_root
+    # inteiro, nem uma lista de exclusoes diferente. Medir uma coisa e copiar
+    # outra da numeros que nao querem dizer nada: foi assim que um site de 1 GB
+    # apareceu como 11 GB e a actualizacao se recusou a comecar.
     proc = servidor.correr(
-        f"du -sk --exclude=uploads --exclude=cache {shlex.quote(wp_root)} 2>/dev/null | cut -f1; "
+        f"cd {shlex.quote(wp_root)} && "
+        f"du -ck {excluir} {' '.join(PASTAS_A_COPIAR)} 2>/dev/null | tail -1 | cut -f1; "
         f"mkdir -p {shlex.quote(destino)} 2>/dev/null; "
         f"df -Pk {shlex.quote(destino)} | tail -1 | awk '{{print $4}}'",
         timeout=300,
@@ -325,7 +353,8 @@ def espaco_suficiente(servidor: Servidor, wp_root: str, destino: str, factor: fl
     preciso = tamanho_kb * factor
     if livre_kb < preciso:
         return False, (
-            f"sem espaco: o site ocupa {tamanho_kb // 1024} MB e so ha "
+            f"sem espaco: e preciso cerca de {int(preciso) // 1024} MB "
+            f"(o que se copia ocupa {tamanho_kb // 1024} MB) e so ha "
             f"{livre_kb // 1024} MB livres em {destino}"
         )
 
@@ -355,7 +384,8 @@ def tirar_copia(servidor: Servidor, wp: WordPress, destino: str) -> str:
     servidor.exigir(
         f"cd {shlex.quote(wp.root)} && tar czf {shlex.quote(pasta + '/files.tar.gz')} "
         + " ".join(f"--exclude={shlex.quote(c)}" for c in NAO_COPIAR) + " "
-        f"wp-admin wp-includes wp-content $(ls -1 *.php 2>/dev/null | tr '\\n' ' ')",
+        + " ".join(PASTAS_A_COPIAR) + " "
+        f"$(ls -1 *.php 2>/dev/null | tr '\\n' ' ')",
         "copiar os ficheiros", timeout=1800,
     )
 

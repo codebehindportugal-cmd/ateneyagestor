@@ -12,6 +12,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class TicketResource extends Resource
 {
@@ -24,6 +25,19 @@ class TicketResource extends Resource
     protected static ?string $modelLabel = 'ticket';
 
     protected static ?string $pluralModelLabel = 'tickets';
+
+    public static function getEloquentQuery(): Builder
+    {
+        $user = auth()->user();
+
+        // Mesma regra das tarefas: um estagiário só vê os tickets que lhe
+        // foram atribuídos.
+        return parent::getEloquentQuery()
+            ->when(
+                $user && $user->isEstagiario(),
+                fn (Builder $query) => $query->where('assigned_user_id', $user->id)
+            );
+    }
 
     public static function form(Form $form): Form
     {

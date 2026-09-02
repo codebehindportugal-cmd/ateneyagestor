@@ -17,6 +17,12 @@ use Symfony\Component\Process\Process;
 
 class CronSettingsPage extends Page implements HasForms
 {
+    /** Só o administrador. Um estagiário nem vê isto no menu. */
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->isAdmin() === true;
+    }
+
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-clock';

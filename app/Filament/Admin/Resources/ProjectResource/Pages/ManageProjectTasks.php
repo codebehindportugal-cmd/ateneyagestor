@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\ProjectResource\Pages;
 use App\Filament\Admin\Resources\ProjectResource;
 use App\Models\ClaudeRun;
 use App\Models\ProjectTask;
+use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -30,24 +31,59 @@ class ManageProjectTasks extends ManageRelatedRecords
         return 'Tarefas';
     }
 
+    /** Quem está a ver a página manda em quase tudo o que se segue. */
+    protected function isAdmin(): bool
+    {
+        return Auth::user()?->isAdmin() === true;
+    }
+
+    /** As pessoas a quem se pode entregar uma tarefa. */
+    protected function assignableUsers(): array
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
+    }
+
     public function getSubheading(): ?string
     {
         $project = $this->getOwnerRecord();
-        $total   = $project->tasks()->count();
+
+        // Um estagiário vê o resumo do trabalho dele, não o da equipa toda.
+        $base = fn () => $this->isAdmin()
+            ? $project->tasks()
+            : $project->tasks()->where('assigned_user_id', Auth::id());
+
+        $total = $base()->count();
 
         if ($total === 0) {
-            return 'Ainda não há tarefas registadas neste projecto.';
+            return $this->isAdmin()
+                ? 'Ainda não há tarefas registadas neste projecto.'
+                : 'Ainda não tens tarefas atribuídas neste projecto.';
         }
 
-        $done  = $project->tasks()->where('status', 'done')->count();
+        $done  = $base()->where('status', 'done')->count();
         $open  = $total - $done;
         $pct   = (int) round($done / $total * 100);
-        $hours = (float) $project->tasks()->sum('hours');
+        $hours = (float) $base()->sum('hours');
 
         $line = "{$done} de {$total} concluídas ({$pct}%) · {$open} por fazer";
 
         if ($hours > 0) {
             $line .= ' · ' . number_format($hours, 2, ',', '.') . ' h registadas';
+        }
+
+        if ($this->isAdmin()) {
+            $porAtribuir = $project->tasks()
+                ->whereNull('assigned_user_id')
+                ->whereNotIn('status', ['done', 'cancelled'])
+                ->count();
+
+            if ($porAtribuir > 0) {
+                $line .= " · {$porAtribuir} por atribuir";
+            }
         }
 
         return $line;
@@ -61,6 +97,20 @@ class ManageProjectTasks extends ManageRelatedRecords
                 ->required()
                 ->maxLength(255)
                 ->columnSpanFull(),
+
+            // Só quem manda distribui trabalho. O estagiário vê quem é o
+            // responsável, mas não o troca.
+            Forms\Components\Select::make('assigned_user_id')
+                ->label('Responsável')
+                ->options(fn () => $this->assignableUsers())
+                ->searchable()
+                ->preload()
+                ->placeholder('Por atribuir')
+                ->disabled(fn () => ! $this->isAdmin())
+                ->dehydrated(fn () => $this->isAdmin())
+                ->helperText(fn () => $this->isAdmin()
+                    ? 'Quem fica encarregue. Fica registado no histórico da tarefa.'
+                    : 'Só o administrador distribui as tarefas.'),
 
             Forms\Components\Select::make('status')
                 ->label('Estado')
@@ -89,10 +139,16 @@ class ManageProjectTasks extends ManageRelatedRecords
 
     public function table(Table $table): Table
     {
+        $admin = $this->isAdmin();
+
         return $table
             ->recordTitleAttribute('title')
-            ->modifyQueryUsing(fn (Builder $query) => $query->with('lastClaudeRun'))
-            ->reorderable('position')
+            ->modifyQueryUsing(fn (Builder $query) => $query
+                ->with(['lastClaudeRun', 'assignedUser'])
+                // A rede de segurança do lado da consulta: um estagiário nunca
+                // recebe do servidor tarefas que não sejam dele.
+                ->when(! $admin, fn (Builder $q) => $q->where('assigned_user_id', Auth::id())))
+            ->reorderable($admin ? 'position' : null)
             ->defaultSort('position')
             ->columns([
                 Tables\Columns\IconColumn::make('status')
@@ -109,6 +165,14 @@ class ManageProjectTasks extends ManageRelatedRecords
                     ->weight('medium')
                     ->color(fn (ProjectTask $record) => $record->isDone() ? 'gray' : null)
                     ->description(fn (ProjectTask $record) => $record->description),
+
+                Tables\Columns\TextColumn::make('assignedUser.name')
+                    ->label('Responsável')
+                    ->badge()
+                    ->color(fn ($state) => $state ? 'primary' : 'gray')
+                    ->placeholder('Por atribuir')
+                    ->searchable()
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('status')
                     ->label('Estado')
@@ -143,6 +207,22 @@ class ManageProjectTasks extends ManageRelatedRecords
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('assigned_user_id')
+                    ->label('Responsável')
+                    ->options(fn () => $this->assignableUsers())
+                    ->multiple()
+                    ->visible($admin),
+
+                Tables\Filters\Filter::make('por_atribuir')
+                    ->label('Por atribuir')
+                    ->query(fn (Builder $query) => $query->whereNull('assigned_user_id'))
+                    ->visible($admin),
+
+                Tables\Filters\Filter::make('minhas')
+                    ->label('As minhas')
+                    ->query(fn (Builder $query) => $query->where('assigned_user_id', Auth::id()))
+                    ->visible($admin),
+
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Estado')
                     ->options(ProjectTask::statusOptions())
@@ -177,11 +257,13 @@ class ManageProjectTasks extends ManageRelatedRecords
             ->actions([
                 // Manda a tarefa ao Claude. O painel so poe o pedido na fila; quem
                 // corre e o `claude:work`, na maquina onde o repositorio vive.
+                // Só o administrador: isto corre codigo no PC dele.
                 Tables\Actions\Action::make('pedirClaude')
                     ->label('Resolver com o Claude')
                     ->icon('heroicon-o-sparkles')
                     ->color('primary')
-                    ->visible(fn (ProjectTask $record) => ! in_array($record->status, ['done', 'cancelled'], true)
+                    ->visible(fn (ProjectTask $record) => $admin
+                        && ! in_array($record->status, ['done', 'cancelled'], true)
                         && ! ($record->lastClaudeRun?->isPending() && ! $record->lastClaudeRun->isStale()))
                     ->requiresConfirmation()
                     ->modalHeading('Mandar esta tarefa ao Claude')
@@ -211,7 +293,7 @@ class ManageProjectTasks extends ManageRelatedRecords
                     ->label('Continuar')
                     ->icon('heroicon-o-arrow-right-circle')
                     ->color('warning')
-                    ->visible(fn (ProjectTask $record) => $record->lastClaudeRun?->isDone() === true)
+                    ->visible(fn (ProjectTask $record) => $admin && $record->lastClaudeRun?->isDone() === true)
                     ->modalHeading(fn (ProjectTask $record) => 'Continuar com o Claude · ' . $record->title)
                     ->modalDescription('Ele retoma a conversa anterior, com tudo o que já leu e concluiu.')
                     ->modalSubmitActionLabel('Enviar')
@@ -254,7 +336,7 @@ class ManageProjectTasks extends ManageRelatedRecords
                     })
                     ->icon('heroicon-o-chat-bubble-left-right')
                     ->color(fn (ProjectTask $record) => ClaudeRun::statusColor($record->lastClaudeRun?->status))
-                    ->visible(fn (ProjectTask $record) => $record->lastClaudeRun !== null)
+                    ->visible(fn (ProjectTask $record) => $admin && $record->lastClaudeRun !== null)
                     ->modalHeading(fn (ProjectTask $record) => 'Claude · ' . $record->title)
                     ->modalContent(fn (ProjectTask $record) => view('filament.claude-run-modal', [
                         'run' => $record->lastClaudeRun->loadMissing('requestedBy', 'task.project'),
@@ -274,6 +356,7 @@ class ManageProjectTasks extends ManageRelatedRecords
                             ->title($record->isDone() ? 'Tarefa concluída' : 'Tarefa reaberta')
                             ->send();
                     }),
+
                 Tables\Actions\Action::make('toggleWaiting')
                     ->label(fn (ProjectTask $record) => $record->isWaitingOnClient() ? 'Retomar' : 'Aguardar cliente')
                     ->icon(fn (ProjectTask $record) => $record->isWaitingOnClient() ? 'heroicon-o-play' : 'heroicon-o-pause')
@@ -289,11 +372,72 @@ class ManageProjectTasks extends ManageRelatedRecords
                             ->title($estava ? 'Tarefa retomada' : 'A aguardar resposta do cliente')
                             ->send();
                     }),
+
+                // Deixar dito o que se fez, sem ter de mudar o estado. É o que
+                // torna o histórico útil quando se quer perceber porque é que
+                // uma tarefa demorou.
+                Tables\Actions\Action::make('comentar')
+                    ->label('Comentar')
+                    ->icon('heroicon-o-chat-bubble-left-ellipsis')
+                    ->color('gray')
+                    ->modalHeading(fn (ProjectTask $record) => 'Comentar · ' . $record->title)
+                    ->modalSubmitActionLabel('Guardar')
+                    ->form([
+                        Forms\Components\Textarea::make('body')
+                            ->label('O que aconteceu')
+                            ->rows(4)
+                            ->required()
+                            ->placeholder('Ex: fiz a query nova, falta testar com dados a sério.')
+                            ->columnSpanFull(),
+                    ])
+                    ->action(function (ProjectTask $record, array $data) {
+                        $record->logActivity('comment', $data['body']);
+
+                        Notification::make()->success()->title('Comentário guardado')->send();
+                    }),
+
+                Tables\Actions\Action::make('historico')
+                    ->label('Histórico')
+                    ->icon('heroicon-o-clock')
+                    ->color('gray')
+                    ->modalHeading(fn (ProjectTask $record) => 'Histórico · ' . $record->title)
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fechar')
+                    ->modalContent(fn (ProjectTask $record) => view('filament.task-history-modal', [
+                        'task'       => $record->loadMissing('assignedUser', 'creator'),
+                        'activities' => $record->activities()->with('user')->get(),
+                    ])),
+
                 Tables\Actions\EditAction::make()->label('Editar'),
                 Tables\Actions\DeleteAction::make()->label('Apagar'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\BulkAction::make('atribuir')
+                        ->label('Atribuir a…')
+                        ->icon('heroicon-o-user-plus')
+                        ->color('primary')
+                        ->visible($admin)
+                        ->form([
+                            Forms\Components\Select::make('assigned_user_id')
+                                ->label('Responsável')
+                                ->options(fn () => $this->assignableUsers())
+                                ->searchable()
+                                ->required(),
+                        ])
+                        ->action(function (Collection $records, array $data) {
+                            $records->each(fn (ProjectTask $task) => $task
+                                ->forceFill(['assigned_user_id' => $data['assigned_user_id']])
+                                ->save());
+
+                            Notification::make()
+                                ->success()
+                                ->title('Tarefas atribuídas')
+                                ->body($records->count() . ' tarefas passaram para ' . (User::find($data['assigned_user_id'])?->name ?? 'a pessoa escolhida') . '.')
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+
                     Tables\Actions\BulkAction::make('concluir')
                         ->label('Marcar como feitas')
                         ->icon('heroicon-o-check')
@@ -301,11 +445,14 @@ class ManageProjectTasks extends ManageRelatedRecords
                         ->requiresConfirmation()
                         ->action(fn (Collection $records) => $records->each->markDone())
                         ->deselectRecordsAfterCompletion(),
+
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->emptyStateHeading('Sem tarefas')
-            ->emptyStateDescription('Adiciona as tarefas do projecto para saberes o que já está feito e o que falta.')
+            ->emptyStateHeading($admin ? 'Sem tarefas' : 'Nada para ti aqui')
+            ->emptyStateDescription($admin
+                ? 'Adiciona as tarefas do projecto para saberes o que já está feito e o que falta.'
+                : 'Ainda não te foi atribuída nenhuma tarefa neste projecto.')
             ->emptyStateIcon('heroicon-o-clipboard-document-check');
     }
 }

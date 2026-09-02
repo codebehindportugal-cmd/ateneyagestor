@@ -25,6 +25,8 @@ class DatabaseSeeder extends Seeder
             'name' => 'Andre Mendes',
             'email' => 'andre.f.mendes92@gmail.com',
             'password' => 'changeme123', // hashed automatically by the 'hashed' cast -- TROCA NO PRIMEIRO LOGIN
+            'role' => User::ROLE_ADMIN,   // sem isto ficava estagiario, que e o papel por omissao
+            'is_active' => true,
         ]);
 
         $client = Client::create([

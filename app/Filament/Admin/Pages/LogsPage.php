@@ -12,6 +12,12 @@ use Illuminate\Support\Facades\Artisan;
 
 class LogsPage extends Page
 {
+    /** Só o administrador. Um estagiário nem vê isto no menu. */
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->isAdmin() === true;
+    }
+
     protected static ?string $navigationIcon  = 'heroicon-o-document-magnifying-glass';
     protected static ?string $navigationLabel = 'Logs & Diagnóstico';
     protected static ?string $navigationGroup = 'Sistema';

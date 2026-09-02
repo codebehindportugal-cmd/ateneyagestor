@@ -9,6 +9,12 @@ use Filament\Widgets\TableWidget as BaseWidget;
 
 class UpcomingRenewalsWidget extends BaseWidget
 {
+    /** Só o administrador. Um estagiário nem vê isto no menu. */
+    public static function canView(): bool
+    {
+        return auth()->user()?->isAdmin() === true;
+    }
+
     protected static ?string $heading = 'Renovações próximas (60 dias)';
 
     protected static ?int $sort = 3;

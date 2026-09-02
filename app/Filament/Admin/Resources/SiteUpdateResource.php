@@ -164,7 +164,20 @@ class SiteUpdateResource extends Resource
                                     default       => 'gray',
                                 }),
                             Infolists\Components\TextEntry::make('motivo')
-                                ->label('Porque foi reposto')
+                                // Nem todo o motivo e uma reposicao: um plugin
+                                // premium sem canal de actualizacao "falhou"
+                                // sem nunca ter sido mexido, e dizer-lhe
+                                // "porque foi reposto" era mentira.
+                                ->label(function (Infolists\Components\TextEntry $component): string {
+                                    $item = rescue(fn () => $component->getContainer()->getState(), [], false);
+                                    $resultado = is_array($item) ? ($item['resultado'] ?? null) : null;
+
+                                    return match ($resultado) {
+                                        'reposto' => 'Porque foi reposto',
+                                        'falhou'  => 'Porque nao foi actualizado',
+                                        default   => 'Nota',
+                                    };
+                                })
                                 ->color('warning')
                                 ->columnSpanFull()
                                 ->visible(fn (?string $state) => filled($state)),

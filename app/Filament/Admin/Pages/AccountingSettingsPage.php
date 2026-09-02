@@ -10,6 +10,12 @@ use Illuminate\Support\Str;
 
 class AccountingSettingsPage extends Page
 {
+    /** Só o administrador. Um estagiário nem vê isto no menu. */
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->isAdmin() === true;
+    }
+
     protected static ?string $navigationIcon  = 'heroicon-o-key';
     protected static ?string $navigationLabel = 'Acesso Contabilista';
     protected static ?string $navigationGroup = 'Contabilidade';

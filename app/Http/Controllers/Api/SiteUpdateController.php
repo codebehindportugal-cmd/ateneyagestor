@@ -103,6 +103,7 @@ class SiteUpdateController extends Controller
                     'repor_bd'             => (string) config('atualizacoes.repor_bd'),
                     'snapshot_dir'         => config('atualizacoes.snapshot_dir'),
                     'snapshot_dias'        => config('atualizacoes.snapshot_dias'),
+                    'snapshot_manter'      => config('atualizacoes.snapshot_manter'),
                     'espaco_minimo_factor' => config('atualizacoes.espaco_minimo_factor'),
                     'encolhimento_maximo'  => config('atualizacoes.encolhimento_maximo'),
                 ],

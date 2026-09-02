@@ -26,10 +26,26 @@ class ProjectResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->withCount([
-            'tasks',
-            'tasks as tasks_done_count' => fn (Builder $query) => $query->where('status', 'done'),
-        ]);
+        $user = auth()->user();
+
+        // Um estagiário só vê os projectos onde tem trabalho seu, e as contagens
+        // que lhe aparecem são as das tarefas dele — não o progresso da equipa
+        // toda, que não lhe diz respeito.
+        $meu = $user && $user->isEstagiario();
+
+        return parent::getEloquentQuery()
+            ->when($meu, fn (Builder $query) => $query->whereHas(
+                'tasks',
+                fn (Builder $tasks) => $tasks->where('assigned_user_id', $user->id)
+            ))
+            ->withCount([
+                'tasks' => fn (Builder $query) => $meu
+                    ? $query->where('assigned_user_id', $user->id)
+                    : $query,
+                'tasks as tasks_done_count' => fn (Builder $query) => $query
+                    ->where('status', 'done')
+                    ->when($meu, fn (Builder $q) => $q->where('assigned_user_id', $user->id)),
+            ]);
     }
 
     public static function form(Form $form): Form

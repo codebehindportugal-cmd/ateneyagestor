@@ -8,6 +8,12 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class ServerStatusWidget extends BaseWidget
 {
+    /** Só o administrador. Um estagiário nem vê isto no menu. */
+    public static function canView(): bool
+    {
+        return auth()->user()?->isAdmin() === true;
+    }
+
     protected static ?int $sort = 2;
 
     protected function getStats(): array

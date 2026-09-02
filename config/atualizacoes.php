@@ -13,6 +13,10 @@ return [
     /* Quantos dias ficam as copias de reposicao no servidor. */
     'snapshot_dias' => (int) env('ATUALIZACOES_SNAPSHOT_DIAS', 7),
 
+    // Quantas copias se guardam sempre, custe o que custar em dias.
+    // Um site grande com copias diarias enche o disco antes do prazo.
+    'snapshot_manter' => (int) env('ATUALIZACOES_SNAPSHOT_MANTER', 2),
+
     /* Onde ficam, no servidor de cada site. */
     'snapshot_dir' => env('ATUALIZACOES_SNAPSHOT_DIR', '/var/backups/ateneya-updates'),
 

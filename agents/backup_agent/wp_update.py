@@ -75,10 +75,25 @@ NAO_COPIAR = [
     "wp-content/uploads",
     "wp-content/cache",
     "wp-content/upgrade",
+    "wp-content/upgrade-temp-backup",
     "wp-content/ai1wm-backups",
     "wp-content/updraft",
     "wp-content/backup",
     "wp-content/backups",
+    "wp-content/backups-dup-pro",
+    "wp-content/bps-backup",
+    "wp-content/bpsPro-backup",
+    "wp-content/bps-file-lock",
+    "wp-content/backup-db",
+    "wp-content/wpvivid_backup",
+    "wp-content/wpvivid-backup",
+    "wp-content/wpvividbackups",
+    "wp-content/uploads-webpc",
+    "wp-content/et-cache",
+    "wp-content/w3tc-config",
+    "wp-content/wp-rocket-config",
+    "wp-content/litespeed",
+    "wp-content/debug.log",
 ]
 
 
@@ -352,13 +367,44 @@ def espaco_suficiente(servidor: Servidor, wp_root: str, destino: str, factor: fl
 
     preciso = tamanho_kb * factor
     if livre_kb < preciso:
+        # Dizer so "faltam X MB" obriga a ir ao servidor descobrir porque e que
+        # o site pesa tanto. O erro leva a resposta consigo.
         return False, (
             f"sem espaco: e preciso cerca de {int(preciso) // 1024} MB "
             f"(o que se copia ocupa {tamanho_kb // 1024} MB) e so ha "
             f"{livre_kb // 1024} MB livres em {destino}"
+            + maiores_pastas(servidor, wp_root)
         )
 
     return True, f"espaco ok: {tamanho_kb // 1024} MB a copiar, {livre_kb // 1024} MB livres"
+
+
+def maiores_pastas(servidor: Servidor, wp_root: str, quantas: int = 6) -> str:
+    """As pastas que fazem o peso, para o erro nao ser um beco sem saida."""
+    excluir = " ".join(f"--exclude={shlex.quote(c)}" for c in NAO_COPIAR)
+    try:
+        proc = servidor.correr(
+            f"cd {shlex.quote(wp_root)} && "
+            f"du -sk {excluir} wp-admin wp-includes wp-content/* 2>/dev/null "
+            f"| sort -rn | head -{int(quantas)}",
+            timeout=300,
+        )
+    except Exception:
+        return ""
+
+    linhas = []
+    for linha in (proc.stdout or "").splitlines():
+        partes = linha.split("\t", 1)
+        if len(partes) != 2:
+            continue
+        try:
+            mb = int(partes[0]) // 1024
+        except ValueError:
+            continue
+        if mb >= 1:
+            linhas.append(f"{partes[1].strip()} {mb} MB")
+
+    return (" | o que pesa: " + ", ".join(linhas)) if linhas else ""
 
 
 def tirar_copia(servidor: Servidor, wp: WordPress, destino: str) -> str:
@@ -419,10 +465,22 @@ def tirar_copia(servidor: Servidor, wp: WordPress, destino: str) -> str:
     return pasta
 
 
-def limpar_copias_antigas(servidor: Servidor, destino: str, dias: int) -> None:
+def limpar_copias_antigas(servidor: Servidor, destino: str, dias: int,
+                          manter: int = 2) -> None:
+    """
+    Duas regras, nao uma. A idade sozinha nao chega: um site de 11 GB com
+    copias diarias guardadas sete dias sao 77 GB, e o disco acaba antes do
+    prazo. Guarda-se sempre as `manter` mais recentes e deita-se fora o resto
+    que ja passou dos dias.
+    """
+    d = shlex.quote(destino)
     servidor.correr(
-        f"find {shlex.quote(destino)} -maxdepth 1 -type d -mtime +{int(dias)} "
-        f"-name '20*' -exec rm -rf {{}} + 2>/dev/null || true",
+        # o que ja passou do prazo
+        f"find {d} -maxdepth 1 -type d -mtime +{int(dias)} "
+        f"-name '20*' -exec rm -rf {{}} + 2>/dev/null || true; "
+        # e o que sobra para alem das mais recentes
+        f"ls -1dt {d}/20* 2>/dev/null | tail -n +{int(manter) + 1} "
+        f"| xargs -r rm -rf 2>/dev/null || true",
         timeout=300,
     )
 
@@ -565,12 +623,19 @@ def itens_a_actualizar(wp: WordPress, diz) -> list[dict]:
 
     try:
         core = wp.json("core check-update")
+        # O check-update so devolve a versao para onde se vai; a actual vem
+        # de outro comando, senao o painel mostrava "? -> 7.1".
+        versao_actual = None
+        try:
+            versao_actual = (wp.correr("core version", timeout=120).stdout or "").strip() or None
+        except ErroDeActualizacao:
+            pass
         for actualizacao in core or []:
             if actualizacao.get("update_type") in (None, "major", "minor"):
                 itens.append({
                     "tipo": "core",
                     "slug": "wordpress",
-                    "de": None,
+                    "de": versao_actual,
                     "para": actualizacao.get("version"),
                 })
                 break
@@ -697,6 +762,12 @@ def processar(pedido: dict, secrets: dict, agent_cfg: dict) -> dict:
 
     # ---- Copia de reposicao ------------------------------------------------
     destino = f"{opcoes['snapshot_dir'].rstrip('/')}/{re.sub(r'[^a-zA-Z0-9._-]', '_', site['name'])}"
+
+    # Primeiro deita-se fora o que ja nao serve — incluindo copias parciais de
+    # tentativas que rebentaram a meio. Media-se o espaco antes disto e o disco
+    # aparecia cheio do proprio lixo.
+    limpar_copias_antigas(servidor, destino, int(opcoes["snapshot_dias"]),
+                          int(opcoes.get("snapshot_manter", 2)))
 
     ok, mensagem = espaco_suficiente(servidor, site["wp_root"], destino,
                                      float(opcoes["espaco_minimo_factor"]))
@@ -832,7 +903,8 @@ def processar(pedido: dict, secrets: dict, agent_cfg: dict) -> dict:
     actualizados = sum(1 for f in feitos if f["resultado"] == "actualizado")
     diz(f"terminado: {actualizados} actualizados, {repostos} repostos")
 
-    limpar_copias_antigas(servidor, destino, int(opcoes["snapshot_dias"]))
+    limpar_copias_antigas(servidor, destino, int(opcoes["snapshot_dias"]),
+                          int(opcoes.get("snapshot_manter", 2)))
 
     resultado["log"] = diz.texto()
     return resultado

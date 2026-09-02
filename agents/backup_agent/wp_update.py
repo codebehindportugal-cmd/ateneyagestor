@@ -142,7 +142,8 @@ def chave_ssh(secrets: dict, ref: str) -> dict:
     if not Path(key).is_file():
         raise ErroDeActualizacao(f"chave SSH nao encontrada em {key}")
 
-    return {"ssh_key": key, **{k: v for k, v in entry.items() if k in ("user", "port", "known_hosts")}}
+    return {"ssh_key": key, **{k: v for k, v in entry.items()
+                              if k in ("user", "port", "known_hosts", "snapshot_dir")}}
 
 
 # --------------------------------------------------------------------------
@@ -761,7 +762,11 @@ def processar(pedido: dict, secrets: dict, agent_cfg: dict) -> dict:
         return resultado
 
     # ---- Copia de reposicao ------------------------------------------------
-    destino = f"{opcoes['snapshot_dir'].rstrip('/')}/{re.sub(r'[^a-zA-Z0-9._-]', '_', site['name'])}"
+    # Num servidor nosso as copias vao para /var/backups. Numa conta de
+    # alojamento partilhado (cPanel) nao ha /var/backups nem permissao para o
+    # criar: o servidor diz onde e, no secrets.yaml, e usa-se a home dele.
+    raiz_copias = (segredo.get("snapshot_dir") or opcoes["snapshot_dir"]).rstrip("/")
+    destino = f"{raiz_copias}/{re.sub(r'[^a-zA-Z0-9._-]', '_', site['name'])}"
 
     # Primeiro deita-se fora o que ja nao serve — incluindo copias parciais de
     # tentativas que rebentaram a meio. Media-se o espaco antes disto e o disco

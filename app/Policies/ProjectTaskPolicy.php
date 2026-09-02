@@ -23,8 +23,8 @@ class ProjectTaskPolicy
     public function view(User $user, ProjectTask $task): bool
     {
         return $user->isAdmin()
-            || $task->assigned_user_id === null
-            || (int) $task->assigned_user_id === (int) $user->id;
+            || (int) $task->assigned_user_id === (int) $user->id
+            || $task->podeSerEscolhida();
     }
 
     public function create(User $user): bool
@@ -44,8 +44,7 @@ class ProjectTaskPolicy
      */
     public function claim(User $user, ProjectTask $task): bool
     {
-        return $task->assigned_user_id === null
-            && ! in_array($task->status, ['done', 'cancelled'], true);
+        return $task->podeSerEscolhida();
     }
 
     public function delete(User $user, ProjectTask $task): bool

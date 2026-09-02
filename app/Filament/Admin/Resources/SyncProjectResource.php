@@ -28,7 +28,7 @@ class SyncProjectResource extends Resource
 
     protected static ?string $pluralModelLabel = 'sincronizadores';
 
-    protected static ?string $navigationGroup = 'Integracoes';
+    protected static ?string $navigationGroup = 'Integrações';
 
     protected static ?int $navigationSort = 1;
 

@@ -58,6 +58,10 @@ class ProjectResource extends Resource
                         ->label('Projecto interno')
                         ->helperText('Produto/software da Codebehind (não construído para cliente externo).')
                         ->default(false),
+                    Forms\Components\Toggle::make('open_to_interns')
+                        ->label('Aberto a estagiários')
+                        ->helperText('As tarefas sem responsável deste projecto aparecem no balcão "Por escolher" e qualquer estagiário pode ficar com elas. Desligado, as tarefas sem dono continuam a ser só apontamentos teus.')
+                        ->default(false),
                     Forms\Components\Select::make('status')
                         ->label('Estado')
                         ->options(Project::statusOptions())
@@ -139,6 +143,16 @@ class ProjectResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->weight('semibold'),
+                Tables\Columns\IconColumn::make('open_to_interns')
+                    ->label('Estágio')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-hand-raised')
+                    ->falseIcon('heroicon-o-minus-small')
+                    ->trueColor('primary')
+                    ->falseColor('gray')
+                    ->tooltip(fn ($state) => $state
+                        ? 'As tarefas sem dono deste projecto estão no balcão dos estagiários'
+                        : 'Fechado a estagiários'),
                 Tables\Columns\IconColumn::make('is_internal')
                     ->label('Interno')
                     ->boolean()
@@ -210,6 +224,8 @@ class ProjectResource extends Resource
                     ->options(Project::typeOptions()),
                 Tables\Filters\TernaryFilter::make('is_internal')
                     ->label('Interno'),
+                Tables\Filters\TernaryFilter::make('open_to_interns')
+                    ->label('Aberto a estagiários'),
             ])
             ->actions([
                 Tables\Actions\Action::make('tasks')

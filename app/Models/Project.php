@@ -13,6 +13,7 @@ class Project extends Model
         'name',
         'slug',
         'is_internal',
+        'open_to_interns',
         'client_id',
         'server_id',
         'type',
@@ -27,7 +28,8 @@ class Project extends Model
     protected function casts(): array
     {
         return [
-            'is_internal' => 'boolean',
+            'is_internal'     => 'boolean',
+            'open_to_interns' => 'boolean',
         ];
     }
 

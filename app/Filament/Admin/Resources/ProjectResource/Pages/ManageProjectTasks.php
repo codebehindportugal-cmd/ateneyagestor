@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources\ProjectResource\Pages;
 
 use App\Filament\Admin\Resources\ProjectResource;
+use App\Filament\Admin\Support\TaskActions;
 use App\Models\ClaudeRun;
 use App\Models\ProjectTask;
 use App\Models\User;
@@ -59,10 +60,7 @@ class ManageProjectTasks extends ManageRelatedRecords
         $total = $base()->count();
 
         if ($total === 0) {
-            $livres = $project->tasks()
-                ->whereNull('assigned_user_id')
-                ->whereNotIn('status', ['done', 'cancelled'])
-                ->count();
+            $livres = $project->tasks()->porEscolher()->count();
 
             if (! $this->isAdmin() && $livres > 0) {
                 return "Ainda não tens nada teu aqui · {$livres} tarefas por escolher.";
@@ -76,18 +74,20 @@ class ManageProjectTasks extends ManageRelatedRecords
         $done  = $base()->where('status', 'done')->count();
         $open  = $total - $done;
         $pct   = (int) round($done / $total * 100);
-        $hours = (float) $base()->sum('hours');
+        $hours    = (float) $base()->sum('hours');
+        $estimado = (float) $base()->sum('estimated_hours');
 
         $line = "{$done} de {$total} concluídas ({$pct}%) · {$open} por fazer";
 
-        if ($hours > 0) {
-            $line .= ' · ' . number_format($hours, 2, ',', '.') . ' h registadas';
+        if ($estimado > 0) {
+            $line .= ' · ' . ProjectTask::formatarHoras($estimado) . ' estimadas';
         }
 
-        $livres = $project->tasks()
-            ->whereNull('assigned_user_id')
-            ->whereNotIn('status', ['done', 'cancelled'])
-            ->count();
+        if ($hours > 0) {
+            $line .= ' · ' . ProjectTask::formatarHoras($hours) . ' registadas';
+        }
+
+        $livres = $project->tasks()->porEscolher()->count();
 
         if ($livres > 0) {
             $line .= $this->isAdmin()
@@ -132,6 +132,13 @@ class ManageProjectTasks extends ManageRelatedRecords
                 ->displayFormat('d/m/Y')
                 ->native(false),
 
+            Forms\Components\TextInput::make('estimated_hours')
+                ->label('Estimativa (h)')
+                ->numeric()
+                ->step(0.25)
+                ->minValue(0)
+                ->helperText('Quanto se acha que demora. Fica lado a lado com as horas reais — é da diferença que se aprende a estimar.'),
+
             Forms\Components\TextInput::make('hours')
                 ->label('Horas')
                 ->numeric()
@@ -160,14 +167,9 @@ class ManageProjectTasks extends ManageRelatedRecords
             ]))
             ->modifyQueryUsing(fn (Builder $query) => $query
                 ->with(['lastClaudeRun', 'assignedUser'])
-                // A rede de segurança do lado da consulta: um estagiário só
-                // recebe as tarefas dele e as que ainda não têm dono — que são
-                // as que pode escolher.
-                ->when(! $admin, fn (Builder $q) => $q->where(
-                    fn (Builder $meu) => $meu
-                        ->where('assigned_user_id', Auth::id())
-                        ->orWhereNull('assigned_user_id')
-                )))
+                // A rede de segurança do lado da consulta: as tarefas dele e
+                // as que estão no balcão (ver ProjectTask::scopeVisivelPara).
+                ->visivelPara(Auth::user()))
             ->reorderable($admin ? 'position' : null)
             ->defaultSort('position')
             ->columns([
@@ -207,10 +209,18 @@ class ManageProjectTasks extends ManageRelatedRecords
                     ->sortable()
                     ->color(fn (ProjectTask $record) => $record->isOverdue() ? 'danger' : null),
 
-                Tables\Columns\TextColumn::make('hours')
-                    ->label('Horas')
+                Tables\Columns\TextColumn::make('estimated_hours')
+                    ->label('Estimativa')
                     ->placeholder('—')
-                    ->formatStateUsing(fn ($state) => $state === null ? null : number_format((float) $state, 2, ',', '.') . ' h')
+                    ->formatStateUsing(fn ($state) => ProjectTask::formatarHoras($state))
+                    ->color('gray')
+                    ->sortable()
+                    ->summarize(Tables\Columns\Summarizers\Sum::make()->label('Total')),
+
+                Tables\Columns\TextColumn::make('hours')
+                    ->label('Horas reais')
+                    ->placeholder('—')
+                    ->formatStateUsing(fn ($state) => ProjectTask::formatarHoras($state))
                     ->summarize(Tables\Columns\Summarizers\Sum::make()->label('Total')),
 
                 Tables\Columns\TextColumn::make('completed_at')
@@ -362,95 +372,15 @@ class ManageProjectTasks extends ManageRelatedRecords
                     ]))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Fechar'),
-
-                // Escolher trabalho. Enquanto a tarefa não tiver dono, qualquer
-                // pessoa da equipa a pode chamar a si — e fica registado quem foi.
-                Tables\Actions\Action::make('ficarCom')
-                    ->label('Ficar com esta')
-                    ->icon('heroicon-o-hand-raised')
-                    ->color('primary')
-                    ->visible(fn (ProjectTask $record) => $record->assigned_user_id === null
-                        && ! in_array($record->status, ['done', 'cancelled'], true))
-                    ->requiresConfirmation()
-                    ->modalHeading(fn (ProjectTask $record) => 'Ficar com · ' . $record->title)
-                    ->modalDescription('A tarefa passa a ser tua e fica a Em curso. Se depois vires que não é para ti, avisa para ser devolvida.')
-                    ->modalSubmitActionLabel('Fico com ela')
-                    ->action(function (ProjectTask $record) {
-                        $record->forceFill([
-                            'assigned_user_id' => Auth::id(),
-                            'status'           => 'in_progress',
-                        ])->save();
-
-                        Notification::make()
-                            ->success()
-                            ->title('A tarefa é tua')
-                            ->body('Passou a Em curso. Vai comentando o que fores fazendo.')
-                            ->send();
-                    }),
-
-                Tables\Actions\Action::make('toggleDone')
-                    ->label(fn (ProjectTask $record) => $record->isDone() ? 'Reabrir' : 'Concluir')
-                    ->icon(fn (ProjectTask $record) => $record->isDone() ? 'heroicon-o-arrow-uturn-left' : 'heroicon-o-check')
-                    ->color(fn (ProjectTask $record) => $record->isDone() ? 'gray' : 'success')
-                    ->action(function (ProjectTask $record) {
-                        $record->isDone() ? $record->reopen() : $record->markDone();
-
-                        Notification::make()
-                            ->success()
-                            ->title($record->isDone() ? 'Tarefa concluída' : 'Tarefa reaberta')
-                            ->send();
-                    }),
-
-                Tables\Actions\Action::make('toggleWaiting')
-                    ->label(fn (ProjectTask $record) => $record->isWaitingOnClient() ? 'Retomar' : 'Aguardar cliente')
-                    ->icon(fn (ProjectTask $record) => $record->isWaitingOnClient() ? 'heroicon-o-play' : 'heroicon-o-pause')
-                    ->color(fn (ProjectTask $record) => $record->isWaitingOnClient() ? 'gray' : 'info')
-                    // Não faz sentido pôr à espera do cliente o que já terminou.
-                    ->visible(fn (ProjectTask $record) => ! in_array($record->status, ['done', 'cancelled'], true))
-                    ->action(function (ProjectTask $record) {
-                        $estava = $record->isWaitingOnClient();
-                        $estava ? $record->resumeFromClient() : $record->markWaitingOnClient();
-
-                        Notification::make()
-                            ->success()
-                            ->title($estava ? 'Tarefa retomada' : 'A aguardar resposta do cliente')
-                            ->send();
-                    }),
-
-                // Deixar dito o que se fez, sem ter de mudar o estado. É o que
-                // torna o histórico útil quando se quer perceber porque é que
-                // uma tarefa demorou.
-                Tables\Actions\Action::make('comentar')
-                    ->label('Comentar')
-                    ->icon('heroicon-o-chat-bubble-left-ellipsis')
-                    ->color('gray')
-                    ->modalHeading(fn (ProjectTask $record) => 'Comentar · ' . $record->title)
-                    ->modalSubmitActionLabel('Guardar')
-                    ->form([
-                        Forms\Components\Textarea::make('body')
-                            ->label('O que aconteceu')
-                            ->rows(4)
-                            ->required()
-                            ->placeholder('Ex: fiz a query nova, falta testar com dados a sério.')
-                            ->columnSpanFull(),
-                    ])
-                    ->action(function (ProjectTask $record, array $data) {
-                        $record->logActivity('comment', $data['body']);
-
-                        Notification::make()->success()->title('Comentário guardado')->send();
-                    }),
-
-                Tables\Actions\Action::make('historico')
-                    ->label('Histórico')
-                    ->icon('heroicon-o-clock')
-                    ->color('gray')
-                    ->modalHeading(fn (ProjectTask $record) => 'Histórico · ' . $record->title)
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Fechar')
-                    ->modalContent(fn (ProjectTask $record) => view('filament.task-history-modal', [
-                        'task'       => $record->loadMissing('assignedUser', 'creator'),
-                        'activities' => $record->activities()->with('user')->get(),
-                    ])),
+                // As acções da tarefa vivem em TaskActions: a mesma tarefa
+                // aparece aqui, na lista global e no painel inicial, e não
+                // pode comportar-se de maneira diferente em cada sítio.
+                TaskActions::verDetalhe(),
+                TaskActions::ficarCom(),
+                TaskActions::toggleDone(),
+                TaskActions::toggleWaiting(),
+                TaskActions::comentar(),
+                TaskActions::historico(),
 
                 Tables\Actions\EditAction::make()->label('Editar'),
                 Tables\Actions\DeleteAction::make()->label('Apagar'),

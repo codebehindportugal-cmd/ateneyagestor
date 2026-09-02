@@ -6,7 +6,8 @@
             <span>· {{ $user->job_title }}</span>
         @endif
         <span>· {{ $tasks->count() }} tarefas</span>
-        <span>· {{ number_format((float) $tasks->sum('hours'), 2, ',', '.') }} h registadas</span>
+        <span>· {{ \App\Models\ProjectTask::formatarHoras($tasks->sum('estimated_hours')) ?? '0 h' }} estimadas</span>
+        <span>· {{ \App\Models\ProjectTask::formatarHoras($tasks->sum('hours')) ?? '0 h' }} registadas</span>
     </div>
 
     @forelse ($tasks as $task)
@@ -24,8 +25,11 @@
                     @if ($task->completed_at)
                         · concluída {{ $task->completed_at->format('d/m/Y H:i') }}
                     @endif
+                    @if ($task->estimated_hours)
+                        · estimativa {{ \App\Models\ProjectTask::formatarHoras($task->estimated_hours) }}
+                    @endif
                     @if ($task->hours)
-                        · {{ number_format((float) $task->hours, 2, ',', '.') }} h
+                        · {{ \App\Models\ProjectTask::formatarHoras($task->hours) }} feitas
                     @endif
                 </div>
             </div>

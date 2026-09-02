@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -29,6 +30,7 @@ class ProjectTask extends Model
         'status'           => 'Estado',
         'due_date'         => 'Prazo',
         'hours'            => 'Horas',
+        'estimated_hours'  => 'Estimativa',
         'assigned_user_id' => 'Responsável',
     ];
 
@@ -41,6 +43,7 @@ class ProjectTask extends Model
         'position',
         'due_date',
         'hours',
+        'estimated_hours',
         'completed_at',
         'completed_by',
         'created_by',
@@ -51,7 +54,8 @@ class ProjectTask extends Model
         return [
             'due_date'     => 'date',
             'completed_at' => 'datetime',
-            'hours'        => 'decimal:2',
+            'hours'           => 'decimal:2',
+            'estimated_hours' => 'decimal:2',
             'position'     => 'integer',
         ];
     }
@@ -100,6 +104,47 @@ class ProjectTask extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    // -----------------------------------------------------------------
+    // Âmbito
+    // -----------------------------------------------------------------
+
+    /**
+     * As tarefas que estão no balcão: sem dono, por fazer, e num projecto que
+     * foi aberto a estagiários. A última condição é o que impede que as
+     * tarefas onde o André regista o estado dos projectos apareçam como
+     * trabalho por distribuir.
+     */
+    public function scopePorEscolher(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('assigned_user_id')
+            ->whereNotIn('status', ['done', 'cancelled'])
+            ->whereHas('project', fn (Builder $projecto) => $projecto->where('open_to_interns', true));
+    }
+
+    /**
+     * O que esta pessoa pode ver: um administrador vê tudo, os restantes vêem
+     * o que é seu mais o que está no balcão.
+     */
+    public function scopeVisivelPara(Builder $query, ?User $user): Builder
+    {
+        if ($user === null || $user->isAdmin()) {
+            return $query;
+        }
+
+        return $query->where(fn (Builder $q) => $q
+            ->where('assigned_user_id', $user->id)
+            ->orWhere(fn (Builder $livre) => $livre->porEscolher()));
+    }
+
+    /** Esta tarefa está no balcão, disponível para quem a quiser? */
+    public function podeSerEscolhida(): bool
+    {
+        return $this->assigned_user_id === null
+            && ! in_array($this->status, ['done', 'cancelled'], true)
+            && $this->project?->open_to_interns === true;
     }
 
     /** Quem está encarregue da tarefa. Nulo = ainda por distribuir. */
@@ -216,7 +261,7 @@ class ProjectTask extends Model
 
         return match ($campo) {
             'due_date'    => substr((string) $valor, 0, 10),
-            'hours'       => number_format((float) $valor, 2, ',', '.') . ' h',
+            'hours', 'estimated_hours' => number_format((float) $valor, 2, ',', '.') . ' h',
             'description' => \Illuminate\Support\Str::limit((string) $valor, 120),
             default       => (string) $valor,
         };
@@ -246,6 +291,19 @@ class ProjectTask extends Model
             'cancelled'      => 'danger',
             default          => 'gray',
         };
+    }
+
+    /** "6 h" em vez de "6.00". Se não houver nada, devolve null. */
+    public static function formatarHoras(mixed $valor): ?string
+    {
+        if ($valor === null || $valor === '') {
+            return null;
+        }
+
+        $numero = (float) $valor;
+        $casas  = fmod($numero, 1.0) === 0.0 ? 0 : 2;
+
+        return number_format($numero, $casas, ',', '.') . ' h';
     }
 
     public function statusLabel(): string

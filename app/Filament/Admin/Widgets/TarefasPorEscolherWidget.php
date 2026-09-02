@@ -3,12 +3,11 @@
 namespace App\Filament\Admin\Widgets;
 
 use App\Filament\Admin\Resources\ProjectResource;
+use App\Filament\Admin\Support\TaskActions;
 use App\Models\ProjectTask;
-use Filament\Notifications\Notification;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
-use Illuminate\Support\Facades\Auth;
 
 /**
  * O balcão do trabalho por distribuir. Quem quiser, chama a tarefa a si e ela
@@ -16,7 +15,7 @@ use Illuminate\Support\Facades\Auth;
  */
 class TarefasPorEscolherWidget extends BaseWidget
 {
-    protected static ?int $sort = 1;
+    protected static ?int $sort = -1;
 
     protected int | string | array $columnSpan = 'full';
 
@@ -33,8 +32,7 @@ class TarefasPorEscolherWidget extends BaseWidget
             ->query(
                 ProjectTask::query()
                     ->with('project')
-                    ->whereNull('assigned_user_id')
-                    ->whereNotIn('status', ['done', 'cancelled'])
+                    ->porEscolher()
                     ->orderBy('project_id')
                     ->orderBy('position')
             )
@@ -55,6 +53,14 @@ class TarefasPorEscolherWidget extends BaseWidget
                     ->color('gray')
                     ->toggleable(),
 
+                Tables\Columns\TextColumn::make('estimated_hours')
+                    ->label('Estimativa')
+                    ->placeholder('—')
+                    ->formatStateUsing(fn ($state) => ProjectTask::formatarHoras($state))
+                    ->badge()
+                    ->color('gray')
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('due_date')
                     ->label('Prazo')
                     ->date('d/m/Y')
@@ -69,50 +75,11 @@ class TarefasPorEscolherWidget extends BaseWidget
                     ->preload(),
             ])
             ->actions([
-                Tables\Actions\Action::make('ficarCom')
-                    ->label('Ficar com esta')
-                    ->icon('heroicon-o-hand-raised')
-                    ->color('primary')
-                    ->requiresConfirmation()
-                    ->modalHeading(fn (ProjectTask $record) => 'Ficar com · ' . $record->title)
-                    ->modalDescription('A tarefa passa a ser tua e fica a Em curso. Lê a descrição toda antes de decidir.')
-                    ->modalSubmitActionLabel('Fico com ela')
-                    ->action(function (ProjectTask $record) {
-                        // Duas pessoas podem carregar no botão ao mesmo tempo: quem
-                        // chega primeiro fica com ela, o segundo é avisado.
-                        $ficou = ProjectTask::where('id', $record->id)
-                            ->whereNull('assigned_user_id')
-                            ->update([
-                                'assigned_user_id' => Auth::id(),
-                                'status'           => 'in_progress',
-                                'updated_at'       => now(),
-                            ]);
-
-                        if ($ficou === 0) {
-                            Notification::make()
-                                ->warning()
-                                ->title('Já não estava livre')
-                                ->body('Outra pessoa ficou com esta tarefa entretanto. Escolhe outra.')
-                                ->send();
-
-                            return;
-                        }
-
-                        $record->refresh()->logActivity('assigned', 'Escolheu esta tarefa.', [
-                            'campo'  => 'Responsável',
-                            'antes'  => 'por atribuir',
-                            'depois' => Auth::user()?->name ?? '—',
-                        ]);
-
-                        Notification::make()
-                            ->success()
-                            ->title('A tarefa é tua')
-                            ->body('Passou a Em curso. Vai comentando o que fores fazendo.')
-                            ->send();
-                    }),
-
+                // Mesmas acções da lista de tarefas — ver App\Filament\Admin\Support\TaskActions.
+                TaskActions::verDetalhe(),
+                TaskActions::ficarCom(),
                 Tables\Actions\Action::make('abrir')
-                    ->label('Ver no projecto')
+                    ->label('No projecto')
                     ->icon('heroicon-o-arrow-top-right-on-square')
                     ->color('gray')
                     ->url(fn (ProjectTask $record) => $record->project

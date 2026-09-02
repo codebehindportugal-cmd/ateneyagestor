@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Auth;
  */
 class MinhasTarefasWidget extends BaseWidget
 {
-    protected static ?int $sort = 0;
+    protected static ?int $sort = -2;
 
     protected int | string | array $columnSpan = 'full';
 
@@ -71,6 +71,12 @@ class MinhasTarefasWidget extends BaseWidget
                     ->badge()
                     ->formatStateUsing(fn ($state) => ProjectTask::statusOptions()[$state] ?? $state)
                     ->color(fn ($state) => ProjectTask::statusColor($state)),
+
+                Tables\Columns\TextColumn::make('estimated_hours')
+                    ->label('Estimativa')
+                    ->placeholder('—')
+                    ->formatStateUsing(fn ($state) => ProjectTask::formatarHoras($state))
+                    ->color('gray'),
 
                 Tables\Columns\TextColumn::make('due_date')
                     ->label('Prazo')

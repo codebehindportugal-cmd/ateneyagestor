@@ -44,11 +44,18 @@ class AdminPanelProvider extends PanelProvider
                 'danger' => Color::Rose,
                 'gray' => Color::Slate,
             ])
+            // A ordem do menu. Os nomes têm de bater certo, acentos incluídos,
+            // com os `navigationGroup` dos recursos — o Filament trata
+            // "Operacao" e "Operação" como dois grupos diferentes, e era isso
+            // que fazia o menu aparecer com grupos repetidos.
             ->navigationGroups([
+                NavigationGroup::make('Projectos'),
                 NavigationGroup::make('Operação'),
+                NavigationGroup::make('Infraestrutura'),
                 NavigationGroup::make('Integrações'),
                 NavigationGroup::make('Contabilidade'),
                 NavigationGroup::make('Clientes'),
+                NavigationGroup::make('Administração'),
                 NavigationGroup::make('Sistema')
                     ->collapsed(),
             ])

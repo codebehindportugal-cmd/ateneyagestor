@@ -6,7 +6,9 @@ use App\Models\ProjectTask;
 use App\Models\User;
 
 /**
- * A regra dos estagiários: mexem nas tarefas que são suas e mais nada.
+ * A regra dos estagiários: vêem as tarefas que são suas e as que ainda não têm
+ * dono — é assim que escolhem trabalho. Mexer, só nas suas: para poderem mexer
+ * numa livre têm primeiro de ficar com ela ("Ficar com esta").
  * Podem apontar tarefas novas (ficam automaticamente com elas — ver
  * ProjectTask::booted), mudar o estado, registar horas e comentar.
  * Não apagam, não reordenam e não passam trabalho a outra pessoa.
@@ -20,7 +22,9 @@ class ProjectTaskPolicy
 
     public function view(User $user, ProjectTask $task): bool
     {
-        return $user->isAdmin() || (int) $task->assigned_user_id === (int) $user->id;
+        return $user->isAdmin()
+            || $task->assigned_user_id === null
+            || (int) $task->assigned_user_id === (int) $user->id;
     }
 
     public function create(User $user): bool
@@ -28,9 +32,20 @@ class ProjectTaskPolicy
         return true;
     }
 
+    /** Ver uma tarefa livre não dá para lhe mexer — primeiro fica-se com ela. */
     public function update(User $user, ProjectTask $task): bool
     {
-        return $this->view($user, $task);
+        return $user->isAdmin() || (int) $task->assigned_user_id === (int) $user->id;
+    }
+
+    /**
+     * Ficar com uma tarefa que ainda não tem dono. É isto que permite ao
+     * estagiário escolher trabalho sem ter de esperar que lho distribuam.
+     */
+    public function claim(User $user, ProjectTask $task): bool
+    {
+        return $task->assigned_user_id === null
+            && ! in_array($task->status, ['done', 'cancelled'], true);
     }
 
     public function delete(User $user, ProjectTask $task): bool

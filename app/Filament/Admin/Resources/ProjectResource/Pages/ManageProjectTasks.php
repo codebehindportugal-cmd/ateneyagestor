@@ -59,6 +59,15 @@ class ManageProjectTasks extends ManageRelatedRecords
         $total = $base()->count();
 
         if ($total === 0) {
+            $livres = $project->tasks()
+                ->whereNull('assigned_user_id')
+                ->whereNotIn('status', ['done', 'cancelled'])
+                ->count();
+
+            if (! $this->isAdmin() && $livres > 0) {
+                return "Ainda não tens nada teu aqui · {$livres} tarefas por escolher.";
+            }
+
             return $this->isAdmin()
                 ? 'Ainda não há tarefas registadas neste projecto.'
                 : 'Ainda não tens tarefas atribuídas neste projecto.';
@@ -75,15 +84,15 @@ class ManageProjectTasks extends ManageRelatedRecords
             $line .= ' · ' . number_format($hours, 2, ',', '.') . ' h registadas';
         }
 
-        if ($this->isAdmin()) {
-            $porAtribuir = $project->tasks()
-                ->whereNull('assigned_user_id')
-                ->whereNotIn('status', ['done', 'cancelled'])
-                ->count();
+        $livres = $project->tasks()
+            ->whereNull('assigned_user_id')
+            ->whereNotIn('status', ['done', 'cancelled'])
+            ->count();
 
-            if ($porAtribuir > 0) {
-                $line .= " · {$porAtribuir} por atribuir";
-            }
+        if ($livres > 0) {
+            $line .= $this->isAdmin()
+                ? " · {$livres} por atribuir"
+                : " · {$livres} por escolher";
         }
 
         return $line;
@@ -143,11 +152,22 @@ class ManageProjectTasks extends ManageRelatedRecords
 
         return $table
             ->recordTitleAttribute('title')
+            // As notas do projecto por cima da lista: é onde ficam as regras de
+            // trabalho e os links dos repositórios, e assim ninguém tem de ir
+            // à ficha do projecto (para onde um estagiário nem tem acesso).
+            ->header(fn () => view('filament.project-notes-header', [
+                'notes' => $this->getOwnerRecord()->notes,
+            ]))
             ->modifyQueryUsing(fn (Builder $query) => $query
                 ->with(['lastClaudeRun', 'assignedUser'])
-                // A rede de segurança do lado da consulta: um estagiário nunca
-                // recebe do servidor tarefas que não sejam dele.
-                ->when(! $admin, fn (Builder $q) => $q->where('assigned_user_id', Auth::id())))
+                // A rede de segurança do lado da consulta: um estagiário só
+                // recebe as tarefas dele e as que ainda não têm dono — que são
+                // as que pode escolher.
+                ->when(! $admin, fn (Builder $q) => $q->where(
+                    fn (Builder $meu) => $meu
+                        ->where('assigned_user_id', Auth::id())
+                        ->orWhereNull('assigned_user_id')
+                )))
             ->reorderable($admin ? 'position' : null)
             ->defaultSort('position')
             ->columns([
@@ -214,9 +234,8 @@ class ManageProjectTasks extends ManageRelatedRecords
                     ->visible($admin),
 
                 Tables\Filters\Filter::make('por_atribuir')
-                    ->label('Por atribuir')
-                    ->query(fn (Builder $query) => $query->whereNull('assigned_user_id'))
-                    ->visible($admin),
+                    ->label($admin ? 'Por atribuir' : 'Por escolher')
+                    ->query(fn (Builder $query) => $query->whereNull('assigned_user_id')),
 
                 Tables\Filters\Filter::make('minhas')
                     ->label('As minhas')
@@ -344,6 +363,31 @@ class ManageProjectTasks extends ManageRelatedRecords
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Fechar'),
 
+                // Escolher trabalho. Enquanto a tarefa não tiver dono, qualquer
+                // pessoa da equipa a pode chamar a si — e fica registado quem foi.
+                Tables\Actions\Action::make('ficarCom')
+                    ->label('Ficar com esta')
+                    ->icon('heroicon-o-hand-raised')
+                    ->color('primary')
+                    ->visible(fn (ProjectTask $record) => $record->assigned_user_id === null
+                        && ! in_array($record->status, ['done', 'cancelled'], true))
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (ProjectTask $record) => 'Ficar com · ' . $record->title)
+                    ->modalDescription('A tarefa passa a ser tua e fica a Em curso. Se depois vires que não é para ti, avisa para ser devolvida.')
+                    ->modalSubmitActionLabel('Fico com ela')
+                    ->action(function (ProjectTask $record) {
+                        $record->forceFill([
+                            'assigned_user_id' => Auth::id(),
+                            'status'           => 'in_progress',
+                        ])->save();
+
+                        Notification::make()
+                            ->success()
+                            ->title('A tarefa é tua')
+                            ->body('Passou a Em curso. Vai comentando o que fores fazendo.')
+                            ->send();
+                    }),
+
                 Tables\Actions\Action::make('toggleDone')
                     ->label(fn (ProjectTask $record) => $record->isDone() ? 'Reabrir' : 'Concluir')
                     ->icon(fn (ProjectTask $record) => $record->isDone() ? 'heroicon-o-arrow-uturn-left' : 'heroicon-o-check')
@@ -452,7 +496,7 @@ class ManageProjectTasks extends ManageRelatedRecords
             ->emptyStateHeading($admin ? 'Sem tarefas' : 'Nada para ti aqui')
             ->emptyStateDescription($admin
                 ? 'Adiciona as tarefas do projecto para saberes o que já está feito e o que falta.'
-                : 'Ainda não te foi atribuída nenhuma tarefa neste projecto.')
+                : 'Não há tarefas tuas nem tarefas livres neste projecto.')
             ->emptyStateIcon('heroicon-o-clipboard-document-check');
     }
 }

@@ -348,23 +348,36 @@ def espaco_suficiente(servidor: Servidor, wp_root: str, destino: str, factor: fl
     # inteiro, nem uma lista de exclusoes diferente. Medir uma coisa e copiar
     # outra da numeros que nao querem dizer nada: foi assim que um site de 1 GB
     # apareceu como 11 GB e a actualizacao se recusou a comecar.
+    # Cada valor vem etiquetado. Ler por posicao rebentava em silencio sempre
+    # que um dos comandos nao imprimia nada.
     proc = servidor.correr(
         f"cd {shlex.quote(wp_root)} && "
-        f"du -ck {excluir} {' '.join(PASTAS_A_COPIAR)} 2>/dev/null | tail -1 | cut -f1; "
+        f"printf 'DU %s\\n' \"$(du -ck {excluir} {' '.join(PASTAS_A_COPIAR)} 2>/dev/null | tail -1 | cut -f1)\"; "
         f"mkdir -p {shlex.quote(destino)} 2>/dev/null; "
-        f"df -Pk {shlex.quote(destino)} | tail -1 | awk '{{print $4}}'",
+        f"printf 'DF %s\\n' \"$(df -Pk {shlex.quote(destino)} 2>/dev/null | tail -1 | awk '{{print $4}}')\"; "
+        # Alojamento partilhado: o df mostra o disco da maquina toda, que pode
+        # ter terabytes livres enquanto a conta tem 2 GB de quota. Sem isto, a
+        # verificacao passava e o tar enchia a quota a meio da copia.
+        f"printf 'QUOTA %s\\n' \"$(quota 2>/dev/null | awk 'NR>2 {{lim=($4>0?$4:$3); if(lim>0){{print lim-$2; exit}}}}')\"",
         timeout=300,
     )
 
-    linhas = [l.strip() for l in (proc.stdout or "").splitlines() if l.strip()]
-    if len(linhas) < 2:
+    valores: dict[str, int] = {}
+    for linha in (proc.stdout or "").splitlines():
+        partes = linha.split()
+        if len(partes) == 2 and partes[0] in ("DU", "DF", "QUOTA"):
+            try:
+                valores[partes[0]] = int(partes[1])
+            except ValueError:
+                pass
+
+    if "DU" not in valores or "DF" not in valores:
         return True, "nao foi possivel medir o espaco; a continuar"
 
-    try:
-        tamanho_kb = int(linhas[0])
-        livre_kb = int(linhas[-1])
-    except ValueError:
-        return True, "nao foi possivel medir o espaco; a continuar"
+    tamanho_kb = valores["DU"]
+    # Manda o mais apertado dos dois: de nada serve o disco ter espaco se a
+    # conta ja nao pode escrever mais.
+    livre_kb = min(valores["DF"], valores["QUOTA"]) if valores.get("QUOTA", 0) > 0 else valores["DF"]
 
     preciso = tamanho_kb * factor
     if livre_kb < preciso:

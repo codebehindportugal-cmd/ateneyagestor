@@ -25,10 +25,10 @@ apt-get install -y -qq python3 python3-venv python3-pip openssh-client gzip tar 
 
 echo "==> $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"/{keys,logs}
-for f in agent_sync.py backup.py wp_update.py requirements.txt agent.example.yaml secrets.example.yaml README.md; do
+for f in agent_sync.py backup.py wp_update.py wp_user.py requirements.txt agent.example.yaml secrets.example.yaml README.md; do
   [[ -f "$SRC_DIR/$f" ]] && install -m 0644 "$SRC_DIR/$f" "$INSTALL_DIR/$f"
 done
-chmod 0755 "$INSTALL_DIR/agent_sync.py" "$INSTALL_DIR/backup.py" "$INSTALL_DIR/wp_update.py"
+chmod 0755 "$INSTALL_DIR/agent_sync.py" "$INSTALL_DIR/backup.py" "$INSTALL_DIR/wp_update.py" "$INSTALL_DIR/wp_user.py"
 chmod 0700 "$INSTALL_DIR/keys"
 
 echo "==> Ambiente Python"
@@ -58,6 +58,16 @@ cat > "$INSTALL_DIR/actualizar.sh" <<EOF
 exec "$INSTALL_DIR/venv/bin/python" "$INSTALL_DIR/wp_update.py" "\$@"
 EOF
 chmod 0755 "$INSTALL_DIR/actualizar.sh"
+
+cat > "$INSTALL_DIR/contas.sh" <<EOF
+#!/usr/bin/env bash
+# Atalho: cria ou revoga uma conta de WordPress em todos os sites de uma vez.
+#   ./contas.sh --listar
+#   ./contas.sh --criar --confirmar
+#   ./contas.sh --revogar --confirmar
+exec "$INSTALL_DIR/venv/bin/python" "$INSTALL_DIR/wp_user.py" "\$@"
+EOF
+chmod 0755 "$INSTALL_DIR/contas.sh"
 
 echo "==> Chave SSH do agente"
 if [[ ! -f "$INSTALL_DIR/keys/ateneya_vps" ]]; then

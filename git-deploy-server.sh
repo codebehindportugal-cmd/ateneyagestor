@@ -52,7 +52,22 @@ if [ -d storage/app/public ]; then
 fi
 
 # 2. Atualizar código
-git fetch origin master
+#    O repositorio e privado. Se o servidor nao se conseguir autenticar no
+#    GitHub, o git morre aqui e o set -e aborta tudo — sem esta mensagem
+#    ficava so o "fatal: could not read Username", que nao diz o que fazer.
+if ! git fetch origin master; then
+  echo "" >&2
+  echo "ERRO: o servidor nao se consegue autenticar no GitHub." >&2
+  echo "      remote actual: $(git remote get-url origin)" >&2
+  echo "      Producao ficou como estava: $(git log --oneline -1)" >&2
+  echo "" >&2
+  echo "Resolver com uma deploy key (nao expira), no servidor:" >&2
+  echo "  ssh-keygen -t ed25519 -f ~/.ssh/github_deploy -N ''" >&2
+  echo "  cat ~/.ssh/github_deploy.pub   # colar em GitHub > repo > Settings > Deploy keys (read-only)" >&2
+  echo "  printf 'Host github.com\\n  IdentityFile ~/.ssh/github_deploy\\n  IdentitiesOnly yes\\n' >> ~/.ssh/config" >&2
+  echo "  git remote set-url origin git@github.com:codebehindportugal-cmd/ateneyagestor.git" >&2
+  exit 1
+fi
 git reset --hard origin/master
 
 # 3. Restaurar uploads que o pull tenha removido

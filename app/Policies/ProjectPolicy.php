@@ -6,9 +6,9 @@ use App\Models\Project;
 use App\Models\User;
 
 /**
- * Um estagiário vê a lista de projectos, mas só os projectos onde tem tarefas
- * suas — a lista é limitada em ProjectResource::getEloquentQuery(), e esta
- * política é a rede de segurança para quem tentar chegar lá pelo URL.
+ * O acesso de estagiário é global: vê a lista toda de projectos e pode abrir
+ * qualquer um deles. O que lá vê dentro continua a ser só o trabalho que lhe
+ * foi atribuído (ver ProjectTaskPolicy).
  * Criar, editar e apagar projectos é só do administrador.
  */
 class ProjectPolicy
@@ -20,11 +20,7 @@ class ProjectPolicy
 
     public function view(User $user, Project $project): bool
     {
-        if ($user->isAdmin()) {
-            return true;
-        }
-
-        return $project->tasks()->where('assigned_user_id', $user->id)->exists();
+        return true;
     }
 
     public function create(User $user): bool

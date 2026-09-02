@@ -26,6 +26,9 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            // Perfil: é aqui que cada pessoa muda a sua password. Sem isto, um
+            // estagiário ficava preso à password temporária com que foi criado.
+            ->profile(isSimple: false)
             ->brandName('Gestao Ateneya')
             ->brandLogo(asset('images/ateneya-logo.jpg'))
             ->brandLogoHeight('2.5rem')

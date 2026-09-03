@@ -6,13 +6,12 @@ use Illuminate\Support\Facades\DB;
 /**
  * Corrige o comando na tarefa WP-11.
  *
- * Dizia `python3 wp_user.py`, mas o agente corre num virtualenv em
- * /opt/backup-agent/venv — o python3 do sistema não tem o `requests` nem o
- * `yaml` e o comando morria à segunda linha. O atalho `contas.sh`, criado
- * pelo install.sh, já leva o interpretador certo.
+ * A primeira versão mandava correr o `wp_user.py` no LXC do agente. Ficou
+ * decidido fazer isto com um script que corre no próprio servidor
+ * (`scripts/conta-estagio.sh`), sem depender do agente nem do Proxmox.
  *
  * Vive numa migração à parte porque a tarefa pode já ter sido criada com o
- * texto errado num deploy anterior.
+ * texto antigo num deploy anterior.
  */
 return new class extends Migration
 {
@@ -27,22 +26,16 @@ return new class extends Migration
 
             $novo = str_replace(
                 [
-                    "cd /opt/backup-agent          # onde vive o agent_sync.py\n          python3 wp_user.py --revogar --confirmar",
+                    "(na máquina do agente, no LXC do Proxmox)\n          cd /opt/backup-agent          # onde vive o agent_sync.py\n          python3 wp_user.py --revogar --confirmar",
                     'python3 wp_user.py',
                     '`wp_user.py --listar`',
                 ],
                 [
-                    "cd /opt/backup-agent\n          ./contas.sh --revogar --confirmar",
-                    './contas.sh',
-                    '`./contas.sh --listar`',
+                    "— em cada VPS, com o script scripts/conta-estagio.sh do repositório\n          scp scripts/conta-estagio.sh root@<vps>:/root/\n          ssh root@<vps> 'bash /root/conta-estagio.sh --revogar --confirmar'",
+                    'bash conta-estagio.sh',
+                    '`conta-estagio.sh --listar`',
                 ],
                 $texto
-            );
-
-            $novo = str_replace(
-                'no LXC do Proxmox',
-                'o CT 105 do Proxmox',
-                $novo
             );
 
             if ($novo !== $texto) {

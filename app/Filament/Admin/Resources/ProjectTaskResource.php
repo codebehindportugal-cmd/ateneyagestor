@@ -285,8 +285,13 @@ class ProjectTaskResource extends Resource
 
     public static function getPages(): array
     {
+        // As paginas de criar e editar existem mesmo, em vez de se contar com
+        // os modais: sem a rota `create` registada, o botao "Nova tarefa" da
+        // listagem nao fazia nada.
         return [
-            'index' => Pages\ListProjectTasks::route('/'),
+            'index'  => Pages\ListProjectTasks::route('/'),
+            'create' => Pages\CreateProjectTask::route('/create'),
+            'edit'   => Pages\EditProjectTask::route('/{record}/edit'),
         ];
     }
 }

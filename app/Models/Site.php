@@ -26,6 +26,7 @@ class Site extends Model
         'client_id',
         'name',
         'domain',
+        'login_url',
         'type',
         'is_active',
         'backup_frequency',

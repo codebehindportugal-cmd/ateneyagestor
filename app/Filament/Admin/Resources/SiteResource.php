@@ -72,6 +72,15 @@ class SiteResource extends Resource
                     Forms\Components\TextInput::make('domain')
                         ->label('Domínio')
                         ->placeholder('jacfaria.com'),
+                    // Vários sites escondem o /wp-admin atrás de um endereço
+                    // proprio. Em branco assume-se o /wp-admin; preenchido,
+                    // manda o que aqui estiver.
+                    Forms\Components\TextInput::make('login_url')
+                        ->label('Link de login')
+                        ->url()
+                        ->placeholder('https://exemplo.pt/wp-admin')
+                        ->helperText('Só é preciso quando o login está escondido num endereço próprio. Em branco, lê-se /wp-admin.')
+                        ->columnSpanFull(),
                     Forms\Components\Select::make('type')
                         ->label('Tipo')
                         ->options([
@@ -181,6 +190,14 @@ class SiteResource extends Resource
         return $table
             ->defaultSort('name')
             ->columns([
+                Tables\Columns\TextColumn::make('login_url')
+                    ->label('Login')
+                    ->placeholder('/wp-admin')
+                    ->url(fn ($record) => $record->login_url)
+                    ->openUrlInNewTab()
+                    ->limit(40)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 Tables\Columns\TextColumn::make('name')
                     ->label('Site')
                     ->description(fn (Site $record) => $record->domain)

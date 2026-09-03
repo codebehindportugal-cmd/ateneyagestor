@@ -32,6 +32,7 @@ return [
         'servidores'    => (bool) env('NTFY_AVISA_SERVIDORES', true),
         'sincronizadores' => (bool) env('NTFY_AVISA_SYNCS', true),
         'backups'       => (bool) env('NTFY_AVISA_BACKUPS', true),
+        'agentes'       => (bool) env('NTFY_AVISA_AGENTES', true),
     ],
 
 ];

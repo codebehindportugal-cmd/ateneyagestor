@@ -18,11 +18,26 @@ $safeCron = static function (string $key, string $default): string {
     return CronExpression::isValidExpression($value) ? $value : $default;
 };
 
-// Marks an agent (the Pi) as offline in the admin panel if it has not checked in.
+// Um agente que se cala deixa de fazer backups, e o silencio nao aparece em
+// lista de erros nenhuma. Ate 02/09/2026 isto so mudava o estado na base de
+// dados: o agente de casa esteve quatro dias em baixo, o resumo diario dizia
+// "tudo de pe" todas as manhas, e ninguem soube. Agora avisa.
 Schedule::call(function () {
     Agent::where('last_seen_at', '<', now()->subHours(3))
         ->where('status', 'online')
-        ->update(['status' => 'offline']);
+        ->get()
+        ->each(function (Agent $agente) {
+            $agente->forceFill(['status' => 'offline'])->save();
+
+            $desde = $agente->last_seen_at?->diffForHumans() ?? 'ha muito';
+
+            \App\Support\Ntfy::emBaixo(
+                'agentes',
+                'Agente sem dar sinal: ' . ($agente->name ?: $agente->slug),
+                "Ultimo contacto {$desde}. Enquanto estiver assim NAO ha backups a correr.",
+                rtrim((string) config('app.url'), '/') . '/admin/agents',
+            );
+        });
 })->everyFifteenMinutes()->name('agents:mark-stale-offline');
 
 // A Claude run stuck in "running" means the worker died mid-task. Without this

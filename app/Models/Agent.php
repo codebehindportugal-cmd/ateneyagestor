@@ -186,6 +186,21 @@ class Agent extends Model
 
     public function markOnline(): void
     {
+        // Só interessa a transição: um agente que reporta de 15 em 15 minutos
+        // não pode dar um aviso de cada vez. E só se avisa quem estava mesmo
+        // marcado como offline — um agente novo, no primeiro contacto da vida,
+        // não "recuperou" de nada.
+        $voltou = $this->status === 'offline';
+
         $this->forceFill(['status' => 'online', 'last_seen_at' => now()])->save();
+
+        if ($voltou) {
+            \App\Support\Ntfy::recuperou(
+                'agentes',
+                'Agente de volta: ' . ($this->name ?: $this->slug),
+                'Voltou a dar sinal. Confirmar se os backups em atraso já correram.',
+                rtrim((string) config('app.url'), '/') . '/admin/agents',
+            );
+        }
     }
 }

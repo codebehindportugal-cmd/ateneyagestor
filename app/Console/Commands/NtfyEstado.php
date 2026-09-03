@@ -46,7 +46,29 @@ class NtfyEstado extends Command
             ->get()
             ->map(fn (Agent $a) => ($a->name ?: $a->slug) . " ({$a->last_backup_failed}/{$a->last_backup_total})");
 
-        $problemas = $sites->count() + $servidores->count() + $syncs->count() + $backups->count();
+        // O buraco que deixou passar quatro dias sem backups (29/08 a 02/09
+        // de 2026): olhava-se para backups que FALHARAM, nunca para backups
+        // que deixaram de acontecer. O agente de casa morreu com 24/24 ok, o
+        // contador de falhas ficou a zero, e este resumo disse "tudo de pe"
+        // todas as manhas enquanto nada era copiado.
+        //
+        // Um agente que nunca deu sinal na vida fica de fora: e um agente
+        // configurado e por instalar, nao uma regressao, e apareceria aqui
+        // todos os dias sem nada de novo a dizer.
+        $mudos = Agent::query()
+            ->whereNotNull('last_seen_at')
+            ->get()
+            ->filter(fn (Agent $a) => $a->status === 'offline' || $a->backupIsStale())
+            ->map(function (Agent $a) {
+                $nome  = $a->name ?: $a->slug;
+                $desde = $a->last_seen_at?->diffForHumans() ?? 'ha muito';
+
+                return "{$nome} (ultimo contacto {$desde})";
+            })
+            ->values();
+
+        $problemas = $sites->count() + $servidores->count() + $syncs->count()
+            + $backups->count() + $mudos->count();
 
         $link = rtrim((string) config('app.url'), '/') . '/admin';
 
@@ -56,7 +78,7 @@ class NtfyEstado extends Command
             Ntfy::enviar(
                 'teste',
                 'Tudo de pe',
-                'Sites, servidores, sincronizacoes e backups sem problemas.',
+                'Sites, servidores, sincronizacoes e backups sem problemas, e os agentes a dar sinal.',
                 tags: 'white_check_mark',
                 link: $link,
             );
@@ -80,6 +102,12 @@ class NtfyEstado extends Command
 
         if ($backups->isNotEmpty()) {
             $linhas[] = 'Backups a falhar: ' . $backups->implode(', ');
+        }
+
+        // Primeiro na mensagem: um agente calado e pior do que um backup
+        // falhado, porque nao ha nada nenhum a ser copiado.
+        if ($mudos->isNotEmpty()) {
+            array_unshift($linhas, 'SEM BACKUPS — agente parado: ' . $mudos->implode(', '));
         }
 
         $texto = implode("\n", $linhas);

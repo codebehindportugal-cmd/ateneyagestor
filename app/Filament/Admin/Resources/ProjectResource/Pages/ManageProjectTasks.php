@@ -162,7 +162,11 @@ class ManageProjectTasks extends ManageRelatedRecords
             // As notas do projecto por cima da lista: é onde ficam as regras de
             // trabalho e os links dos repositórios, e assim ninguém tem de ir
             // à ficha do projecto (para onde um estagiário nem tem acesso).
-            ->header(fn () => view('filament.project-notes-header', [
+            //
+            // `description()` e nao `header()`: o header substitui a zona toda
+            // do cabecalho da tabela, accoes incluidas — foi o que fez o botao
+            // "Nova tarefa" desaparecer desta pagina.
+            ->description(fn () => view('filament.project-notes-header', [
                 'notes' => $this->getOwnerRecord()->notes,
             ]))
             ->modifyQueryUsing(fn (Builder $query) => $query

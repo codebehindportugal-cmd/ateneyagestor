@@ -94,20 +94,20 @@ return new class extends Migration
 
         Uma conta partilhada com poderes de administração em sites de clientes não pode ficar viva depois de o estágio acabar. Não há como saber, pelos registos do WordPress, o que foi feito por quem, por isso a única protecção real é a conta deixar de existir no dia certo.
 
-        O QUE FAZER (na máquina do agente, o CT 105 do Proxmox)
-          cd /opt/backup-agent
-          ./contas.sh --revogar --confirmar
+        O QUE FAZER — em cada VPS, com o script scripts/conta-estagio.sh do repositório
+          scp scripts/conta-estagio.sh root@<vps>:/root/
+          ssh root@<vps> 'bash /root/conta-estagio.sh --revogar --confirmar'
 
-        Isto apaga {$conta} de todos os sites WordPress e passa o conteúdo dela para outro administrador — não se perde nada do que foi publicado.
+        Isto apaga {$conta} de todos os WordPress daquele servidor e passa o conteúdo dela para outro administrador — não se perde nada do que foi publicado. Repetir por cada uma das VPS.
 
         DEPOIS
         • Marcar as contas do painel como inactivas (Equipa → cada estagiário → desligar "Conta activa"). Não apagar: o histórico do que fizeram fica.
         • Apagar a entrada do gestor de passwords.
         • Retirar os convites da organização codebehindportugal-cmd no GitHub.
-        • Os sites Plesk e os que o script não alcançar ficam para tratar à mão — o `./contas.sh --listar` diz quais são.
+        • Confirmar servidor a servidor: o `--listar` mostra os WordPress que cada máquina tem.
 
         CRITÉRIOS DE ACEITAÇÃO
-        • O `./contas.sh --listar` já não encontra a conta em nenhum site.
+        • O `--listar` seguido de um login de teste já não encontra a conta em nenhum site.
         • Um login de teste com essa conta falha.
         • Nenhuma conta do painel de estágio consegue entrar.
         TXT;

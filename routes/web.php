@@ -35,6 +35,8 @@ Route::get('/contabilista/{token}/download/{id}', [AccountantViewController::cla
     ->name('contabilista.download');
 Route::get('/contabilista/{token}/documentos/{id}', [AccountantViewController::class, 'details'])
     ->name('contabilista.details');
+Route::post('/contabilista/{token}/documentos/{id}/importado', [AccountantViewController::class, 'marcarImportado'])
+    ->name('contabilista.marcar-importado');
 Route::get('/contabilista/{token}/supplier-invoices/{supplierInvoice}/download/{image?}', [AccountantViewController::class, 'supplierInvoiceDownload'])
     ->name('contabilista.supplier-invoices.download');
 

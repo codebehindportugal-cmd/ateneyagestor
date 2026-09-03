@@ -9,6 +9,7 @@ use App\Models\ClientDocument;
 use App\Models\Setting;
 use App\Models\SupplierInvoice;
 use App\Services\ClientDocumentService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class AccountantViewController extends Controller
@@ -46,6 +47,14 @@ class AccountantViewController extends Controller
             'amount' => $documents->sum('amount_cents') / 100,
         ];
 
+        // Quantos e' que o contabilista ainda nao passou para o software dele.
+        // E' o numero que interessa a quem abre esta pagina — o total em euros
+        // ja la estava e nao diz nada sobre o trabalho que falta.
+        $porImportar = [
+            'count'  => $documents->where('importado_contabilidade', false)->count(),
+            'amount' => $documents->where('importado_contabilidade', false)->sum('amount_cents') / 100,
+        ];
+
         $supplierInvoices = SupplierInvoice::with('brand.parent', 'items')
             ->where('status', 'confirmed')
             ->orderByDesc('invoice_date')
@@ -60,6 +69,7 @@ class AccountantViewController extends Controller
             'token',
             'brandGroups',
             'grandTotal',
+            'porImportar',
             'supplierInvoices',
             'supplierGrandTotal'
         ));
@@ -109,6 +119,35 @@ class AccountantViewController extends Controller
             : (($supplierInvoice->image_names[$image] ?? null) ?: basename($path));
 
         return $disk->download($path, $name);
+    }
+
+    /**
+     * O contabilista marca, documento a documento, se ja o lancou no software
+     * dele. Sem isto a unica forma de saber era perguntar-lhe, e um documento
+     * lancado duas vezes so' aparece na conciliacao, muito mais tarde.
+     *
+     * Fica registado quando foi marcado: o "quem" e' o proprio token, que so
+     * ele tem.
+     */
+    public function marcarImportado(Request $request, string $token, int $id)
+    {
+        $this->validateGlobalToken($token);
+
+        $documento = AccountingDocument::findOrFail($id);
+
+        $importado = $request->boolean('importado');
+
+        $documento->forceFill([
+            'importado_contabilidade' => $importado,
+            'importado_em'            => $importado ? now() : null,
+            'importado_nota'          => $importado ? 'Marcado pelo contabilista no portal' : null,
+        ])->save();
+
+        return response()->json([
+            'ok'           => true,
+            'importado'    => $importado,
+            'importado_em' => $documento->importado_em?->format('d/m/Y H:i'),
+        ]);
     }
 
     // ── Per-client accountant view (ClientDocuments) ─────────────────────────

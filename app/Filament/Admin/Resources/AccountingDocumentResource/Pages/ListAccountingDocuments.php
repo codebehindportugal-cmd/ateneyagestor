@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\AccountingDocumentResource\Pages;
 use App\Filament\Admin\Resources\AccountingDocumentResource;
 use App\Models\AccountingDocument;
 use App\Models\Brand;
+use App\Services\Faturacao\ImportadorFaturasEmail;
 use App\Services\PaperInvoice\PaperInvoiceExtractor;
 use Carbon\Carbon;
 use Filament\Actions;
@@ -100,14 +101,80 @@ class ListAccountingDocuments extends ListRecords
 
                     return redirect(AccountingDocumentResource::getUrl('edit', ['record' => $document]));
                 }),
+            Actions\Action::make('importarEmail')
+                ->label('Importar do email')
+                ->icon('heroicon-o-inbox-arrow-down')
+                ->color('primary')
+                ->visible(fn () => auth()->user()?->isAdmin() === true)
+                ->requiresConfirmation()
+                ->modalHeading('Ir buscar facturas ao email')
+                ->modalDescription('Le a caixa '.config('faturas_email.username').' e cria um documento por cada anexo PDF ou imagem que ainda nao tenha entrado.')
+                ->modalSubmitActionLabel('Importar agora')
+                // Limite baixo de proposito: isto corre dentro do pedido web e
+                // o OCR de um PDF leva segundos. O resto fica para o agendador.
+                ->action(function (ImportadorFaturasEmail $importador) {
+                    try {
+                        $contas = $importador->correr(limite: 10);
+                    } catch (\Throwable $e) {
+                        Notification::make()
+                            ->danger()
+                            ->title('Nao consegui ler a caixa das facturas')
+                            ->body($e->getMessage())
+                            ->persistent()
+                            ->send();
+
+                        return;
+                    }
+
+                    $corpo = sprintf(
+                        '%d mensagem(ns) analisadas · %d documento(s) criados · %d ja existiam · %d sem anexo de factura.',
+                        $contas['mensagens'],
+                        $contas['documentos'],
+                        $contas['duplicados'],
+                        $contas['semAnexo'],
+                    );
+
+                    if ($contas['erros'] !== []) {
+                        $corpo .= "\n\nErros:\n- ".implode("\n- ", array_slice($contas['erros'], 0, 3));
+                    }
+
+                    $aviso = Notification::make()
+                        ->title($contas['documentos'] > 0 ? 'Facturas importadas' : 'Nada de novo na caixa')
+                        ->body($corpo);
+
+                    ($contas['erros'] !== [] ? $aviso->warning() : $aviso->success())->send();
+                }),
+
+            Actions\Action::make('testarEmail')
+                ->label('Testar ligacao ao email')
+                ->icon('heroicon-o-signal')
+                ->color('gray')
+                ->visible(fn () => auth()->user()?->isAdmin() === true)
+                ->action(function (ImportadorFaturasEmail $importador) {
+                    $resultado = $importador->testar();
+
+                    $aviso = Notification::make()
+                        ->title($resultado['ok'] ? 'Ligacao ao email OK' : 'A ligacao falhou')
+                        ->body($resultado['mensagem'])
+                        ->persistent();
+
+                    ($resultado['ok'] ? $aviso->success() : $aviso->danger())->send();
+                }),
+
             Actions\CreateAction::make(),
         ];
     }
 
     public function getTabs(): array
     {
+        $porImportar = AccountingDocument::where('importado_contabilidade', false)->count();
+
         $tabs = [
             'all' => Tab::make('Todos'),
+            'por_importar' => Tab::make('Por importar pelo contabilista')
+                ->badge($porImportar)
+                ->badgeColor($porImportar > 0 ? 'warning' : 'success')
+                ->modifyQueryUsing(fn ($query) => $query->where('importado_contabilidade', false)),
         ];
 
         $years = AccountingDocument::query()

@@ -330,6 +330,24 @@ class AccountingDocumentResource extends Resource
                     ->placeholder('—')
                     ->toggleable(),
 
+                Tables\Columns\TextColumn::make('importado_contabilidade')
+                    ->label('Contabilidade')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state ? 'Importada' : 'Por importar')
+                    ->color(fn ($state) => $state ? 'success' : 'warning')
+                    ->description(fn (AccountingDocument $record) => $record->importado_em?->format('d/m/Y H:i'))
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('origem')
+                    ->label('Origem')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state) => $state === 'email' ? 'Email' : 'Manual')
+                    ->color(fn (?string $state) => $state === 'email' ? 'info' : 'gray')
+                    ->description(fn (AccountingDocument $record) => $record->origem === 'email'
+                        ? \Illuminate\Support\Str::limit((string) $record->email_de, 30)
+                        : null)
+                    ->toggleable(),
+
                 Tables\Columns\IconColumn::make('file_path')
                     ->label('Ficheiro')
                     ->boolean()
@@ -392,6 +410,19 @@ class AccountingDocumentResource extends Resource
                 Tables\Filters\SelectFilter::make('brand_id')
                     ->label('Marca')
                     ->options(fn () => Brand::selectOptions()),
+
+                Tables\Filters\TernaryFilter::make('importado_contabilidade')
+                    ->label('Importada pelo contabilista')
+                    ->placeholder('Todos')
+                    ->trueLabel('Ja importadas')
+                    ->falseLabel('Por importar'),
+
+                Tables\Filters\SelectFilter::make('origem')
+                    ->label('Origem')
+                    ->options([
+                        'email'  => 'Chegou por email',
+                        'manual' => 'Carregada a mao',
+                    ]),
             ])
             ->actions([
                 Tables\Actions\Action::make('download')

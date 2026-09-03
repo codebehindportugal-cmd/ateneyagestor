@@ -33,13 +33,16 @@ return new class extends Migration
         $serverId = DB::table('servers')->where('name', 'ipdroid-marcoeraquel')->value('id');
 
         if (! $serverId) {
+            // `servers` guarda so como la chegar. Desde a separacao de 27/08,
+            // `type`, `domain` e os campos de cPanel (api_port, backup_dest, ...)
+            // vivem em `sites`; aqui o painel instalado e' o `panel`.
             $serverId = DB::table('servers')->insertGetId([
                 'client_id'        => $clientId,
                 'name'             => 'ipdroid-marcoeraquel',
-                'type'             => 'cpanel',
+                'label'            => 'IPDroid — Marco e Raquel',
+                'panel'            => 'cpanel',
                 'is_active'        => false,
                 'host'             => 'ipdsrvlx105.ipdroid.cloud',
-                'api_port'         => 2083,
                 'agent_secret_ref' => 'ipdroid-marcoeraquel',
                 'notes'            => "Alojamento cPanel da IPDroid. Painel em https://ipdsrvlx105.ipdroid.cloud:2083.\n\nInactivo até haver forma de o agente entrar: falta a entrada 'ipdroid-marcoeraquel' no secrets.yaml (token da API do cPanel, ou utilizador e chave SSH se o alojamento permitir).",
                 'created_at'       => $now,

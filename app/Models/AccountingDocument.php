@@ -32,6 +32,15 @@ class AccountingDocument extends Model
         'file_name',
         'image_paths',
         'image_names',
+        'importado_contabilidade',
+        'importado_em',
+        'importado_nota',
+        'origem',
+        'email_message_id',
+        'email_de',
+        'email_assunto',
+        'email_recebido_em',
+        'ficheiro_hash',
     ];
 
     protected function casts(): array
@@ -45,6 +54,9 @@ class AccountingDocument extends Model
             'products'     => 'array',
             'image_paths'  => 'array',
             'image_names'  => 'array',
+            'importado_contabilidade' => 'boolean',
+            'importado_em'      => 'datetime',
+            'email_recebido_em' => 'datetime',
         ];
     }
 

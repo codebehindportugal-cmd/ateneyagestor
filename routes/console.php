@@ -156,3 +156,16 @@ Schedule::call(function () {
             );
         });
 })->everyFifteenMinutes()->name('atualizacoes:reclaim');
+
+// As facturas dos fornecedores chegam a faturacao@ateneya.com e ficavam la a
+// espera de alguem as carregar a mao. De 30 em 30 minutos vai buscar os anexos
+// PDF e imagem e cria os documentos — o contabilista ve-os no portal dele sem
+// que ninguem tenha de mexer em nada.
+//
+// `withoutOverlapping` porque a leitura do OCR de um PDF grande pode passar da
+// meia hora: sem isto duas corridas mexiam na mesma caixa ao mesmo tempo.
+Schedule::command('faturas:importar-email')
+    ->cron($safeCron('cron.faturas_email.cron', '*/30 * * * *'))
+    ->withoutOverlapping(30)
+    ->skip(fn () => ! config('faturas_email.enabled'))
+    ->name('faturas:importar-email');

@@ -284,3 +284,50 @@ onde os plugins partem, nao na entrada.
 
 O botao tem um interruptor **So ver o que ha para actualizar**: lista o que esta
 por actualizar sem tocar em nada.
+
+## Facturas que chegam por email
+
+A caixa `faturacao@ateneya.com` recebe as facturas dos fornecedores. O painel vai
+la busca-las sozinho e cria um `AccountingDocument` por cada anexo.
+
+```bash
+php artisan faturas:importar-email --teste     # so testa a ligacao
+php artisan faturas:importar-email             # corre agora
+php artisan faturas:importar-email --dias=90 --todas --limite=200   # primeira carga
+```
+
+Corre de 30 em 30 minutos pelo agendador (`cron.faturas_email.cron`), e ha dois
+botoes no `/admin/accounting-documents` — **Importar do email** e **Testar
+ligacao ao email** — visiveis so ao administrador.
+
+**So entram mensagens com anexo PDF ou imagem.** O resto fica na caixa. Imagens
+com menos de `FATURAS_EMAIL_MIN_IMAGE_KB` que venham embutidas no corpo sao
+logotipos de assinatura e sao ignoradas; os PDF entram sempre.
+
+Nao ha duplicados: o `ficheiro_hash` e' o sha256 do anexo e tem indice unico. O
+mesmo PDF reenviado nao volta a entrar, mesmo com outro assunto ou outro UID.
+
+Depois de importada, a mensagem e' marcada como lida e — se
+`FATURAS_EMAIL_PROCESSED_FOLDER` estiver definido — movida para essa pasta. Nada
+e' apagado: o original fica sempre no email, que e' onde tem valor legal.
+
+### Porque nao ha biblioteca de IMAP
+
+`app/Services/Faturacao/ImapMailbox.php` e' um cliente IMAP em PHP puro e o
+`MimeMessage.php` desmonta o MIME. Duas razoes: o `composer.lock` so' se
+actualiza numa maquina com PHP (a copia local nao tem), e um lock desalinhado
+faz o `composer install` do deploy morrer; e a `ext-imap` esta depreciada no PHP
+8.4 e nao ha garantia de estar no Plesk.
+
+Os dois tem testes: `tests/Unit/MimeMessageTest.php` e
+`tests/Unit/ImapMailboxTest.php` (este lanca `tests/Fixtures/servidor-imap-falso.php`).
+O que la se testa nao e' decorativo — um anexo lido por linhas em vez de byte a
+byte chega corrompido e so' se percebe quando o contabilista abre o PDF.
+
+### O campo do contabilista
+
+`accounting_documents.importado_contabilidade` diz se o contabilista ja lancou o
+documento no software dele. Quem marca e' ele, no portal `/contabilista/{token}`:
+ha uma caixa por documento que grava sozinha, e um contador no topo com quantos
+faltam. No `/admin` isso aparece como coluna, filtro e separador **Por importar
+pelo contabilista** — de leitura, para nao haver duas versoes da verdade.

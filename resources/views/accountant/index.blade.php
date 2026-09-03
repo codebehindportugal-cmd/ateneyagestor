@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Documentos para Contabilidade · {{ config('app.name') }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -30,6 +31,16 @@
             <div class="sm:text-right">
                 <p class="text-xl font-semibold tnum leading-tight">{{ number_format($grandTotal['amount'], 2, ',', '.') }} €</p>
                 <p class="text-xs text-slate-400">{{ $grandTotal['count'] }} documento(s) · gerado a {{ now()->format('d/m/Y \à\s H:i') }}</p>
+                @if(($porImportar['count'] ?? 0) > 0)
+                    <button type="button" id="filtro-por-importar"
+                            class="mt-2 inline-flex items-center gap-2 rounded-full bg-amber-400/15 px-3 py-1 text-xs font-semibold text-amber-300 ring-1 ring-amber-400/30 hover:bg-amber-400/25 transition-colors">
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                        <span>{{ $porImportar['count'] }} por importar · {{ number_format($porImportar['amount'], 2, ',', '.') }} €</span>
+                        <span class="text-amber-200/70" data-estado>mostrar só estes</span>
+                    </button>
+                @else
+                    <p class="mt-2 text-xs text-emerald-400">Está tudo importado.</p>
+                @endif
             </div>
         </div>
     </header>
@@ -175,6 +186,7 @@
                                                         <th class="px-4 py-2.5 text-right font-semibold">IVA</th>
                                                         <th class="px-4 py-2.5 text-right font-semibold">Total</th>
                                                         <th class="px-4 py-2.5 text-center font-semibold">Estado</th>
+                                                        <th class="px-4 py-2.5 text-center font-semibold">Importada</th>
                                                         <th class="px-4 py-2.5 text-center font-semibold no-print">Ficheiro</th>
                                                     </tr>
                                                 </thead>
@@ -185,7 +197,8 @@
                                                             $iva          = $doc->iva;
                                                             $totalSemIva  = $totalComIva - $iva;
                                                         @endphp
-                                                        <tr class="hover:bg-slate-50/70 transition-colors">
+                                                        <tr class="hover:bg-slate-50/70 transition-colors linha-documento"
+                                                            data-importada="{{ $doc->importado_contabilidade ? '1' : '0' }}">
                                                             <td class="px-4 py-3">
                                                                 @php $tipos = \App\Models\AccountingDocument::tipos(); @endphp
                                                                 <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200">
@@ -239,6 +252,19 @@
                                                                     {{ $estadoNames[$estadoKey] ?? ucfirst($estadoKey) }}
                                                                 </span>
                                                             </td>
+                                                            <td class="px-4 py-3 text-center">
+                                                                <label class="inline-flex flex-col items-center gap-1 cursor-pointer select-none">
+                                                                    <input type="checkbox"
+                                                                           class="marcar-importada h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                                                           data-url="{{ route('contabilista.marcar-importado', ['token' => $token, 'id' => $doc->id]) }}"
+                                                                           @checked($doc->importado_contabilidade)>
+                                                                    <span class="text-[11px] leading-tight {{ $doc->importado_contabilidade ? 'text-emerald-600' : 'text-amber-600' }}" data-rotulo>
+                                                                        {{ $doc->importado_contabilidade
+                                                                            ? ($doc->importado_em?->format('d/m/Y') ?? 'Importada')
+                                                                            : 'Por importar' }}
+                                                                    </span>
+                                                                </label>
+                                                            </td>
                                                             <td class="px-4 py-3 text-center no-print">
                                                                 <a href="{{ route('contabilista.details', ['token' => $token, 'id' => $doc->id]) }}"
                                                                    class="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900 text-xs font-medium">
@@ -281,6 +307,7 @@
                                                         <td class="px-4 py-2.5 text-right font-bold text-slate-900 tnum">
                                                             {{ number_format($monthTotal, 2, ',', '.') }} €
                                                         </td>
+                                                        <td></td>
                                                         <td colspan="2" class="no-print"></td>
                                                     </tr>
                                                 </tfoot>
@@ -311,6 +338,88 @@
             </p>
         </footer>
     </div>
+
+    <script>
+        // A caixa de marcar grava sozinha. A pagina e' comprida — recarrega-la
+        // por cada documento fazia perder o sitio onde se ia.
+        (function () {
+            const token = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+            document.querySelectorAll('.marcar-importada').forEach(function (caixa) {
+                caixa.addEventListener('change', async function () {
+                    const linha = caixa.closest('tr');
+                    const rotulo = caixa.parentElement.querySelector('[data-rotulo]');
+                    const queria = caixa.checked;
+
+                    caixa.disabled = true;
+
+                    try {
+                        const resposta = await fetch(caixa.dataset.url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': token,
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({ importado: queria }),
+                        });
+
+                        if (resposta.status === 419) {
+                            // A pagina ficou aberta ate a sessao expirar. Dizer
+                            // "erro de ligacao" mandava-o procurar no sitio errado.
+                            throw new Error('A pagina esteve aberta demasiado tempo. Recarrega (F5) e marca outra vez.');
+                        }
+
+                        if (!resposta.ok) {
+                            throw new Error('O servidor respondeu ' + resposta.status + '.');
+                        }
+
+                        const dados = await resposta.json();
+
+                        linha?.setAttribute('data-importada', dados.importado ? '1' : '0');
+
+                        if (rotulo) {
+                            rotulo.textContent = dados.importado
+                                ? (dados.importado_em ?? 'Importada')
+                                : 'Por importar';
+                            rotulo.className = 'text-[11px] leading-tight '
+                                + (dados.importado ? 'text-emerald-600' : 'text-amber-600');
+                        }
+                    } catch (erro) {
+                        // Desfazer: uma marca que nao chegou a gravar e' pior do
+                        // que uma por marcar — dava o documento por lancado.
+                        caixa.checked = !queria;
+                        alert('Nao consegui gravar.\n\n' + (erro?.message ?? erro));
+                    } finally {
+                        caixa.disabled = false;
+                    }
+                });
+            });
+
+            const filtro = document.getElementById('filtro-por-importar');
+
+            if (filtro) {
+                let soPorImportar = false;
+
+                filtro.addEventListener('click', function () {
+                    soPorImportar = !soPorImportar;
+
+                    document.querySelectorAll('.linha-documento').forEach(function (linha) {
+                        const escondida = soPorImportar && linha.dataset.importada === '1';
+                        linha.style.display = escondida ? 'none' : '';
+                    });
+
+                    const estado = filtro.querySelector('[data-estado]');
+
+                    if (estado) {
+                        estado.textContent = soPorImportar ? 'mostrar todos' : 'mostrar só estes';
+                    }
+                });
+            }
+        })();
+    </script>
 
 </body>
 </html>

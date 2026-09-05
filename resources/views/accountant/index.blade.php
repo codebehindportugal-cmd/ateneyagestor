@@ -119,202 +119,231 @@
             </section>
         @endif
 
-        @forelse($brandGroups as $brandId => $brandData)
-            @php
-                $brand       = $brandData['brand'];
-                $brandName   = $brand ? $brand->name : 'Geral';
-                $brandColor  = $brand?->color ?? '#94a3b8';
-                $brandParent = $brand?->parent?->name;
-            @endphp
-
+        @forelse($anos as $ano => $dadosAno)
             <section>
-                {{-- Brand header --}}
+                {{-- Cabeçalho do ano --}}
                 <div class="flex flex-wrap items-center gap-3 mb-4">
-                    <span class="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: {{ $brandColor }}"></span>
-                    <h2 class="text-base font-semibold text-slate-800">{{ $brandName }}</h2>
-                    @if($brandParent)
-                        <span class="text-xs text-slate-500 bg-slate-200/70 rounded-full px-2.5 py-0.5">{{ $brandParent }}</span>
+                    <h2 class="text-xl font-semibold text-slate-800 tnum">{{ $ano }}</h2>
+                    @if($dadosAno['total']['porImportar'] > 0)
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
+                            <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            {{ $dadosAno['total']['porImportar'] }} por importar
+                        </span>
                     @endif
                     <span class="ml-auto inline-flex items-center gap-1.5 text-sm text-slate-500 bg-white border border-slate-200 rounded-full px-3.5 py-1 shadow-sm whitespace-nowrap">
-                        {{ $brandData['total']['count'] }} doc(s) ·
-                        <span class="font-semibold text-slate-800 tnum">{{ number_format($brandData['total']['amount'], 2, ',', '.') }} €</span>
+                        {{ $dadosAno['total']['count'] }} doc(s) ·
+                        <span class="font-semibold text-slate-800 tnum">{{ number_format($dadosAno['total']['amount'], 2, ',', '.') }} €</span>
                     </span>
                 </div>
 
                 <div class="space-y-6">
-                    @foreach($brandData['grouped'] as $year => $months)
-                        <div>
-                            {{-- Year sub-header --}}
-                            <div class="flex items-center justify-between mb-2 px-1">
-                                <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-widest">{{ $year }}</h3>
-                                <span class="text-xs text-slate-400">
-                                    {{ $brandData['yearTotals'][$year]['count'] }} doc(s) ·
-                                    <span class="font-semibold text-slate-600 tnum">{{ number_format($brandData['yearTotals'][$year]['amount'], 2, ',', '.') }} €</span>
+                    @foreach($dadosAno['meses'] as $mes => $dadosMes)
+                        @php $nomeDoMes = \App\Models\AccountingDocument::monthName($mes); @endphp
+
+                        <div class="cartao-mes bg-white rounded-xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+                            {{-- Cabeçalho do mês --}}
+                            <div class="flex flex-wrap items-center gap-3 px-5 py-3 bg-slate-50 border-b border-slate-200">
+                                <h3 class="font-semibold text-slate-800">
+                                    {{ $nomeDoMes }} <span class="font-normal text-slate-400 tnum">{{ $ano }}</span>
+                                </h3>
+
+                                @if($dadosMes['total']['porImportar'] > 0)
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
+                                        {{ $dadosMes['total']['porImportar'] }} por importar
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                                        Mês fechado
+                                    </span>
+                                @endif
+
+                                <span class="ml-auto text-sm text-slate-500 whitespace-nowrap">
+                                    {{ $dadosMes['total']['count'] }} doc(s) ·
+                                    <span class="font-semibold text-slate-800 tnum">{{ number_format($dadosMes['total']['amount'], 2, ',', '.') }} €</span>
                                 </span>
                             </div>
 
-                            <div class="space-y-4">
-                                @foreach($months as $month => $docs)
-                                    @php
-                                        $monthTotal = $docs->sum('amount_cents') / 100;
-                                        $monthCount = $docs->count();
-                                    @endphp
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="text-[11px] text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                                            <th class="px-4 py-2.5 text-left font-semibold">Tipo</th>
+                                            <th class="px-4 py-2.5 text-left font-semibold">Nº Documento</th>
+                                            <th class="px-4 py-2.5 text-left font-semibold">Fornecedor</th>
+                                            <th class="px-4 py-2.5 text-left font-semibold">Finalidade</th>
+                                            <th class="px-4 py-2.5 text-left font-semibold">Data</th>
+                                            <th class="px-4 py-2.5 text-right font-semibold">Total s/ IVA</th>
+                                            <th class="px-4 py-2.5 text-right font-semibold">IVA</th>
+                                            <th class="px-4 py-2.5 text-right font-semibold">Total</th>
+                                            <th class="px-4 py-2.5 text-center font-semibold">Estado</th>
+                                            <th class="px-4 py-2.5 text-center font-semibold">Importada</th>
+                                            <th class="px-4 py-2.5 text-center font-semibold no-print">Ficheiro</th>
+                                        </tr>
+                                    </thead>
 
-                                    <div class="bg-white rounded-xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
-                                        {{-- Month header --}}
-                                        <div class="flex items-center justify-between px-5 py-3 bg-slate-50 border-b border-slate-200">
-                                            <h4 class="font-semibold text-slate-700">
-                                                {{ \App\Models\AccountingDocument::monthName($month) }}
-                                            </h4>
-                                            <span class="text-sm text-slate-500">
-                                                {{ $monthCount }} doc(s) ·
-                                                <span class="font-semibold text-slate-800 tnum">{{ number_format($monthTotal, 2, ',', '.') }} €</span>
-                                            </span>
-                                        </div>
+                                    @foreach($dadosMes['marcas'] as $chaveMarca => $dadosMarca)
+                                        @php
+                                            $marca      = $dadosMarca['brand'];
+                                            $nomeMarca  = $marca?->name ?? 'Sem marca atribuída';
+                                            $corMarca   = $marca?->color ?? '#94a3b8';
+                                            $marcaMae   = $marca?->parent?->name;
+                                            $grupo      = $ano.'-'.$mes.'-'.$chaveMarca;
+                                        @endphp
 
-                                        {{-- Documents table --}}
-                                        <div class="overflow-x-auto">
-                                            <table class="w-full text-sm">
-                                                <thead>
-                                                    <tr class="text-[11px] text-slate-500 uppercase tracking-wider border-b border-slate-100">
-                                                        <th class="px-4 py-2.5 text-left font-semibold">Tipo</th>
-                                                        <th class="px-4 py-2.5 text-left font-semibold">Nº Documento</th>
-                                                        <th class="px-4 py-2.5 text-left font-semibold">Fornecedor</th>
-                                                        <th class="px-4 py-2.5 text-left font-semibold">Finalidade</th>
-                                                        <th class="px-4 py-2.5 text-left font-semibold">Data</th>
-                                                        <th class="px-4 py-2.5 text-right font-semibold">Total s/ IVA</th>
-                                                        <th class="px-4 py-2.5 text-right font-semibold">IVA</th>
-                                                        <th class="px-4 py-2.5 text-right font-semibold">Total</th>
-                                                        <th class="px-4 py-2.5 text-center font-semibold">Estado</th>
-                                                        <th class="px-4 py-2.5 text-center font-semibold">Importada</th>
-                                                        <th class="px-4 py-2.5 text-center font-semibold no-print">Ficheiro</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y divide-slate-100">
-                                                    @foreach($docs->sortByDesc('date') as $doc)
+                                        <tbody class="divide-y divide-slate-100 grupo-marca" data-grupo="{{ $grupo }}">
+                                            {{-- Sub-cabeçalho da marca dentro do mês --}}
+                                            <tr class="bg-slate-50/70 border-t border-slate-200">
+                                                <td colspan="7" class="px-4 py-2">
+                                                    <span class="inline-flex items-center gap-2">
+                                                        <span class="inline-block w-2 h-2 rounded-full flex-shrink-0" style="background-color: {{ $corMarca }}"></span>
+                                                        <span class="text-xs font-semibold text-slate-700 uppercase tracking-wide">{{ $nomeMarca }}</span>
+                                                        @if($marcaMae)
+                                                            <span class="text-[11px] text-slate-400">{{ $marcaMae }}</span>
+                                                        @endif
+                                                        <span class="text-[11px] text-slate-400">{{ $dadosMarca['total']['count'] }} doc(s)</span>
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-2 text-right tnum text-sm font-semibold text-slate-700 whitespace-nowrap">
+                                                    {{ number_format($dadosMarca['total']['amount'], 2, ',', '.') }} €
+                                                </td>
+                                                <td colspan="3"></td>
+                                            </tr>
+
+                                            @foreach($dadosMarca['docs'] as $doc)
+                                                @php
+                                                    $totalComIva = $doc->amount;
+                                                    $iva         = $doc->iva;
+                                                    $totalSemIva = $totalComIva - $iva;
+                                                @endphp
+                                                <tr class="hover:bg-slate-50/70 transition-colors linha-documento"
+                                                    data-grupo="{{ $grupo }}"
+                                                    data-importada="{{ $doc->importado_contabilidade ? '1' : '0' }}">
+                                                    <td class="px-4 py-3">
+                                                        @php $tipos = \App\Models\AccountingDocument::tipos(); @endphp
+                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200">
+                                                            {{ $tipos[$doc->tipo ?? 'fatura'] ?? ucfirst($doc->tipo ?? 'fatura') }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="px-4 py-3 text-slate-500 tnum text-xs whitespace-nowrap">
+                                                        {{ $doc->invoice_number ?? '—' }}
+                                                        @if($doc->atcud)
+                                                            <p class="text-slate-300 mt-0.5">{{ $doc->atcud }}</p>
+                                                        @endif
+                                                    </td>
+                                                    <td class="px-4 py-3 text-slate-700 text-sm">
+                                                        <span class="font-medium text-slate-800">{{ $doc->fornecedor ?? $doc->title }}</span>
+                                                        @if($doc->supplier_nif)
+                                                            <p class="text-xs text-slate-400 tnum">NIF {{ $doc->supplier_nif }}</p>
+                                                        @endif
+                                                    </td>
+                                                    <td class="px-4 py-3 text-slate-700 text-sm min-w-48">
+                                                        <div class="font-medium">{{ \App\Models\AccountingDocument::finalidadeLabel($doc->title) }}</div>
+                                                        <div class="mt-1 flex flex-wrap gap-1">
+                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200">
+                                                                {{ $doc->category_label }}
+                                                            </span>
+                                                            @if($doc->origem === 'email')
+                                                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-600 ring-1 ring-inset ring-indigo-200"
+                                                                      title="Chegou por email: {{ $doc->email_de }}">
+                                                                    Email
+                                                                </span>
+                                                            @endif
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-4 py-3 text-slate-600 whitespace-nowrap text-sm tnum">
+                                                        {{ $doc->date->format('d/m/Y') }}
+                                                    </td>
+                                                    <td class="px-4 py-3 text-right tnum text-slate-700 whitespace-nowrap text-sm">
+                                                        {{ number_format($totalSemIva, 2, ',', '.') }} €
+                                                    </td>
+                                                    <td class="px-4 py-3 text-right tnum text-slate-500 whitespace-nowrap text-sm">
+                                                        {{ number_format($iva, 2, ',', '.') }} €
+                                                    </td>
+                                                    <td class="px-4 py-3 text-right tnum font-semibold text-slate-900 whitespace-nowrap">
+                                                        {{ number_format($totalComIva, 2, ',', '.') }} €
+                                                    </td>
+                                                    <td class="px-4 py-3 text-center">
                                                         @php
-                                                            $totalComIva  = $doc->amount;
-                                                            $iva          = $doc->iva;
-                                                            $totalSemIva  = $totalComIva - $iva;
+                                                            $estadoBadges = [
+                                                                'pendente' => 'bg-amber-50 text-amber-700 ring-amber-200',
+                                                                'aprovado' => 'bg-sky-50 text-sky-700 ring-sky-200',
+                                                                'pago'     => 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+                                                            ];
+                                                            $estadoNames = \App\Models\AccountingDocument::estados();
+                                                            $estadoKey   = $doc->estado ?? 'pendente';
+                                                            $badge       = $estadoBadges[$estadoKey] ?? 'bg-slate-100 text-slate-600 ring-slate-200';
                                                         @endphp
-                                                        <tr class="hover:bg-slate-50/70 transition-colors linha-documento"
-                                                            data-importada="{{ $doc->importado_contabilidade ? '1' : '0' }}">
-                                                            <td class="px-4 py-3">
-                                                                @php $tipos = \App\Models\AccountingDocument::tipos(); @endphp
-                                                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200">
-                                                                    {{ $tipos[$doc->tipo ?? 'fatura'] ?? ucfirst($doc->tipo ?? 'fatura') }}
-                                                                </span>
-                                                            </td>
-                                                            <td class="px-4 py-3 text-slate-500 tnum text-xs whitespace-nowrap">
-                                                                {{ $doc->invoice_number ?? '—' }}
-                                                                @if($doc->atcud)
-                                                                    <p class="text-slate-300 mt-0.5">{{ $doc->atcud }}</p>
-                                                                @endif
-                                                            </td>
-                                                            <td class="px-4 py-3 text-slate-700 text-sm">
-                                                                <span class="font-medium text-slate-800">{{ $doc->fornecedor ?? $doc->title }}</span>
-                                                                @if($doc->supplier_nif)
-                                                                    <p class="text-xs text-slate-400 tnum">NIF {{ $doc->supplier_nif }}</p>
-                                                                @endif
-                                                            </td>
-                                                            <td class="px-4 py-3 text-slate-700 text-sm min-w-48">
-                                                                <div class="font-medium">{{ $doc->title }}</div>
-                                                                <div class="mt-1 flex flex-wrap gap-1">
-                                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200">
-                                                                        {{ $doc->category_label }}
-                                                                    </span>
-                                                                </div>
-                                                            </td>
-                                                            <td class="px-4 py-3 text-slate-600 whitespace-nowrap text-sm tnum">
-                                                                {{ $doc->date->format('d/m/Y') }}
-                                                            </td>
-                                                            <td class="px-4 py-3 text-right tnum text-slate-700 whitespace-nowrap text-sm">
-                                                                {{ number_format($totalSemIva, 2, ',', '.') }} €
-                                                            </td>
-                                                            <td class="px-4 py-3 text-right tnum text-slate-500 whitespace-nowrap text-sm">
-                                                                {{ number_format($iva, 2, ',', '.') }} €
-                                                            </td>
-                                                            <td class="px-4 py-3 text-right tnum font-semibold text-slate-900 whitespace-nowrap">
-                                                                {{ number_format($totalComIva, 2, ',', '.') }} €
-                                                            </td>
-                                                            <td class="px-4 py-3 text-center">
-                                                                @php
-                                                                    $estadoBadges = [
-                                                                        'pendente' => 'bg-amber-50 text-amber-700 ring-amber-200',
-                                                                        'aprovado' => 'bg-sky-50 text-sky-700 ring-sky-200',
-                                                                        'pago'     => 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-                                                                    ];
-                                                                    $estadoNames = \App\Models\AccountingDocument::estados();
-                                                                    $estadoKey   = $doc->estado ?? 'pendente';
-                                                                    $badge       = $estadoBadges[$estadoKey] ?? 'bg-slate-100 text-slate-600 ring-slate-200';
-                                                                @endphp
-                                                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ring-1 ring-inset {{ $badge }}">
-                                                                    {{ $estadoNames[$estadoKey] ?? ucfirst($estadoKey) }}
-                                                                </span>
-                                                            </td>
-                                                            <td class="px-4 py-3 text-center">
-                                                                <label class="inline-flex flex-col items-center gap-1 cursor-pointer select-none">
-                                                                    <input type="checkbox"
-                                                                           class="marcar-importada h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                                                                           data-url="{{ route('contabilista.marcar-importado', ['token' => $token, 'id' => $doc->id]) }}"
-                                                                           @checked($doc->importado_contabilidade)>
-                                                                    <span class="text-[11px] leading-tight {{ $doc->importado_contabilidade ? 'text-emerald-600' : 'text-amber-600' }}" data-rotulo>
-                                                                        {{ $doc->importado_contabilidade
-                                                                            ? ($doc->importado_em?->format('d/m/Y') ?? 'Importada')
-                                                                            : 'Por importar' }}
-                                                                    </span>
-                                                                </label>
-                                                            </td>
-                                                            <td class="px-4 py-3 text-center no-print">
-                                                                <a href="{{ route('contabilista.details', ['token' => $token, 'id' => $doc->id]) }}"
-                                                                   class="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900 text-xs font-medium">
-                                                                    Detalhes
-                                                                </a>
-                                                                @if($doc->file_path)
-                                                                    <a href="{{ route('contabilista.download', ['token' => $token, 'id' => $doc->id]) }}"
-                                                                       class="ml-2 inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-xs font-medium"
+                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ring-1 ring-inset {{ $badge }}">
+                                                            {{ $estadoNames[$estadoKey] ?? ucfirst($estadoKey) }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="px-4 py-3 text-center">
+                                                        <label class="inline-flex flex-col items-center gap-1 cursor-pointer select-none">
+                                                            <input type="checkbox"
+                                                                   class="marcar-importada h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                                                   data-url="{{ route('contabilista.marcar-importado', ['token' => $token, 'id' => $doc->id]) }}"
+                                                                   @checked($doc->importado_contabilidade)>
+                                                            <span class="text-[11px] leading-tight {{ $doc->importado_contabilidade ? 'text-emerald-600' : 'text-amber-600' }}" data-rotulo>
+                                                                {{ $doc->importado_contabilidade
+                                                                    ? ($doc->importado_em?->format('d/m/Y') ?? 'Importada')
+                                                                    : 'Por importar' }}
+                                                            </span>
+                                                        </label>
+                                                    </td>
+                                                    <td class="px-4 py-3 text-center no-print">
+                                                        <a href="{{ route('contabilista.details', ['token' => $token, 'id' => $doc->id]) }}"
+                                                           class="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900 text-xs font-medium">
+                                                            Detalhes
+                                                        </a>
+                                                        @if($doc->file_path)
+                                                            <a href="{{ route('contabilista.download', ['token' => $token, 'id' => $doc->id]) }}"
+                                                               class="ml-2 inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-xs font-medium"
+                                                               target="_blank">
+                                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                                                </svg>
+                                                                Download
+                                                            </a>
+                                                        @endif
+                                                        @if(! empty($doc->image_paths))
+                                                            <div class="mt-1 flex flex-col items-center gap-1">
+                                                                @foreach(array_values($doc->image_paths) as $index => $imagePath)
+                                                                    <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($imagePath) }}"
+                                                                       class="text-xs text-slate-500 hover:text-slate-700"
                                                                        target="_blank">
-                                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                                                        </svg>
-                                                                        Download
+                                                                        Imagem {{ $index + 1 }}
                                                                     </a>
-                                                                @endif
-                                                                @if(! empty($doc->image_paths))
-                                                                    <div class="mt-1 flex flex-col items-center gap-1">
-                                                                        @foreach(array_values($doc->image_paths) as $index => $imagePath)
-                                                                            <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($imagePath) }}"
-                                                                               class="text-xs text-slate-500 hover:text-slate-700"
-                                                                               target="_blank">
-                                                                                Imagem {{ $index + 1 }}
-                                                                            </a>
-                                                                        @endforeach
-                                                                    </div>
-                                                                @endif
-                                                                @if(! $doc->file_path && empty($doc->image_paths))
-                                                                    <span class="text-slate-300 text-xs">—</span>
-                                                                @endif
-                                                            </td>
-                                                        </tr>
-                                                    @endforeach
-                                                </tbody>
-                                                {{-- Month subtotal --}}
-                                                <tfoot>
-                                                    <tr class="bg-slate-50 border-t border-slate-200">
-                                                        <td colspan="7" class="px-4 py-2.5 text-xs text-slate-500 font-medium">
-                                                            Total {{ \App\Models\AccountingDocument::monthName($month) }}
-                                                        </td>
-                                                        <td class="px-4 py-2.5 text-right font-bold text-slate-900 tnum">
-                                                            {{ number_format($monthTotal, 2, ',', '.') }} €
-                                                        </td>
-                                                        <td></td>
-                                                        <td colspan="2" class="no-print"></td>
-                                                    </tr>
-                                                </tfoot>
-                                            </table>
-                                        </div>
-                                    </div>
-                                @endforeach
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                        @if(! $doc->file_path && empty($doc->image_paths))
+                                                            <span class="text-slate-300 text-xs">—</span>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    @endforeach
+
+                                    {{-- Total do mês --}}
+                                    <tfoot>
+                                        <tr class="bg-slate-100 border-t-2 border-slate-300">
+                                            <td colspan="5" class="px-4 py-2.5 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                                                Total de {{ $nomeDoMes }} {{ $ano }}
+                                            </td>
+                                            <td class="px-4 py-2.5 text-right tnum text-sm text-slate-600 whitespace-nowrap">
+                                                {{ number_format($dadosMes['total']['amount'] - $dadosMes['total']['iva'], 2, ',', '.') }} €
+                                            </td>
+                                            <td class="px-4 py-2.5 text-right tnum text-sm text-slate-600 whitespace-nowrap">
+                                                {{ number_format($dadosMes['total']['iva'], 2, ',', '.') }} €
+                                            </td>
+                                            <td class="px-4 py-2.5 text-right font-bold text-slate-900 tnum whitespace-nowrap">
+                                                {{ number_format($dadosMes['total']['amount'], 2, ',', '.') }} €
+                                            </td>
+                                            <td colspan="3"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
                             </div>
                         </div>
                     @endforeach
@@ -379,6 +408,7 @@
                         const dados = await resposta.json();
 
                         linha?.setAttribute('data-importada', dados.importado ? '1' : '0');
+                        aplicarFiltro();
 
                         if (rotulo) {
                             rotulo.textContent = dados.importado
@@ -399,23 +429,46 @@
             });
 
             const filtro = document.getElementById('filtro-por-importar');
+            let soPorImportar = false;
+
+            // Esconder so as linhas deixava para tras o cabecalho da marca e o
+            // cartao do mes, vazios: um mes todo lancado aparecia na mesma, a
+            // dizer que faltava alguma coisa la dentro.
+            function aplicarFiltro() {
+                document.querySelectorAll('.linha-documento').forEach(function (linha) {
+                    const escondida = soPorImportar && linha.dataset.importada === '1';
+                    linha.style.display = escondida ? 'none' : '';
+                });
+
+                document.querySelectorAll('.grupo-marca').forEach(function (grupo) {
+                    const linhas = grupo.querySelectorAll('.linha-documento');
+                    const visiveis = Array.from(linhas).filter(function (linha) {
+                        return !soPorImportar || linha.dataset.importada !== '1';
+                    }).length;
+
+                    grupo.style.display = visiveis === 0 ? 'none' : '';
+                });
+
+                document.querySelectorAll('.cartao-mes').forEach(function (cartao) {
+                    const linhas = cartao.querySelectorAll('.linha-documento');
+                    const visiveis = Array.from(linhas).filter(function (linha) {
+                        return !soPorImportar || linha.dataset.importada !== '1';
+                    }).length;
+
+                    cartao.style.display = visiveis === 0 ? 'none' : '';
+                });
+
+                const estado = filtro?.querySelector('[data-estado]');
+
+                if (estado) {
+                    estado.textContent = soPorImportar ? 'mostrar todos' : 'mostrar só estes';
+                }
+            }
 
             if (filtro) {
-                let soPorImportar = false;
-
                 filtro.addEventListener('click', function () {
                     soPorImportar = !soPorImportar;
-
-                    document.querySelectorAll('.linha-documento').forEach(function (linha) {
-                        const escondida = soPorImportar && linha.dataset.importada === '1';
-                        linha.style.display = escondida ? 'none' : '';
-                    });
-
-                    const estado = filtro.querySelector('[data-estado]');
-
-                    if (estado) {
-                        estado.textContent = soPorImportar ? 'mostrar todos' : 'mostrar só estes';
-                    }
+                    aplicarFiltro();
                 });
             }
         })();

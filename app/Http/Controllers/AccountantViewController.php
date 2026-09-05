@@ -22,24 +22,37 @@ class AccountantViewController extends Controller
 
         $documents = AccountingDocument::with('brand.parent')->orderByDesc('date')->get();
 
-        $brandGroups = $documents
-            ->groupBy(fn ($d) => $d->brand_id ?? 0)
-            ->sortBy(fn ($docs, $brandId) => $brandId === 0
-                ? 'ZZZZ'
-                : ($docs->first()->brand?->full_name ?? 'ZZZZ')
-            )
-            ->map(fn ($brandDocs, $brandId) => [
-                'brand'      => $brandId ? $brandDocs->first()->brand : null,
-                'grouped'    => $brandDocs->groupBy('year')->sortKeysDesc()
-                                    ->map(fn ($yearDocs) => $yearDocs->groupBy('month')->sortKeysDesc()),
-                'yearTotals' => $brandDocs->groupBy('year')->map(fn ($docs) => [
-                    'count'  => $docs->count(),
-                    'amount' => $docs->sum('amount_cents') / 100,
-                ]),
-                'total'      => [
-                    'count'  => $brandDocs->count(),
-                    'amount' => $brandDocs->sum('amount_cents') / 100,
-                ],
+        // Ano -> Mes -> Marca. O mes manda porque e' assim que a contabilidade
+        // fecha: um mes de cada vez, do principio ao fim. Ate 05/09/2026 mandava
+        // a marca, e as facturas que entram pelo email — que nao trazem marca —
+        // caiam todas num monte "Geral" no fundo da pagina, longe do mes a que
+        // pertencem.
+        //
+        // O mes vem do `date` do documento (a data da factura), nao de quando
+        // ela chegou: uma factura de Agosto que so entra em Setembro pertence a
+        // Agosto, e e' em Agosto que ele tem de a lancar.
+        $anos = $documents
+            ->groupBy('year')
+            ->sortKeysDesc()
+            ->map(fn ($docsDoAno) => [
+                'total' => $this->totais($docsDoAno),
+                'meses' => $docsDoAno
+                    ->groupBy('month')
+                    ->sortKeysDesc()
+                    ->map(fn ($docsDoMes) => [
+                        'total'  => $this->totais($docsDoMes),
+                        'marcas' => $docsDoMes
+                            ->groupBy(fn (AccountingDocument $doc) => $doc->brand_id ?? 0)
+                            ->sortBy(fn ($docs, $brandId) => $brandId === 0
+                                ? 'ZZZZ'
+                                : ($docs->first()->brand?->full_name ?? 'ZZZZ')
+                            )
+                            ->map(fn ($docs) => [
+                                'brand' => $docs->first()->brand,
+                                'docs'  => $docs->sortByDesc('date'),
+                                'total' => $this->totais($docs),
+                            ]),
+                    ]),
             ]);
 
         $grandTotal = [
@@ -67,7 +80,7 @@ class AccountantViewController extends Controller
 
         return view('accountant.index', compact(
             'token',
-            'brandGroups',
+            'anos',
             'grandTotal',
             'porImportar',
             'supplierInvoices',
@@ -119,6 +132,25 @@ class AccountantViewController extends Controller
             : (($supplierInvoice->image_names[$image] ?? null) ?: basename($path));
 
         return $disk->download($path, $name);
+    }
+
+    /**
+     * Os mesmos quatro numeros para qualquer conjunto de documentos — ano, mes
+     * ou marca. O `porImportar` anda sempre ao lado do total de proposito: o
+     * numero que interessa a quem abre esta pagina nao e' quanto se gastou, e'
+     * quanto falta lancar.
+     *
+     * @param  \Illuminate\Support\Collection<int, AccountingDocument>  $documentos
+     * @return array{count: int, amount: float, iva: float, porImportar: int}
+     */
+    private function totais($documentos): array
+    {
+        return [
+            'count'       => $documentos->count(),
+            'amount'      => $documentos->sum('amount_cents') / 100,
+            'iva'         => $documentos->sum('iva_cents') / 100,
+            'porImportar' => $documentos->where('importado_contabilidade', false)->count(),
+        ];
     }
 
     /**

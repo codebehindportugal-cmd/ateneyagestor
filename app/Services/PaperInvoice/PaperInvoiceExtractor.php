@@ -604,18 +604,73 @@ class PaperInvoiceExtractor
         return '';
     }
 
+    /**
+     * A data do documento, em dd/mm/aaaa.
+     *
+     * Duas correccoes de 09/09/2026, as duas vindas de uma factura da Brisa:
+     *
+     * 1. A expressao numerica apanhava datas dentro de numeros de documento. O
+     *    "019.025.874/08/2026" da Via Verde dava a data "74/08/2026" — um dia
+     *    74, que ninguem repara porque a factura ja entrou. Agora exige que nao
+     *    venha digito nem ponto colado antes, e **valida com `checkdate`**: uma
+     *    data impossivel e' descartada em vez de guardada.
+     * 2. Muitas facturas escrevem "31 agosto 2026" por extenso. Nao era lido de
+     *    todo, e caia-se na data de hoje.
+     */
     private function extractDate(string $text): string
     {
-        if (preg_match('/(\d{2}[\/\-]\d{2}[\/\-]\d{4})/u', $text, $matches)) {
-            return str_replace('-', '/', $matches[1]);
+        // Por extenso primeiro: quando existe, e' a data de emissao, ao passo
+        // que os numeros soltos tanto podem ser prazos como referencias.
+        if (preg_match(
+            '/(\d{1,2})\s*(?:de\s+)?('.implode('|', array_keys(self::MESES_POR_EXTENSO)).')\s*(?:de\s+)?(\d{4})/iu',
+            $text,
+            $matches
+        )) {
+            $dia = (int) $matches[1];
+            $mes = self::MESES_POR_EXTENSO[mb_strtolower($matches[2])] ?? 0;
+            $ano = (int) $matches[3];
+
+            if ($mes > 0 && checkdate($mes, $dia, $ano)) {
+                return sprintf('%02d/%02d/%04d', $dia, $mes, $ano);
+            }
         }
 
-        if (preg_match('/(\d{4})-(\d{2})-(\d{2})/u', $text, $matches)) {
-            return $matches[3].'/'.$matches[2].'/'.$matches[1];
+        // dd/mm/aaaa, mas so' quando nao esta agarrada a outro numero.
+        if (preg_match_all('/(?<![\d.,\/-])(\d{2})[\/\-.](\d{2})[\/\-.](\d{4})(?![\d\/-])/u', $text, $todas, PREG_SET_ORDER)) {
+            foreach ($todas as $matches) {
+                if (checkdate((int) $matches[2], (int) $matches[1], (int) $matches[3])) {
+                    return $matches[1].'/'.$matches[2].'/'.$matches[3];
+                }
+            }
+        }
+
+        if (preg_match_all('/(?<![\d-])(\d{4})-(\d{2})-(\d{2})(?![\d-])/u', $text, $todas, PREG_SET_ORDER)) {
+            foreach ($todas as $matches) {
+                if (checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1])) {
+                    return $matches[3].'/'.$matches[2].'/'.$matches[1];
+                }
+            }
         }
 
         return '';
     }
+
+    /** Com e sem acento: o pdftotext nem sempre traz o cedilha e o til. */
+    private const MESES_POR_EXTENSO = [
+        'janeiro' => 1,
+        'fevereiro' => 2,
+        'março' => 3,
+        'marco' => 3,
+        'abril' => 4,
+        'maio' => 5,
+        'junho' => 6,
+        'julho' => 7,
+        'agosto' => 8,
+        'setembro' => 9,
+        'outubro' => 10,
+        'novembro' => 11,
+        'dezembro' => 12,
+    ];
 
     private function extractTotal(string $text): float
     {

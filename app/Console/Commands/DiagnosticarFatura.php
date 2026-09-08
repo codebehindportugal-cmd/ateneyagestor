@@ -110,8 +110,11 @@ class DiagnosticarFatura extends Command
         $this->line('  Numero: '.($resultado['invoice']['number'] ?: '—'));
         $this->line('  Data: '.($resultado['invoice']['date'] ?: '—'));
         $this->line('  TOTAL: '.($resultado['invoice']['total'] ?: '0').'   IVA: '.($resultado['invoice']['vatTotal'] ?: '0'));
-        $this->line('  QR code: '.(($resultado['qrData'] ?? '') !== '' ? 'encontrado' : 'nao encontrado'));
+        $this->line('  ATCUD: '.($resultado['invoice']['atcud'] ?: '—'));
         $this->line('  Texto lido: '.strlen($texto).' caracteres');
+
+        $this->mostrarQr((string) ($resultado['qrData'] ?? ''));
+        $this->mostrarCandidatosATotal($texto);
 
         if (($resultado['warnings'] ?? []) !== []) {
             $this->warn('  Avisos:');
@@ -131,5 +134,87 @@ class DiagnosticarFatura extends Command
         $this->line('  ── texto lido ──');
         $this->line(mb_substr($texto, 0, (int) $this->option('texto')));
         $this->line('  ── fim ──');
+    }
+
+    /**
+     * O QR das facturas portuguesas e' a fonte mais fiavel que ha: traz o NIF,
+     * o numero, a data e o total sem depender de nenhuma expressao regular.
+     * Quando ele existe e mesmo assim os campos vem vazios, e' porque o codigo
+     * que zbarimg leu nao e' o da AT — pode ser um QR de pagamento, ou um link.
+     * Sem ver o conteudo nao ha maneira de distinguir os dois casos.
+     */
+    private function mostrarQr(string $qrData): void
+    {
+        if ($qrData === '') {
+            $this->line('  QR code: nao encontrado');
+
+            return;
+        }
+
+        $this->line('  QR code: encontrado ('.strlen($qrData).' caracteres)');
+        $this->line('  ── conteudo do QR ──');
+        $this->line('  '.mb_substr($qrData, 0, 900));
+
+        $campos = [];
+
+        foreach (explode('*', $qrData) as $par) {
+            $corte = strpos($par, ':');
+
+            if ($corte !== false) {
+                $campos[trim(substr($par, 0, $corte))] = trim(substr($par, $corte + 1));
+            }
+        }
+
+        if ($campos === []) {
+            $this->error('  Este QR nao tem campos no formato da AT (A:...*B:...). Nao serve para ler a factura.');
+
+            return;
+        }
+
+        $this->line('  Campos: '.implode(', ', array_keys($campos)));
+        $this->line('    A (NIF emitente): '.($campos['A'] ?? '— em falta'));
+        $this->line('    D (tipo): '.($campos['D'] ?? '— em falta'));
+        $this->line('    F (data): '.($campos['F'] ?? '— em falta'));
+        $this->line('    G (numero): '.($campos['G'] ?? '— em falta'));
+        $this->line('    H (ATCUD): '.($campos['H'] ?? '— em falta'));
+        $this->line('    N (total IVA): '.($campos['N'] ?? '— em falta'));
+        $this->line('    O (total c/ IVA): '.($campos['O'] ?? '— em falta'));
+    }
+
+    /**
+     * As linhas onde o total provavelmente esta. Cada fornecedor escreve-o a
+     * sua maneira — "Total a pagar", "Importancia", "Total do documento" — e a
+     * expressao que o procura so' se corrige depois de se ver como aquele
+     * fornecedor o escreve.
+     */
+    private function mostrarCandidatosATotal(string $texto): void
+    {
+        $linhas = preg_split('/\R/u', $texto) ?: [];
+        $candidatas = [];
+
+        foreach ($linhas as $linha) {
+            $linha = trim(preg_replace('/\s+/u', ' ', $linha) ?? '');
+
+            if ($linha === '' || ! preg_match('/\d+[.,]\d{2}/', $linha)) {
+                continue;
+            }
+
+            if (preg_match('/total|pagar|import[aâ]ncia|iva|euros?|EUR|€|liquido|l[ií]quido/iu', $linha)) {
+                $candidatas[] = $linha;
+            }
+        }
+
+        if ($candidatas === []) {
+            $this->warn('  Nenhuma linha com aspecto de total.');
+
+            return;
+        }
+
+        $this->line('');
+        $this->line('  ── linhas com aspecto de total ──');
+
+        foreach (array_slice($candidatas, -20) as $linha) {
+            $this->line('    '.mb_substr($linha, 0, 160));
+        }
     }
 }

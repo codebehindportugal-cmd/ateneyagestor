@@ -3,6 +3,7 @@
 use App\Support\ClaudeAgenda;
 
 use App\Http\Controllers\AccountantViewController;
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\ClientDocumentController;
 use App\Http\Controllers\SupplierInvoiceController;
 use Illuminate\Support\Facades\Route;
@@ -73,3 +74,14 @@ Route::middleware('auth:web')
 Route::middleware(['web', 'auth'])->get('/admin/claude/agenda.json', function () {
     return response()->json(ClaudeAgenda::payload(request()->integer('projecto') ?: null));
 })->name('claude.agenda.web');
+
+// ── Anexos de projectos e tarefas ────────────────────────────────────────────
+// Fora do painel de proposito: o Filament nao serve ficheiros, e estes nao
+// podem ficar num URL publico. `auth` garante a sessao; a politica, no
+// controlador, garante o resto.
+Route::middleware('auth')->group(function () {
+    Route::get('/anexos/{attachment}/ver', [AttachmentController::class, 'ver'])
+        ->name('anexos.ver');
+    Route::get('/anexos/{attachment}/download', [AttachmentController::class, 'download'])
+        ->name('anexos.download');
+});

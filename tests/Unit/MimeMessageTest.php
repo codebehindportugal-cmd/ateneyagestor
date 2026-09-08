@@ -94,6 +94,23 @@ class MimeMessageTest extends TestCase
         $this->assertSame($foto, $anexos[1]['conteudo']);
     }
 
+    /**
+     * Um From sem nome nao e' um fornecedor. Enquanto isto devolvia o endereco,
+     * o painel encheu-se de facturas do fornecedor "noreply@amen.pt".
+     */
+    public function test_from_sem_nome_nao_inventa_um_fornecedor(): void
+    {
+        $semNome = MimeMessage::deBruto("From: noreply@amen.pt\r\nSubject: Aviso\r\n\r\n.");
+        $this->assertNull($semNome->nomeDe());
+        $this->assertSame('noreply@amen.pt', $semNome->enderecoDe());
+
+        $soAngulos = MimeMessage::deBruto("From: <contas@fornecedor.pt>\r\nSubject: Fatura\r\n\r\n.");
+        $this->assertNull($soAngulos->nomeDe());
+
+        $comNome = MimeMessage::deBruto("From: Papelaria Lda <contas@fornecedor.pt>\r\nSubject: Fatura\r\n\r\n.");
+        $this->assertSame('Papelaria Lda', $comNome->nomeDe());
+    }
+
     public function test_email_sem_anexos_nao_produz_documentos(): void
     {
         $boletim = "From: a@b.pt\r\nSubject: Boletim\r\nContent-Type: text/plain\r\n\r\nOla.";

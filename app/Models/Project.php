@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\TemAnexos;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,8 @@ use Illuminate\Support\Str;
 
 class Project extends Model
 {
+    use TemAnexos;
+
     protected $fillable = [
         'name',
         'slug',
@@ -39,6 +42,14 @@ class Project extends Model
             if (empty($project->slug)) {
                 $project->slug = Str::slug($project->name);
             }
+        });
+
+        // O `project_id` das tarefas tem cascadeOnDelete: apagar um projecto
+        // faz a base de dados varrer as tarefas sozinha, sem o Eloquent dar por
+        // isso. Sem esta linha, os anexos dessas tarefas ficavam com registo
+        // orfao e ficheiro esquecido no NAS, sem ninguem saber de quem eram.
+        static::deleting(function (self $project) {
+            $project->tasks->each->delete();
         });
     }
 

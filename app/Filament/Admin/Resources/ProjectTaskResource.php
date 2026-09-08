@@ -242,6 +242,7 @@ class ProjectTaskResource extends Resource
                 Tables\Actions\ActionGroup::make([
                     TaskActions::toggleDone(),
                     TaskActions::toggleWaiting(),
+                    TaskActions::anexos(),
                     TaskActions::comentar(),
                     TaskActions::historico(),
                     Tables\Actions\EditAction::make()->label('Editar'),
@@ -281,6 +282,13 @@ class ProjectTaskResource extends Resource
             ->emptyStateHeading('Sem tarefas')
             ->emptyStateDescription('Nada nesta vista. Experimenta o separador "Por escolher".')
             ->emptyStateIcon('heroicon-o-clipboard-document-check');
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            \App\Filament\Admin\Support\AnexosRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

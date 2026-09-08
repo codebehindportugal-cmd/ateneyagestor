@@ -304,6 +304,7 @@ class AccountingDocumentResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (string $state) => AccountingDocument::estados()[$state] ?? $state)
                     ->color(fn (string $state) => match ($state) {
+                        'por_rever' => 'danger',
                         'pendente'  => 'warning',
                         'aprovado'  => 'info',
                         'pago'      => 'success',
@@ -433,11 +434,32 @@ class AccountingDocumentResource extends Resource
                     ->url(fn (AccountingDocument $record) => Storage::disk('public')->url($record->file_path))
                     ->openUrlInNewTab(),
 
+                // Despachar um "por rever" sem abrir o formulario: a maior
+                // parte destes so' precisa de um olhar para se ver que e' uma
+                // factura boa — ou lixo para apagar.
+                Tables\Actions\Action::make('marcarRevista')
+                    ->label('Já revi')
+                    ->icon('heroicon-o-check')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Marcar como revista')
+                    ->modalDescription('Passa a Pendente e fica visível para o contabilista. Confirma que os valores estão certos.')
+                    ->visible(fn (AccountingDocument $record) => $record->estado === 'por_rever')
+                    ->action(fn (AccountingDocument $record) => $record->update(['estado' => 'pendente'])),
+
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\BulkAction::make('marcarRevistas')
+                        ->label('Marcar como revistas')
+                        ->icon('heroicon-o-check')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->deselectRecordsAfterCompletion()
+                        ->action(fn ($records) => $records->each->update(['estado' => 'pendente'])),
+
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])

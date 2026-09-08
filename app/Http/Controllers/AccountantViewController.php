@@ -20,7 +20,14 @@ class AccountantViewController extends Controller
     {
         $this->validateGlobalToken($token);
 
-        $documents = AccountingDocument::with('brand.parent')->orderByDesc('date')->get();
+        // `visivelParaContabilista` deixa de fora o que entrou por email e nao
+        // deu para ler. Antes disto ele abria Setembro e via quatro documentos
+        // a 0,00 EUR com data do dia em que o email chegou.
+        $documents = AccountingDocument::query()
+            ->visivelParaContabilista()
+            ->with('brand.parent')
+            ->orderByDesc('date')
+            ->get();
 
         // Ano -> Mes -> Marca. O mes manda porque e' assim que a contabilidade
         // fecha: um mes de cada vez, do principio ao fim. Ate 05/09/2026 mandava

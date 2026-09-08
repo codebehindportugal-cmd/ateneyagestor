@@ -65,7 +65,7 @@ class ImportadorFaturasEmail
 
     /**
      * @param  callable(string):void|null  $relatar  recebe cada passo, para o comando o escrever
-     * @return array{mensagens: int, documentos: int, duplicados: int, semAnexo: int, erros: list<string>}
+     * @return array{mensagens: int, documentos: int, porRever: int, duplicados: int, semAnexo: int, erros: list<string>}
      */
     public function correr(
         ?int $dias = null,
@@ -79,6 +79,7 @@ class ImportadorFaturasEmail
         $contas = [
             'mensagens' => 0,
             'documentos' => 0,
+            'porRever' => 0,
             'duplicados' => 0,
             'semAnexo' => 0,
             'erros' => [],
@@ -139,13 +140,19 @@ class ImportadorFaturasEmail
 
                         $criados++;
                         $contas['documentos']++;
+
+                        if ($documento->estado === 'por_rever') {
+                            $contas['porRever']++;
+                        }
+
                         $relatar(sprintf(
-                            '  #%d %s -> documento %d (%s, %s)',
+                            '  #%d %s -> documento %d (%s, %s)%s',
                             $uid,
                             $anexo['nome'],
                             $documento->id,
                             $documento->fornecedor ?: 'fornecedor por identificar',
                             number_format($documento->amount, 2, ',', '.').' EUR',
+                            $documento->estado === 'por_rever' ? '  << POR REVER' : '',
                         ));
                     }
 
@@ -203,6 +210,14 @@ class ImportadorFaturasEmail
         $nif = trim((string) ($leitura['supplier']['taxNumber'] ?? ''));
         $factura = $leitura['invoice'] ?? [];
 
+        $totalEmCentimos = (int) round(((float) ($factura['total'] ?? 0)) * 100);
+
+        // Uma factura tem sempre um total. Se a leitura nao o encontrou, o que
+        // esta neste anexo nao e' uma factura (extracto bancario, notificacao)
+        // ou nao ha maneira de a ler — nos dois casos, precisa de olhos antes
+        // de chegar ao contabilista. Ver AccountingDocument::estados().
+        $precisaDeRevisao = $totalEmCentimos <= 0;
+
         $documento = new AccountingDocument();
 
         $documento->fill([
@@ -210,14 +225,14 @@ class ImportadorFaturasEmail
             // A finalidade e' uma decisao de quem gere, nao se le da factura.
             // Fica em "Outro" e o painel mostra-a como por classificar.
             'title' => 'outro',
-            'estado' => 'pendente',
+            'estado' => $precisaDeRevisao ? 'por_rever' : 'pendente',
             'invoice_number' => $factura['number'] ?: null,
             'supplier_nif' => $nif ?: null,
             'atcud' => $factura['atcud'] ?: null,
             'fornecedor' => AccountingDocument::fornecedorPorNif($nif)
-                ?: ($fornecedorLido ?: $mensagem->nomeDe()),
+                ?: ($fornecedorLido ?: $this->nomeDoRemetente($mensagem)),
             'date' => $this->data($factura['date'] ?? null, $recebidoEm),
-            'amount_cents' => (int) round(((float) ($factura['total'] ?? 0)) * 100),
+            'amount_cents' => $totalEmCentimos,
             'iva_cents' => (int) round(((float) ($factura['vatTotal'] ?? 0)) * 100),
             'currency' => $factura['currency'] ?? 'EUR',
             'category' => 'fornecedores',
@@ -267,6 +282,25 @@ class ImportadorFaturasEmail
                 'rawText' => '',
             ];
         }
+    }
+
+    /**
+     * O nome de quem enviou, so' quando serve mesmo de fornecedor provisorio.
+     * Caixas automaticas — noreply, no-reply, mailer, faturacao@ do proprio
+     * fornecedor de email — nao sao nomes de empresa e nao valem mais do que o
+     * campo em branco.
+     */
+    private function nomeDoRemetente(MimeMessage $mensagem): ?string
+    {
+        $nome = $mensagem->nomeDe();
+
+        if ($nome === null) {
+            return null;
+        }
+
+        $automatica = '/\b(no-?reply|nao-?responder|naoresponder|mailer|postmaster|automat|donotreply)\b/i';
+
+        return preg_match($automatica, $nome) ? null : $nome;
     }
 
     private function tipoDeDocumento(?string $tipo): string

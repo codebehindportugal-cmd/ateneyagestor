@@ -251,6 +251,13 @@ class ProjectResource extends Resource
         ]);
     }
 
+    public static function getRelations(): array
+    {
+        return [
+            \App\Filament\Admin\Support\AnexosRelationManager::class,
+        ];
+    }
+
     public static function getPages(): array
     {
         return [

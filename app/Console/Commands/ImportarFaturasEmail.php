@@ -72,6 +72,14 @@ class ImportarFaturasEmail extends Command
             $contas['semAnexo'],
         ));
 
+        if ($contas['porRever'] > 0) {
+            $this->warn(sprintf(
+                '%d ficaram POR REVER (sem total legivel). Nao vao para o contabilista ate alguem lhes mexer: %s/admin/accounting-documents',
+                $contas['porRever'],
+                rtrim((string) config('app.url'), '/'),
+            ));
+        }
+
         if ($contas['erros'] !== []) {
             $this->newLine();
             $this->error(count($contas['erros']).' mensagem(ns) com erro:');

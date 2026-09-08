@@ -167,15 +167,31 @@ class ListAccountingDocuments extends ListRecords
 
     public function getTabs(): array
     {
-        $porImportar = AccountingDocument::where('importado_contabilidade', false)->count();
+        $porImportar = AccountingDocument::visivelParaContabilista()
+            ->where('importado_contabilidade', false)
+            ->count();
+
+        $porRever = AccountingDocument::where('estado', 'por_rever')->count();
 
         $tabs = [
             'all' => Tab::make('Todos'),
-            'por_importar' => Tab::make('Por importar pelo contabilista')
-                ->badge($porImportar)
-                ->badgeColor($porImportar > 0 ? 'warning' : 'success')
-                ->modifyQueryUsing(fn ($query) => $query->where('importado_contabilidade', false)),
         ];
+
+        // Primeiro separador so' aparece quando ha trabalho nele: um separador
+        // permanentemente a zero deixa de se ver ao fim de uma semana.
+        if ($porRever > 0) {
+            $tabs['por_rever'] = Tab::make('Por rever')
+                ->badge($porRever)
+                ->badgeColor('danger')
+                ->modifyQueryUsing(fn ($query) => $query->where('estado', 'por_rever'));
+        }
+
+        $tabs['por_importar'] = Tab::make('Por importar pelo contabilista')
+            ->badge($porImportar)
+            ->badgeColor($porImportar > 0 ? 'warning' : 'success')
+            ->modifyQueryUsing(fn ($query) => $query
+                ->visivelParaContabilista()
+                ->where('importado_contabilidade', false));
 
         $years = AccountingDocument::query()
             ->selectRaw('DISTINCT year')

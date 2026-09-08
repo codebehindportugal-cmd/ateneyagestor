@@ -66,14 +66,26 @@ class MimeMessage
         return filter_var($valor, FILTER_VALIDATE_EMAIL) ? $valor : null;
     }
 
-    /** O nome de quem envia, quando existe — serve de fornecedor provisorio. */
+    /**
+     * O nome de quem envia — o nome mesmo, nao o endereco.
+     *
+     * Quando o From nao traz nome nenhum ("noreply@amen.pt" e nada mais), isto
+     * devolve null em vez do endereco. Ate 08/09/2026 devolvia o endereco, que
+     * ia parar ao campo Fornecedor: o painel ficou com facturas do fornecedor
+     * "noreply@amen.pt". Um campo vazio ve-se; um endereco disfarca-se de dado
+     * bom e ninguem o corrige.
+     */
     public function nomeDe(): ?string
     {
         $valor = self::descodificarCabecalho($this->cabecalho('from') ?? '');
         $valor = trim(preg_replace('/<[^>]*>/', '', $valor) ?? '');
         $valor = trim($valor, " \t\"'");
 
-        return $valor !== '' ? $valor : null;
+        if ($valor === '' || filter_var($valor, FILTER_VALIDATE_EMAIL) || str_contains($valor, '@')) {
+            return null;
+        }
+
+        return $valor;
     }
 
     public function messageId(): ?string

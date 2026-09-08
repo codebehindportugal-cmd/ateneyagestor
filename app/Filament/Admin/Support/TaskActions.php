@@ -2,7 +2,9 @@
 
 namespace App\Filament\Admin\Support;
 
+use App\Models\Attachment;
 use App\Models\ProjectTask;
+use App\Services\AttachmentService;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Tables\Actions\Action;
@@ -17,6 +19,108 @@ use Illuminate\Support\Facades\Auth;
  */
 class TaskActions
 {
+    /**
+     * Os ficheiros da tarefa, sem sair da lista.
+     *
+     * A foto do erro chega quase sempre quando já se está a olhar para a
+     * tarefa. Obrigar a abrir a ficha para a anexar é o tipo de passo que faz
+     * a foto ficar no telemóvel de alguém.
+     */
+    public static function anexos(): Action
+    {
+        return Action::make('anexos')
+            ->label('Ficheiros')
+            ->icon('heroicon-o-paper-clip')
+            ->color('gray')
+            ->badge(fn (ProjectTask $record) => $record->anexos()->count() ?: null)
+            ->modalHeading(fn (ProjectTask $record) => 'Ficheiros · '.$record->title)
+            ->modalSubmitActionLabel('Carregar')
+            ->form([
+                Forms\Components\Placeholder::make('existentes')
+                    ->label('Já anexados')
+                    ->content(function (ProjectTask $record) {
+                        $anexos = $record->anexos()->get();
+
+                        if ($anexos->isEmpty()) {
+                            return new \Illuminate\Support\HtmlString(
+                                '<span class="text-gray-500">Ainda não há nada anexado a esta tarefa.</span>'
+                            );
+                        }
+
+                        $linhas = $anexos->map(fn (Attachment $anexo) => sprintf(
+                            '<li><a href="%s" target="_blank" class="text-primary-600 underline">%s</a>'
+                            .' <span class="text-gray-400 text-xs">%s · %s</span></li>',
+                            route('anexos.download', $anexo),
+                            e($anexo->name),
+                            e($anexo->formatted_size),
+                            e($anexo->origem_label),
+                        ))->implode('');
+
+                        return new \Illuminate\Support\HtmlString("<ul class=\"space-y-1\">{$linhas}</ul>");
+                    }),
+
+                Forms\Components\FileUpload::make('ficheiros')
+                    ->label('Juntar ficheiros')
+                    ->disk('local')
+                    ->directory('tmp-anexos')
+                    ->multiple()
+                    ->maxSize(51200)
+                    ->storeFileNamesIn('nomes_originais')
+                    ->helperText('Até 50 MB cada. Para apagar, é na ficha da tarefa e só o administrador.'),
+
+                Forms\Components\Select::make('origem')
+                    ->label('Quem mandou')
+                    ->options(Attachment::origens())
+                    ->default('cliente')
+                    ->required(),
+            ])
+            ->action(function (ProjectTask $record, array $data, AttachmentService $servico) {
+                $caminhos = array_values((array) ($data['ficheiros'] ?? []));
+
+                if ($caminhos === []) {
+                    return;
+                }
+
+                $nomes = array_values((array) ($data['nomes_originais'] ?? []));
+                $criados = 0;
+
+                foreach ($caminhos as $indice => $caminho) {
+                    $original = $nomes[$indice] ?? basename($caminho);
+
+                    try {
+                        $servico->processUpload(
+                            attachable: $record,
+                            tempDiskPath: $caminho,
+                            originalName: $original,
+                            name: pathinfo($original, PATHINFO_FILENAME),
+                            origem: $data['origem'] ?? 'cliente',
+                            uploadedBy: Auth::id(),
+                        );
+
+                        $criados++;
+                    } catch (\Throwable $e) {
+                        Notification::make()
+                            ->danger()
+                            ->title("Não consegui guardar {$original}")
+                            ->body($e->getMessage())
+                            ->persistent()
+                            ->send();
+                    }
+                }
+
+                if ($criados > 0) {
+                    $record->logActivity('comment', $criados === 1
+                        ? 'Juntou um ficheiro à tarefa.'
+                        : "Juntou {$criados} ficheiros à tarefa.");
+
+                    Notification::make()
+                        ->success()
+                        ->title($criados === 1 ? 'Ficheiro guardado' : "{$criados} ficheiros guardados")
+                        ->send();
+                }
+            });
+    }
+
     /**
      * Escolher trabalho. Enquanto a tarefa não tiver dono, qualquer pessoa da
      * equipa a pode chamar a si — e fica registado quem foi.

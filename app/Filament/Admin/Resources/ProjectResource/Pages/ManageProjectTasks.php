@@ -383,6 +383,7 @@ class ManageProjectTasks extends ManageRelatedRecords
                 TaskActions::ficarCom(),
                 TaskActions::toggleDone(),
                 TaskActions::toggleWaiting(),
+                TaskActions::anexos(),
                 TaskActions::comentar(),
                 TaskActions::historico(),
 

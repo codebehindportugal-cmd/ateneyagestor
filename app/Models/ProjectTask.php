@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\TemAnexos;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\Auth;
 
 class ProjectTask extends Model
 {
+    use TemAnexos;
+
     /**
      * Estados em que uma tarefa nunca conta como "em atraso": ou já terminou,
      * ou a bola está do lado do cliente e o prazo não é falha nossa.

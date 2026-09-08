@@ -331,3 +331,42 @@ documento no software dele. Quem marca e' ele, no portal `/contabilista/{token}`
 ha uma caixa por documento que grava sozinha, e um contador no topo com quantos
 faltam. No `/admin` isso aparece como coluna, filtro e separador **Por importar
 pelo contabilista** — de leitura, para nao haver duas versoes da verdade.
+
+## Ficheiros de projectos e tarefas
+
+Cada projecto e cada tarefa tem uma pasta de ficheiros — as fotos e documentos
+que os clientes mandam por email ou WhatsApp.
+
+- **Carrega so' a equipa**, no `/admin`. O portal do cliente continua com
+  facturas e tickets apenas.
+- **Estagiarios veem e carregam; apagar e' so' do administrador.** Um ficheiro
+  que o cliente mandou nao se recupera.
+
+Onde se mexe:
+
+| | |
+|---|---|
+| `attachments` | tabela **polimorfica** (`morphs('attachable')`) — juntar anexos a um ticket, amanha, e' uma linha no modelo |
+| `App\Models\Concerns\TemAnexos` | trait com a relacao `anexos()`; ja em `Project` e `ProjectTask` |
+| `AttachmentService` | NAS quando configurado, disco do servidor quando nao — a mesma regra do `ClientDocumentService` |
+| `AttachmentPolicy` | ver/carregar toda a gente, apagar so' admin. **Nao entra na `ADMIN_ONLY_MODELS`** — se entrasse, os estagiarios deixavam de ver os anexos das tarefas deles |
+| `AnexosRelationManager` | uma classe so', registada nos dois recursos (a relacao chama-se `anexos` nos dois) |
+| `TaskActions::anexos()` | accao **Ficheiros** na linha da tarefa, com badge da contagem |
+
+Os ficheiros **nunca ficam num URL publico**: saem pelas rotas `anexos.ver` e
+`anexos.download`, com `auth` e politica. O `AttachmentController` usa
+`Gate::authorize` e nao `$this->authorize` — o `Controller` base do Laravel 11
+nao traz o `AuthorizesRequests`.
+
+O campo `origem` (`cliente` | `equipa`) diz quem **mandou** o ficheiro, nao quem
+o carregou. E' o que interessa a quem olha para a lista tres meses depois.
+
+### Duas armadilhas ja fechadas — nao as reabrir
+
+1. **Apagar um projecto.** O `project_id` das tarefas tem `cascadeOnDelete`: a
+   base de dados varre as tarefas sem o Eloquent saber, e os anexos delas
+   ficavam com registo orfao e ficheiro esquecido no NAS. O `Project::booted()`
+   apaga as tarefas pelo Eloquent primeiro.
+2. **Miniaturas na lista.** Uma `ImageColumn` por linha ia buscar cada ficheiro
+   ao NAS por SSH — vinte fotos, vinte ligacoes so' para desenhar a pagina.
+   Ficou um icone por tipo.

@@ -93,13 +93,28 @@ class AccountingDocument extends Model
         ];
     }
 
+    /**
+     * O `por_rever` nasceu a 08/09/2026, quando as primeiras importacoes por
+     * email trouxeram extractos bancarios e notificacoes que entraram como
+     * facturas de 0,00 EUR e foram parar ao portal do contabilista. Um estado
+     * proprio e' mais honesto do que uma factura a zero: diz que o documento
+     * existe, que ninguem ainda o percebeu, e mantem-no fora da vista dele ate
+     * alguem lhe mexer.
+     */
     public static function estados(): array
     {
         return [
+            'por_rever' => 'Por rever',
             'pendente'  => 'Pendente',
             'aprovado'  => 'Aprovado',
             'pago'      => 'Pago',
         ];
+    }
+
+    /** O que o contabilista pode ver: tudo menos o que ainda ninguem confirmou. */
+    public function scopeVisivelParaContabilista($query)
+    {
+        return $query->where('estado', '!=', 'por_rever');
     }
 
     public function getIvaAttribute(): float

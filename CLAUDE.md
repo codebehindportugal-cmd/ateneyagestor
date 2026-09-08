@@ -300,9 +300,30 @@ Corre de 30 em 30 minutos pelo agendador (`cron.faturas_email.cron`), e ha dois
 botoes no `/admin/accounting-documents` — **Importar do email** e **Testar
 ligacao ao email** — visiveis so ao administrador.
 
-**So entram mensagens com anexo PDF ou imagem.** O resto fica na caixa. Imagens
-com menos de `FATURAS_EMAIL_MIN_IMAGE_KB` que venham embutidas no corpo sao
-logotipos de assinatura e sao ignoradas; os PDF entram sempre.
+**So entram mensagens com anexo.** O resto fica na caixa. Alem de PDF e imagens
+entram CSV, XLSX, XML, TXT e TSV — mas **so' quando tem nome proprio**, senao o
+corpo `text/plain` de todos os emails entrava como anexo. Imagens com menos de
+`FATURAS_EMAIL_MIN_IMAGE_KB` embutidas no corpo sao logotipos de assinatura e
+sao ignoradas; os PDF entram sempre.
+
+### Uma mensagem pode ser um so' gasto com varios ficheiros
+
+O email da Via Verde traz a factura, o detalhe das passagens e um CSV.
+
+**Quem decide o que e' a factura e' o total, nunca o nome do ficheiro.** No caso
+real da Via Verde e' o `detalhe_*.pdf` que traz o total — uma regra por nomes
+poria de lado justamente o ficheiro que interessa.
+
+- Ficheiro com total legivel → **documento**. Dois com total → dois documentos.
+- Ficheiro legivel sem total (a capa, o aviso) e ficheiros de dados (CSV, XML,
+  Excel) → **anexos desse documento**, pela tabela polimorfica `attachments`.
+- Nenhum ficheiro com total → **um** documento `por_rever` com tudo agarrado.
+  Nada se deita fora.
+
+O contabilista tem de os ter todos: `contabilista.anexos.download`, ao lado do
+download da factura. Todos os anexos passam primeiro por `tmp-faturas-email/` no
+disco `local` — o extractor precisa de um caminho real, e so' depois de ler e'
+que se sabe se o ficheiro vai para as facturas ou para o `AttachmentService`.
 
 Nao ha duplicados: o `ficheiro_hash` e' o sha256 do anexo e tem indice unico. O
 mesmo PDF reenviado nao volta a entrar, mesmo com outro assunto ou outro UID.
@@ -353,10 +374,34 @@ Onde se mexe:
 | `AnexosRelationManager` | uma classe so', registada nos dois recursos (a relacao chama-se `anexos` nos dois) |
 | `TaskActions::anexos()` | accao **Ficheiros** na linha da tarefa, com badge da contagem |
 
-Os ficheiros **nunca ficam num URL publico**: saem pelas rotas `anexos.ver` e
-`anexos.download`, com `auth` e politica. O `AttachmentController` usa
-`Gate::authorize` e nao `$this->authorize` — o `Controller` base do Laravel 11
-nao traz o `AuthorizesRequests`.
+### Nos tickets, o cliente anexa
+
+`TicketMessage` tambem tem `anexos`. Os dois `MessagesRelationManager` — o do
+`/admin` e o do portal do cliente — tem um `FileUpload` na resposta e mostram
+os ficheiros de cada mensagem. Usam `->using()` para criar a mensagem primeiro e
+processar os ficheiros a seguir: a resposta fica escrita mesmo que um anexo
+falhe a subir, porque perder o texto por causa do NAS obrigava o cliente a
+escrever tudo outra vez.
+
+`ficheiros` e `nomes_originais` **nao sao colunas** — saem do `$data` antes do
+`create()`.
+
+### As duas portas
+
+Os ficheiros **nunca ficam num URL publico**, e ha duas portas porque ha duas
+sessoes (`config/auth.php`):
+
+- **Equipa** (guard `web`): `anexos.ver` / `anexos.download`, com `auth` e
+  `Gate::authorize`.
+- **Cliente** (guard `client`): `cliente.anexos.ver` / `cliente.anexos.download`,
+  com `auth:client` e verificacao a mao. **So' anexos de mensagens dos tickets
+  dele** — nao ha dali caminho nenhum para os anexos de projectos e tarefas, que
+  sao trabalho interno. Se um dia houver, tem de ser decisao tomada, nao efeito
+  lateral.
+
+O `AttachmentController` usa `Gate::authorize` e nao `$this->authorize` — o
+`Controller` base do Laravel 11 nao traz o `AuthorizesRequests` — e a politica
+recebe um `User`, que nao serve para o guard do cliente.
 
 O campo `origem` (`cliente` | `equipa`) diz quem **mandou** o ficheiro, nao quem
 o carregou. E' o que interessa a quem olha para a lista tres meses depois.
@@ -366,7 +411,8 @@ o carregou. E' o que interessa a quem olha para a lista tres meses depois.
 1. **Apagar um projecto.** O `project_id` das tarefas tem `cascadeOnDelete`: a
    base de dados varre as tarefas sem o Eloquent saber, e os anexos delas
    ficavam com registo orfao e ficheiro esquecido no NAS. O `Project::booted()`
-   apaga as tarefas pelo Eloquent primeiro.
+   apaga as tarefas pelo Eloquent primeiro. **`Ticket::booted()` faz o mesmo com
+   as mensagens**, pela mesma razao.
 2. **Miniaturas na lista.** Uma `ImageColumn` por linha ia buscar cada ficheiro
    ao NAS por SSH — vinte fotos, vinte ligacoes so' para desenhar a pagina.
    Ficou um icone por tipo.

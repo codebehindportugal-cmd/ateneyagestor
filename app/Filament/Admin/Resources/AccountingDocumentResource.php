@@ -466,6 +466,13 @@ class AccountingDocumentResource extends Resource
             ->defaultSort('date', 'desc');
     }
 
+    public static function getRelations(): array
+    {
+        return [
+            \App\Filament\Admin\Support\AnexosRelationManager::class,
+        ];
+    }
+
     public static function getPages(): array
     {
         return [

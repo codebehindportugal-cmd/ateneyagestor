@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Models\Attachment;
+use App\Models\AccountingDocument;
 use App\Models\Project;
 use App\Models\ProjectTask;
+use App\Models\TicketMessage;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
@@ -99,6 +101,27 @@ class AttachmentService
             $slug = $attachable->project?->slug ?: 'sem-projecto';
 
             return "projectos/{$slug}/anexos/{$ano}/tarefa-{$attachable->id}";
+        }
+
+        // Os anexos de um ticket ficam debaixo do cliente e do ticket, nao
+        // da mensagem: quem procura "a foto que o cliente mandou naquele
+        // problema" nao se lembra em que resposta da conversa ela vinha.
+        if ($attachable instanceof TicketMessage) {
+            $ticket = $attachable->ticket;
+            $cliente = $ticket?->client;
+            $slug = $cliente
+                ? (Str::slug($cliente->company ?: $cliente->name) ?: "cliente-{$cliente->id}")
+                : 'sem-cliente';
+
+            return "clientes/{$slug}/tickets/{$ticket?->id}";
+        }
+
+        // Os acompanhantes de uma factura (detalhe, CSV, XML) ficam ao lado
+        // dela, por ano e mes — a mesma arrumacao que o contabilista ve.
+        if ($attachable instanceof AccountingDocument) {
+            $data = $attachable->date ?? now();
+
+            return 'contabilidade/'.$data->format('Y/m').'/anexos';
         }
 
         $tipo = Str::slug(class_basename($attachable));

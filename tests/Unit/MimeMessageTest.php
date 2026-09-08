@@ -111,6 +111,102 @@ class MimeMessageTest extends TestCase
         $this->assertSame('Papelaria Lda', $comNome->nomeDe());
     }
 
+    /**
+     * O email da Via Verde traz factura, detalhe e CSV, e e' um so' gasto.
+     *
+     * Repara em qual deles tem o total no caso real: e' o `detalhe_*.pdf`.
+     * Qualquer regra que decida pelo nome do ficheiro poe de lado justamente o
+     * que interessa — por isso `legivel` diz apenas "isto da' para ler", e quem
+     * decide o que e' a factura e' o total que o leitor encontrar.
+     */
+    public function test_email_com_varios_ficheiros_separa_legiveis_de_dados(): void
+    {
+        $fatura = '%PDF-fatura'.str_repeat('x', 3000);
+        $detalhe = '%PDF-detalhe'.str_repeat('y', 9000);
+        $csv = "Data;Portagem;Valor\r\n01/09/2026;A8 Bombarral;2,35\r\n";
+        $logo = str_repeat("\x89PNG\r\n", 80);
+
+        $b = 'FRONTEIRA';
+        $bruto = implode("\r\n", [
+            'Date: Tue, 08 Sep 2026 06:12:00 +0100',
+            'From: "Via Verde" <extracto@viaverde.pt>',
+            'Subject: Extracto Via Verde',
+            "Content-Type: multipart/mixed; boundary=\"{$b}\"",
+            '',
+            "--{$b}",
+            'Content-Type: text/plain; charset=UTF-8',
+            '',
+            'Segue o seu extracto mensal.',
+            "--{$b}",
+            'Content-Type: application/pdf',
+            'Content-Transfer-Encoding: base64',
+            'Content-Disposition: attachment; filename="fatura_2026_09.pdf"',
+            '',
+            trim(chunk_split(base64_encode($fatura), 76, "\r\n")),
+            "--{$b}",
+            'Content-Type: application/pdf',
+            'Content-Transfer-Encoding: base64',
+            'Content-Disposition: attachment; filename="detalhe_20260901.pdf"',
+            '',
+            trim(chunk_split(base64_encode($detalhe), 76, "\r\n")),
+            "--{$b}",
+            'Content-Type: text/csv; charset=UTF-8',
+            'Content-Transfer-Encoding: base64',
+            'Content-Disposition: attachment; filename="detalhe_20260901.csv"',
+            '',
+            trim(chunk_split(base64_encode($csv), 76, "\r\n")),
+            "--{$b}",
+            'Content-Type: image/png',
+            'Content-Transfer-Encoding: base64',
+            'Content-Disposition: inline',
+            'Content-ID: <logo@viaverde>',
+            '',
+            trim(chunk_split(base64_encode($logo), 76, "\r\n")),
+            "--{$b}--",
+        ]);
+
+        $anexos = MimeMessage::deBruto($bruto)->anexosDeFatura();
+
+        // O corpo de texto e o logotipo da assinatura ficam de fora.
+        $this->assertCount(3, $anexos);
+
+        $this->assertSame(['fatura_2026_09.pdf', true], [$anexos[0]['nome'], $anexos[0]['legivel']]);
+        $this->assertSame(['detalhe_20260901.pdf', true], [$anexos[1]['nome'], $anexos[1]['legivel']]);
+        $this->assertSame(['detalhe_20260901.csv', false], [$anexos[2]['nome'], $anexos[2]['legivel']]);
+
+        $this->assertSame($csv, $anexos[2]['conteudo']);
+        $this->assertSame($detalhe, $anexos[1]['conteudo']);
+        $this->assertSame('csv', $anexos[2]['extensao']);
+    }
+
+    public function test_xml_e_excel_entram_como_dados(): void
+    {
+        $xml = '<?xml version="1.0"?><Invoice><Total>123.45</Total></Invoice>';
+
+        $bruto = implode("\r\n", [
+            'From: a@b.pt', 'Content-Type: multipart/mixed; boundary="F2"', '',
+            '--F2',
+            'Content-Type: application/octet-stream',
+            'Content-Transfer-Encoding: base64',
+            'Content-Disposition: attachment; filename="ft2026.xml"',
+            '',
+            base64_encode($xml),
+            '--F2',
+            'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Transfer-Encoding: base64',
+            'Content-Disposition: attachment; filename="mapa.xlsx"',
+            '',
+            base64_encode('PK-excel'),
+            '--F2--',
+        ]);
+
+        $anexos = MimeMessage::deBruto($bruto)->anexosDeFatura();
+
+        $this->assertCount(2, $anexos);
+        $this->assertFalse($anexos[0]['legivel']);
+        $this->assertSame($xml, $anexos[0]['conteudo']);
+    }
+
     public function test_email_sem_anexos_nao_produz_documentos(): void
     {
         $boletim = "From: a@b.pt\r\nSubject: Boletim\r\nContent-Type: text/plain\r\n\r\nOla.";

@@ -29,6 +29,19 @@ class Ticket extends Model
         ];
     }
 
+    /**
+     * O `ticket_id` das mensagens tem cascadeOnDelete: a base de dados varre a
+     * conversa sozinha e o Eloquent nunca sabe. Sem isto, os ficheiros que o
+     * cliente anexou as mensagens ficavam com registo orfao e o ficheiro
+     * esquecido no NAS. O mesmo cuidado esta no Project, pela mesma razao.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (self $ticket) {
+            $ticket->messages->each->delete();
+        });
+    }
+
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);

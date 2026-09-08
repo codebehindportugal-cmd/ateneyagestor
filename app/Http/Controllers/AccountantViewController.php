@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\AccountingDocument;
+use App\Models\Attachment;
 use App\Models\Brand;
 use App\Models\Client;
 use App\Models\ClientDocument;
 use App\Models\Setting;
 use App\Models\SupplierInvoice;
+use App\Services\AttachmentService;
 use App\Services\ClientDocumentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -25,7 +27,7 @@ class AccountantViewController extends Controller
         // a 0,00 EUR com data do dia em que o email chegou.
         $documents = AccountingDocument::query()
             ->visivelParaContabilista()
-            ->with('brand.parent')
+            ->with('brand.parent', 'anexos')
             ->orderByDesc('date')
             ->get();
 
@@ -109,6 +111,23 @@ class AccountantViewController extends Controller
             $doc->file_path,
             $doc->file_name ?? basename($doc->file_path)
         );
+    }
+
+    /**
+     * Os ficheiros que vieram no mesmo email da factura — o detalhe das
+     * passagens, o CSV, o XML. Ele precisa de os ter, e o unico caminho ate
+     * eles e' este: nao ha URL publico para nenhum ficheiro.
+     */
+    public function anexoDownload(string $token, Attachment $attachment, AttachmentService $anexos)
+    {
+        $this->validateGlobalToken($token);
+
+        $documento = $attachment->attachable;
+
+        abort_unless($documento instanceof AccountingDocument, 404);
+        abort_if($documento->estado === 'por_rever', 404);
+
+        return $anexos->stream($attachment, inline: false);
     }
 
     public function details(string $token, int $id)

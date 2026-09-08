@@ -316,7 +316,18 @@
                                                                 @endforeach
                                                             </div>
                                                         @endif
-                                                        @if(! $doc->file_path && empty($doc->image_paths))
+                                                        @if($doc->anexos->isNotEmpty())
+                                                            <div class="mt-1 flex flex-col items-center gap-0.5">
+                                                                @foreach($doc->anexos as $anexo)
+                                                                    <a href="{{ route('contabilista.anexos.download', ['token' => $token, 'attachment' => $anexo]) }}"
+                                                                       class="text-xs text-slate-500 hover:text-slate-700"
+                                                                       title="Veio no mesmo email">
+                                                                        {{ \Illuminate\Support\Str::limit($anexo->original_name, 22) }}
+                                                                    </a>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                        @if(! $doc->file_path && empty($doc->image_paths) && $doc->anexos->isEmpty())
                                                             <span class="text-slate-300 text-xs">—</span>
                                                         @endif
                                                     </td>

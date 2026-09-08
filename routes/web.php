@@ -36,6 +36,8 @@ Route::get('/contabilista/{token}/download/{id}', [AccountantViewController::cla
     ->name('contabilista.download');
 Route::get('/contabilista/{token}/documentos/{id}', [AccountantViewController::class, 'details'])
     ->name('contabilista.details');
+Route::get('/contabilista/{token}/anexos/{attachment}/download', [AccountantViewController::class, 'anexoDownload'])
+    ->name('contabilista.anexos.download');
 Route::post('/contabilista/{token}/documentos/{id}/importado', [AccountantViewController::class, 'marcarImportado'])
     ->name('contabilista.marcar-importado');
 Route::get('/contabilista/{token}/supplier-invoices/{supplierInvoice}/download/{image?}', [AccountantViewController::class, 'supplierInvoiceDownload'])
@@ -84,4 +86,13 @@ Route::middleware('auth')->group(function () {
         ->name('anexos.ver');
     Route::get('/anexos/{attachment}/download', [AttachmentController::class, 'download'])
         ->name('anexos.download');
+});
+
+// O cliente tem sessao propria (guard `client`) e portas proprias — so' para os
+// ficheiros das mensagens dos tickets dele.
+Route::middleware('auth:client')->group(function () {
+    Route::get('/client/anexos/{attachment}/ver', [AttachmentController::class, 'verCliente'])
+        ->name('cliente.anexos.ver');
+    Route::get('/client/anexos/{attachment}/download', [AttachmentController::class, 'downloadCliente'])
+        ->name('cliente.anexos.download');
 });

@@ -129,12 +129,21 @@ class MimeMessage
     }
 
     /**
-     * So' o que pode ser uma factura: PDF sempre; imagens apenas quando vem
-     * como anexo verdadeiro e com tamanho de fotografia. Sem este travao, o
-     * logotipo da assinatura de cada fornecedor entrava como documento de
-     * contabilidade — e sao dezenas por semana.
+     * O que vale a pena trazer de uma mensagem.
      *
-     * @return list<array{nome: string, mime: string, conteudo: string, extensao: string}>
+     * Duas familias, e a diferenca importa:
+     *  - **legivel** (PDF e imagens): pode ter um total la dentro, por isso e'
+     *    candidato a ser a factura. Quem decide e' o leitor, nao o nome do
+     *    ficheiro — no email da Via Verde e' o `detalhe_*.pdf` que traz o
+     *    total, e uma regra por nomes punha-o de lado como se fosse acessorio.
+     *  - **dados** (CSV, Excel, XML, texto): nunca sao a factura, mas o
+     *    contabilista precisa deles na mesma. Ficam anexados ao documento.
+     *
+     * Imagens pequenas embutidas no corpo sao logotipos de assinatura e ficam
+     * de fora. Os ficheiros de dados so' entram quando tem nome proprio: sem
+     * isso, o corpo `text/plain` de todos os emails entrava como anexo.
+     *
+     * @return list<array{nome: string, mime: string, conteudo: string, extensao: string, legivel: bool}>
      */
     public function anexosDeFatura(int $minimoImagemBytes = 30720, int $maximoBytes = 20971520): array
     {
@@ -149,19 +158,22 @@ class MimeMessage
                 continue;
             }
 
-            $ehPdf = $mime === 'application/pdf'
-                || $mime === 'application/x-pdf'
+            $ehPdf = in_array($mime, ['application/pdf', 'application/x-pdf'], true)
                 || $extensao === 'pdf';
 
             $ehImagem = str_starts_with($mime, 'image/')
                 || in_array($extensao, ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tif', 'tiff'], true);
 
-            if (! $ehPdf && ! $ehImagem) {
+            $ehDados = ! $ehPdf && ! $ehImagem
+                && $parte['nome'] !== null
+                && in_array($extensao, self::EXTENSOES_DE_DADOS, true);
+
+            if (! $ehPdf && ! $ehImagem && ! $ehDados) {
                 continue;
             }
 
             if ($ehImagem && ! $ehPdf) {
-                // Imagem embutida no corpo (logotipo, botao, separador).
+                // Logotipo, botao ou separador embutido no corpo.
                 if ($parte['contentId'] !== null && $parte['disposicao'] !== 'attachment') {
                     continue;
                 }
@@ -176,11 +188,15 @@ class MimeMessage
                 'mime' => $mime,
                 'conteudo' => $parte['conteudo'],
                 'extensao' => $extensao ?: ($ehPdf ? 'pdf' : 'jpg'),
+                'legivel' => $ehPdf || $ehImagem,
             ];
         }
 
         return $anexos;
     }
+
+    /** Ficheiros que acompanham uma factura mas nunca sao a factura. */
+    private const EXTENSOES_DE_DADOS = ['csv', 'xls', 'xlsx', 'xml', 'txt', 'tsv'];
 
     // ── Leitura ──────────────────────────────────────────────────────────────
 
@@ -507,6 +523,10 @@ class MimeMessage
             'image/gif' => 'gif',
             'image/bmp' => 'bmp',
             'image/tiff' => 'tiff',
+            'text/csv', 'application/csv' => 'csv',
+            'application/vnd.ms-excel' => 'xls',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+            'text/xml', 'application/xml' => 'xml',
             default => '',
         };
     }

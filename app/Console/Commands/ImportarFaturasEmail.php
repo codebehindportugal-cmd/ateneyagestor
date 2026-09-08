@@ -65,9 +65,10 @@ class ImportarFaturasEmail extends Command
 
         $this->newLine();
         $this->info(sprintf(
-            '%d mensagem(ns) analisadas · %d documento(s) criados · %d duplicado(s) · %d sem anexo de factura.',
+            '%d mensagem(ns) analisadas · %d documento(s) criados · %d ficheiro(s) anexados · %d duplicado(s) · %d sem anexo de factura.',
             $contas['mensagens'],
             $contas['documentos'],
+            $contas['anexos'],
             $contas['duplicados'],
             $contas['semAnexo'],
         ));

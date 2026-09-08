@@ -3,6 +3,7 @@
 namespace App\Services\Faturacao;
 
 use App\Models\AccountingDocument;
+use App\Services\AttachmentService;
 use App\Services\PaperInvoice\PaperInvoiceExtractor;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -65,7 +66,7 @@ class ImportadorFaturasEmail
 
     /**
      * @param  callable(string):void|null  $relatar  recebe cada passo, para o comando o escrever
-     * @return array{mensagens: int, documentos: int, porRever: int, duplicados: int, semAnexo: int, erros: list<string>}
+     * @return array{mensagens: int, documentos: int, porRever: int, anexos: int, duplicados: int, semAnexo: int, erros: list<string>}
      */
     public function correr(
         ?int $dias = null,
@@ -80,6 +81,7 @@ class ImportadorFaturasEmail
             'mensagens' => 0,
             'documentos' => 0,
             'porRever' => 0,
+            'anexos' => 0,
             'duplicados' => 0,
             'semAnexo' => 0,
             'erros' => [],
@@ -126,35 +128,12 @@ class ImportadorFaturasEmail
                         continue;
                     }
 
-                    $criados = 0;
+                    $resultado = $this->processarMensagem($mensagem, $anexos, $uid, $relatar);
 
-                    foreach ($anexos as $anexo) {
-                        $documento = $this->criarDocumento($mensagem, $anexo);
-
-                        if ($documento === null) {
-                            $contas['duplicados']++;
-                            $relatar(sprintf('  #%d "%s" — ja tinha sido importado.', $uid, $anexo['nome']));
-
-                            continue;
-                        }
-
-                        $criados++;
-                        $contas['documentos']++;
-
-                        if ($documento->estado === 'por_rever') {
-                            $contas['porRever']++;
-                        }
-
-                        $relatar(sprintf(
-                            '  #%d %s -> documento %d (%s, %s)%s',
-                            $uid,
-                            $anexo['nome'],
-                            $documento->id,
-                            $documento->fornecedor ?: 'fornecedor por identificar',
-                            number_format($documento->amount, 2, ',', '.').' EUR',
-                            $documento->estado === 'por_rever' ? '  << POR REVER' : '',
-                        ));
-                    }
+                    $contas['documentos'] += $resultado['documentos'];
+                    $contas['porRever'] += $resultado['porRever'];
+                    $contas['duplicados'] += $resultado['duplicados'];
+                    $contas['anexos'] += $resultado['anexos'];
 
                     // Uma mensagem cujos anexos ja estavam todos importados
                     // tambem se arruma: caso contrario voltava a ser analisada
@@ -178,20 +157,171 @@ class ImportadorFaturasEmail
         return $contas;
     }
 
-    // ── Criacao do documento ─────────────────────────────────────────────────
+    // ── Uma mensagem, um gasto ───────────────────────────────────────────────
 
     /**
-     * @param  array{nome: string, mime: string, conteudo: string, extensao: string}  $anexo
+     * Uma mensagem pode trazer tres ficheiros e ser um so' gasto.
+     *
+     * O email da Via Verde traz a factura, o detalhe das passagens e um CSV.
+     * Ate 09/09/2026 cada PDF virava um documento e o CSV era deitado fora: o
+     * contabilista ficava com duas linhas para o mesmo gasto, uma delas a zero,
+     * e sem o ficheiro de detalhe.
+     *
+     * A regra e' **ler**, nao adivinhar pelo nome: um ficheiro com total e' uma
+     * factura, o resto sao anexos dela. No caso da Via Verde e' precisamente o
+     * `detalhe_*.pdf` que traz o total — uma regra por nomes teria posto de
+     * lado o unico ficheiro que interessava.
+     *
+     * Dois emails com duas facturas a serio continuam a dar dois documentos:
+     * quem decide e' o total, nao a contagem de ficheiros.
+     *
+     * @param  list<array{nome: string, mime: string, conteudo: string, extensao: string, legivel: bool}>  $anexos
+     * @return array{documentos: int, porRever: int, duplicados: int, anexos: int}
      */
-    private function criarDocumento(MimeMessage $mensagem, array $anexo): ?AccountingDocument
+    private function processarMensagem(MimeMessage $mensagem, array $anexos, int $uid, callable $relatar): array
     {
-        $hash = hash('sha256', $anexo['conteudo']);
+        $contas = ['documentos' => 0, 'porRever' => 0, 'duplicados' => 0, 'anexos' => 0];
+        $recebidoEm = $mensagem->data() ? Carbon::instance($mensagem->data()) : Carbon::now();
 
-        if (AccountingDocument::where('ficheiro_hash', $hash)->exists()) {
-            return null;
+        /** @var list<AccountingDocument> $documentos */
+        $documentos = [];
+        /** @var list<array{anexo: array, temp: string}> $porAnexar */
+        $porAnexar = [];
+
+        foreach ($anexos as $anexo) {
+            $hash = hash('sha256', $anexo['conteudo']);
+
+            if (AccountingDocument::where('ficheiro_hash', $hash)->exists()) {
+                $contas['duplicados']++;
+                $relatar(sprintf('  #%d %s — ja tinha sido importado.', $uid, $anexo['nome']));
+
+                continue;
+            }
+
+            $temporario = $this->guardarTemporario($anexo);
+
+            if (! $anexo['legivel']) {
+                $porAnexar[] = ['anexo' => $anexo, 'temp' => $temporario];
+
+                continue;
+            }
+
+            $leitura = $this->ler($temporario);
+            $total = (int) round(((float) ($leitura['invoice']['total'] ?? 0)) * 100);
+
+            if ($total <= 0) {
+                // Sem total nao e' a factura — e' o detalhe, a capa, o aviso.
+                $porAnexar[] = ['anexo' => $anexo, 'temp' => $temporario];
+
+                continue;
+            }
+
+            $documento = $this->criarDocumento($mensagem, $anexo, $temporario, $hash, $leitura, $total, $recebidoEm);
+            $documentos[] = $documento;
+            $contas['documentos']++;
+
+            $relatar(sprintf(
+                '  #%d %s -> documento %d (%s, %s)',
+                $uid,
+                $anexo['nome'],
+                $documento->id,
+                $documento->fornecedor ?: 'fornecedor por identificar',
+                number_format($documento->amount, 2, ',', '.').' EUR',
+            ));
         }
 
-        $recebidoEm = $mensagem->data() ? Carbon::instance($mensagem->data()) : Carbon::now();
+        // Nenhum ficheiro tinha total: nao se deita nada fora. Nasce um
+        // documento por rever com tudo agarrado, para alguem olhar.
+        if ($documentos === [] && $porAnexar !== []) {
+            $primeiroLegivel = null;
+
+            foreach ($porAnexar as $indice => $pendente) {
+                if ($pendente['anexo']['legivel']) {
+                    $primeiroLegivel = $indice;
+
+                    break;
+                }
+            }
+
+            $documento = $this->criarDocumentoPorRever(
+                $mensagem,
+                $primeiroLegivel !== null ? $porAnexar[$primeiroLegivel] : null,
+                $recebidoEm,
+                $anexos,
+            );
+
+            if ($primeiroLegivel !== null) {
+                unset($porAnexar[$primeiroLegivel]);
+                $porAnexar = array_values($porAnexar);
+            }
+
+            $documentos[] = $documento;
+            $contas['documentos']++;
+            $contas['porRever']++;
+
+            $relatar(sprintf(
+                '  #%d "%s" -> documento %d  << POR REVER (nenhum ficheiro tinha total)',
+                $uid,
+                Str::limit($mensagem->assunto(), 40),
+                $documento->id,
+            ));
+        }
+
+        // Os acompanhantes vao todos para o primeiro documento da mensagem: e'
+        // o gasto a que pertencem, e o contabilista tem de os ter.
+        if ($documentos !== [] && $porAnexar !== []) {
+            $dono = $documentos[0];
+
+            foreach ($porAnexar as $pendente) {
+                try {
+                    app(AttachmentService::class)->processUpload(
+                        attachable: $dono,
+                        tempDiskPath: $pendente['temp'],
+                        originalName: $pendente['anexo']['nome'],
+                        name: pathinfo($pendente['anexo']['nome'], PATHINFO_FILENAME),
+                        origem: 'cliente',
+                        notes: 'Veio no mesmo email da factura.',
+                    );
+
+                    $contas['anexos']++;
+                    $relatar(sprintf('  #%d %s -> anexo do documento %d', $uid, $pendente['anexo']['nome'], $dono->id));
+                } catch (\Throwable $e) {
+                    Log::warning("faturas:importar-email — anexo {$pendente['anexo']['nome']}: ".$e->getMessage());
+                    $relatar(sprintf('  #%d %s — nao consegui anexar: %s', $uid, $pendente['anexo']['nome'], $e->getMessage()));
+                }
+            }
+        }
+
+        // Ficheiros temporarios de mensagens que nao deram documento nenhum.
+        foreach ($porAnexar as $pendente) {
+            if ($documentos === []) {
+                Storage::disk('local')->delete($pendente['temp']);
+            }
+        }
+
+        return $contas;
+    }
+
+    /**
+     * O ficheiro entra sempre primeiro numa pasta temporaria do disco `local`.
+     *
+     * O extractor precisa de um caminho no disco para correr o pdftotext e o
+     * tesseract, e so' depois de o ler e' que se sabe se aquilo e' a factura
+     * (vai para as facturas) ou um acompanhante (vai pelo AttachmentService,
+     * que decide entre NAS e disco). Escrever primeiro no destino final
+     * obrigava a mover ficheiros ja arrumados.
+     */
+    private function guardarTemporario(array $anexo): string
+    {
+        $caminho = 'tmp-faturas-email/'.Str::uuid().'.'.$anexo['extensao'];
+
+        Storage::disk('local')->put($caminho, $anexo['conteudo']);
+
+        return $caminho;
+    }
+
+    private function moverParaDocumentos(string $temporario, array $anexo, Carbon $recebidoEm, string $hash): string
+    {
         $ehPdf = $anexo['extensao'] === 'pdf';
 
         $pasta = ($ehPdf ? 'accounting-documents' : 'accounting-document-images')
@@ -200,32 +330,36 @@ class ImportadorFaturasEmail
         $nomeFicheiro = Str::limit(Str::slug(pathinfo($anexo['nome'], PATHINFO_FILENAME)), 60, '')
             .'-'.substr($hash, 0, 8).'.'.$anexo['extensao'];
 
-        $caminho = $pasta.'/'.$nomeFicheiro;
+        $destino = $pasta.'/'.$nomeFicheiro;
 
-        Storage::disk('public')->put($caminho, $anexo['conteudo']);
+        Storage::disk('public')->put($destino, Storage::disk('local')->get($temporario));
+        Storage::disk('local')->delete($temporario);
 
-        $leitura = $this->ler($caminho);
+        return $destino;
+    }
+
+    private function criarDocumento(
+        MimeMessage $mensagem,
+        array $anexo,
+        string $temporario,
+        string $hash,
+        array $leitura,
+        int $totalEmCentimos,
+        Carbon $recebidoEm,
+    ): AccountingDocument {
+        $caminho = $this->moverParaDocumentos($temporario, $anexo, $recebidoEm, $hash);
 
         $fornecedorLido = trim((string) ($leitura['supplier']['name'] ?? ''));
         $nif = trim((string) ($leitura['supplier']['taxNumber'] ?? ''));
         $factura = $leitura['invoice'] ?? [];
-
-        $totalEmCentimos = (int) round(((float) ($factura['total'] ?? 0)) * 100);
-
-        // Uma factura tem sempre um total. Se a leitura nao o encontrou, o que
-        // esta neste anexo nao e' uma factura (extracto bancario, notificacao)
-        // ou nao ha maneira de a ler — nos dois casos, precisa de olhos antes
-        // de chegar ao contabilista. Ver AccountingDocument::estados().
-        $precisaDeRevisao = $totalEmCentimos <= 0;
 
         $documento = new AccountingDocument();
 
         $documento->fill([
             'tipo' => $this->tipoDeDocumento($factura['type'] ?? null),
             // A finalidade e' uma decisao de quem gere, nao se le da factura.
-            // Fica em "Outro" e o painel mostra-a como por classificar.
             'title' => 'outro',
-            'estado' => $precisaDeRevisao ? 'por_rever' : 'pendente',
+            'estado' => 'pendente',
             'invoice_number' => $factura['number'] ?: null,
             'supplier_nif' => $nif ?: null,
             'atcud' => $factura['atcud'] ?: null,
@@ -248,17 +382,72 @@ class ImportadorFaturasEmail
             'ficheiro_hash' => $hash,
         ]);
 
-        if ($ehPdf) {
-            $documento->file_path = $caminho;
-            $documento->file_name = $anexo['nome'];
-        } else {
-            $documento->image_paths = [$caminho];
-            $documento->image_names = [$anexo['nome']];
+        $this->guardarCaminho($documento, $caminho, $anexo);
+        $documento->save();
+
+        return $documento;
+    }
+
+    /**
+     * Nenhum ficheiro da mensagem tinha total. Cria-se um documento na mesma,
+     * por rever, para os ficheiros terem onde viver — deitar fora um email com
+     * anexos so' porque o OCR nao os percebeu e' como nao os ter recebido.
+     *
+     * @param  array{anexo: array, temp: string}|null  $principal
+     */
+    private function criarDocumentoPorRever(
+        MimeMessage $mensagem,
+        ?array $principal,
+        Carbon $recebidoEm,
+        array $todosOsAnexos,
+    ): AccountingDocument {
+        $hash = hash('sha256', $todosOsAnexos[0]['conteudo'] ?? ($mensagem->messageId() ?? uniqid()));
+
+        $documento = new AccountingDocument();
+
+        $documento->fill([
+            'tipo' => 'fatura',
+            'title' => 'outro',
+            'estado' => 'por_rever',
+            'fornecedor' => $this->nomeDoRemetente($mensagem),
+            'date' => $recebidoEm->toDateString(),
+            'amount_cents' => 0,
+            'iva_cents' => 0,
+            'currency' => 'EUR',
+            'category' => 'fornecedores',
+            'brand_id' => $this->marcaPorDefeito(),
+            'notes' => $this->notas($mensagem, ['warnings' => ['Nenhum dos ficheiros da mensagem tinha um total legivel.']]),
+            'origem' => 'email',
+            'importado_contabilidade' => false,
+            'email_message_id' => $mensagem->messageId(),
+            'email_de' => Str::limit($mensagem->de(), 250, ''),
+            'email_assunto' => Str::limit($mensagem->assunto(), 250, ''),
+            'email_recebido_em' => $recebidoEm,
+            'ficheiro_hash' => $hash,
+        ]);
+
+        if ($principal !== null) {
+            $caminho = $this->moverParaDocumentos($principal['temp'], $principal['anexo'], $recebidoEm, $hash);
+            $this->guardarCaminho($documento, $caminho, $principal['anexo']);
         }
 
         $documento->save();
 
         return $documento;
+    }
+
+    /** O PDF vai para `file_path`; uma foto vai para `image_paths`. */
+    private function guardarCaminho(AccountingDocument $documento, string $caminho, array $anexo): void
+    {
+        if ($anexo['extensao'] === 'pdf') {
+            $documento->file_path = $caminho;
+            $documento->file_name = $anexo['nome'];
+
+            return;
+        }
+
+        $documento->image_paths = [$caminho];
+        $documento->image_names = [$anexo['nome']];
     }
 
     /**
@@ -270,7 +459,7 @@ class ImportadorFaturasEmail
     private function ler(string $caminhoRelativo): array
     {
         try {
-            return $this->extractor->extract(Storage::disk('public')->path($caminhoRelativo));
+            return $this->extractor->extract(Storage::disk('local')->path($caminhoRelativo));
         } catch (\Throwable $e) {
             Log::warning('faturas:importar-email — leitura falhou: '.$e->getMessage());
 

@@ -201,7 +201,7 @@ class ImportadorFaturasEmail
             $temporario = $this->guardarTemporario($anexo);
 
             if (! $anexo['legivel']) {
-                $porAnexar[] = ['anexo' => $anexo, 'temp' => $temporario];
+                $porAnexar[] = ['anexo' => $anexo, 'temp' => $temporario, 'leitura' => null];
 
                 continue;
             }
@@ -211,7 +211,11 @@ class ImportadorFaturasEmail
 
             if ($total <= 0) {
                 // Sem total nao e' a factura — e' o detalhe, a capa, o aviso.
-                $porAnexar[] = ['anexo' => $anexo, 'temp' => $temporario];
+                // A leitura vai junto: se no fim nenhum ficheiro tiver total, e'
+                // dela que sai o texto lido para as Notas. Sem isso, o documento
+                // que mais precisa de diagnostico era o unico que nao trazia
+                // nenhum — foi o que aconteceu com o primeiro email da Via Verde.
+                $porAnexar[] = ['anexo' => $anexo, 'temp' => $temporario, 'leitura' => $leitura];
 
                 continue;
             }
@@ -248,6 +252,7 @@ class ImportadorFaturasEmail
                 $primeiroLegivel !== null ? $porAnexar[$primeiroLegivel] : null,
                 $recebidoEm,
                 $anexos,
+                $porAnexar,
             );
 
             if ($primeiroLegivel !== null) {
@@ -286,16 +291,18 @@ class ImportadorFaturasEmail
                     $contas['anexos']++;
                     $relatar(sprintf('  #%d %s -> anexo do documento %d', $uid, $pendente['anexo']['nome'], $dono->id));
                 } catch (\Throwable $e) {
+                    // O ficheiro temporario NAO se apaga: e' a unica copia que
+                    // resta, e dizer onde esta e' melhor do que a perder por
+                    // arrumacao.
                     Log::warning("faturas:importar-email — anexo {$pendente['anexo']['nome']}: ".$e->getMessage());
-                    $relatar(sprintf('  #%d %s — nao consegui anexar: %s', $uid, $pendente['anexo']['nome'], $e->getMessage()));
+                    $relatar(sprintf(
+                        '  #%d %s — nao consegui anexar: %s (o ficheiro ficou em storage/app/%s)',
+                        $uid,
+                        $pendente['anexo']['nome'],
+                        $e->getMessage(),
+                        $pendente['temp'],
+                    ));
                 }
-            }
-        }
-
-        // Ficheiros temporarios de mensagens que nao deram documento nenhum.
-        foreach ($porAnexar as $pendente) {
-            if ($documentos === []) {
-                Storage::disk('local')->delete($pendente['temp']);
             }
         }
 
@@ -393,15 +400,42 @@ class ImportadorFaturasEmail
      * por rever, para os ficheiros terem onde viver — deitar fora um email com
      * anexos so' porque o OCR nao os percebeu e' como nao os ter recebido.
      *
-     * @param  array{anexo: array, temp: string}|null  $principal
+     * @param  array{anexo: array, temp: string, leitura: ?array}|null  $principal
+     * @param  list<array{anexo: array, temp: string, leitura: ?array}>  $pendentes
      */
     private function criarDocumentoPorRever(
         MimeMessage $mensagem,
         ?array $principal,
         Carbon $recebidoEm,
         array $todosOsAnexos,
+        array $pendentes = [],
     ): AccountingDocument {
         $hash = hash('sha256', $todosOsAnexos[0]['conteudo'] ?? ($mensagem->messageId() ?? uniqid()));
+
+        // O texto que o leitor conseguiu tirar de cada ficheiro vai para as
+        // Notas. E' a unica pista de porque e' que nao houve total — se o PDF
+        // e' uma imagem sem OCR, se o texto saiu mas o padrao do total nao
+        // bate certo, ou se falta um binario no servidor.
+        $leitura = ['warnings' => ['Nenhum dos ficheiros da mensagem tinha um total legivel.'], 'rawText' => ''];
+
+        foreach ($pendentes as $pendente) {
+            if ($pendente['leitura'] === null) {
+                continue;
+            }
+
+            $leitura['warnings'] = array_values(array_unique(array_merge(
+                $leitura['warnings'],
+                array_map(
+                    fn (string $aviso) => $pendente['anexo']['nome'].': '.$aviso,
+                    $pendente['leitura']['warnings'] ?? [],
+                ),
+            )));
+
+            if (($pendente['leitura']['rawText'] ?? '') !== '') {
+                $leitura['rawText'] .= ($leitura['rawText'] !== '' ? "\n\n--- {$pendente['anexo']['nome']} ---\n\n" : "--- {$pendente['anexo']['nome']} ---\n\n")
+                    .$pendente['leitura']['rawText'];
+            }
+        }
 
         $documento = new AccountingDocument();
 
@@ -416,7 +450,7 @@ class ImportadorFaturasEmail
             'currency' => 'EUR',
             'category' => 'fornecedores',
             'brand_id' => $this->marcaPorDefeito(),
-            'notes' => $this->notas($mensagem, ['warnings' => ['Nenhum dos ficheiros da mensagem tinha um total legivel.']]),
+            'notes' => $this->notas($mensagem, $leitura),
             'origem' => 'email',
             'importado_contabilidade' => false,
             'email_message_id' => $mensagem->messageId(),

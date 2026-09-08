@@ -9,6 +9,7 @@ use App\Models\ProjectTask;
 use App\Models\TicketMessage;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -64,14 +65,27 @@ class AttachmentService
             'uploaded_by' => $uploadedBy,
         ];
 
+        // `isConfigured()` diz que o .env tem os valores, nao que a maquina
+        // responde. A 09/09/2026 o NAS estava configurado e inalcancavel — o
+        // tunel WireGuard em baixo, `ssh: connect to host 10.0.0.2 port 22:
+        // Connection timed out` — e os anexos das facturas simplesmente nao
+        // entravam. Um ficheiro do cliente no disco do servidor e' pior do que
+        // no NAS; perdido nao ha comparacao. Quando o NAS nao atende, grava-se
+        // aqui e segue-se.
         if ($this->nas->isConfigured()) {
-            $caminho = $this->nas->upload($tempAbsPath, $subDir, $ficheiro);
-            @unlink($tempAbsPath);
+            try {
+                $caminho = $this->nas->upload($tempAbsPath, $subDir, $ficheiro);
+                @unlink($tempAbsPath);
 
-            return $attachable->anexos()->create($comuns + [
-                'file_path' => $caminho,
-                'storage_type' => 'nas',
-            ]);
+                return $attachable->anexos()->create($comuns + [
+                    'file_path' => $caminho,
+                    'storage_type' => 'nas',
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning(
+                    'AttachmentService: NAS indisponivel, guardei no disco do servidor. '.$e->getMessage()
+                );
+            }
         }
 
         $destino = storage_path("app/public/{$subDir}");

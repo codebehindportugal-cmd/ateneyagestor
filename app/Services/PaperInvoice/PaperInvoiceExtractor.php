@@ -563,15 +563,59 @@ class PaperInvoiceExtractor
         return '';
     }
 
+    /**
+     * O NIF de quem emitiu — nunca o nosso.
+     *
+     * O extracto da Via Verde traz "CONTRIBUINTE: 515313700" no cabecalho, que
+     * e' o NIF da Ateneya, e era esse que ficava no campo do fornecedor. Pior do
+     * que estar errado: o `AccountingDocument::fornecedorPorNif()` aprende a
+     * associacao, e a partir dai todas as facturas com o nosso NIF ficavam com
+     * o nome do fornecedor errado.
+     *
+     * Os NIF proprios vem de `paper_invoice.nifs_proprios` (NIFS_EMPRESA no
+     * .env, separados por virgula).
+     */
     private function extractTaxNumber(string $text): string
     {
-        if (preg_match('/(?<!V\/\s)Contribuinte\s*N[Âººo]?\s*(\d{9})/iu', $text, $matches)) {
-            return $matches[1];
+        $proprios = $this->nifsProprios();
+
+        $aceitavel = function (string $nif) use ($proprios): bool {
+            return $nif !== '' && ! in_array($nif, $proprios, true);
+        };
+
+        if (preg_match_all('/(?<!V\/\s)Contribuinte\s*N[\x{00ba}\x{00b0}o]?\s*[:\s]*(\d{9})/iu', $text, $encontrados)) {
+            foreach ($encontrados[1] as $nif) {
+                if ($aceitavel($nif)) {
+                    return $nif;
+                }
+            }
         }
 
-        return preg_match('/(?:NIF|Contribuinte|NIPC|N\.?\s*Fiscal|VAT)\D*(\d{9})/iu', $text, $matches)
-            ? $matches[1]
-            : '';
+        if (preg_match_all('/(?:NIF|Contribuinte|NIPC|N\.?\s*Fiscal|VAT)\D*(\d{9})/iu', $text, $encontrados)) {
+            foreach ($encontrados[1] as $nif) {
+                if ($aceitavel($nif)) {
+                    return $nif;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /** @return list<string> */
+    private function nifsProprios(): array
+    {
+        try {
+            $valor = function_exists('config') ? config('paper_invoice.nifs_proprios', '') : '';
+        } catch (\Throwable) {
+            // Nos testes unitarios o helper `config()` existe (vem do
+            // illuminate/support) mas nao ha container por tras. Sem lista, o
+            // filtro fica inactivo — o comportamento de antes — em vez de
+            // rebentar a extracao inteira.
+            $valor = '';
+        }
+
+        return array_values(array_filter(array_map('trim', explode(',', (string) $valor))));
     }
 
     private function extractInvoiceNumber(string $text): string
@@ -672,25 +716,126 @@ class PaperInvoiceExtractor
         'dezembro' => 12,
     ];
 
+    /**
+     * O total do documento.
+     *
+     * Tres regras, todas vindas do extracto da Via Verde de 08/2026:
+     *
+     * 1. **"Total em Euros" conta, "Total em Portagens" nao.** Naquele extracto
+     *    o segundo e' o subtotal de cada concessionaria — ha oito — e o
+     *    primeiro e' o total do documento.
+     * 2. **Vale o maior, nao o ultimo.** "Total em Euros" volta a aparecer mais
+     *    abaixo, no bloco das anuidades (1,08), depois do total do documento
+     *    (596,53). O total de um documento e', por definicao, maior do que
+     *    qualquer dos seus subtotais.
+     * 3. **O rotulo e o valor tem de estar na mesma linha.** Com `\D+` — que
+     *    tambem atravessa mudancas de linha — um rotulo sem numero a frente ia
+     *    colher o numero de uma linha qualquer mais abaixo. A janela e' larga
+     *    (200) de proposito: estes documentos alinham o valor a direita e no
+     *    extracto da Via Verde vao 124 espacos entre o rotulo e o numero.
+     *
+     * O rotulo generico "Total" so' entra quando nenhum dos especificos
+     * apareceu: e' o que salva as facturas simples que escrevem so' "Total 25,50".
+     */
     private function extractTotal(string $text): float
     {
-        if (preg_match_all('/(?:total\s+a\s+pagar|valor\s+a\s+pagar|total\s+documento|total\s+liquido|total\s+l[iÃ­]quido)\D+(\d{1,6}(?:[.\s]\d{3})*[,.]\d{2})/iu', $text, $matches)) {
-            return $this->moneyToFloat(end($matches[1]));
+        return $this->totalComLinha($text)['valor'];
+    }
+
+    /**
+     * O total e a linha onde foi encontrado — a linha serve para procurar o IVA
+     * logo a seguir, que e' onde ele esta nos documentos que o separam por taxa.
+     *
+     * @return array{valor: float, linha: int}
+     */
+    private function totalComLinha(string $text): array
+    {
+        $linhas = preg_split('/\R/u', $text) ?: [];
+        $valor = '(\d{1,6}(?:[.\s]\d{3})*[,.]\d{2})';
+
+        $especificos = 'total\s+a\s+pagar|valor\s+a\s+pagar|total\s+documento'
+            .'|total\s+em\s+euros|total\s+l[i'."í".']quido|total\s+liquido';
+
+        foreach ([$especificos, 'total'] as $rotulos) {
+            $padrao = '/(?:'.$rotulos.')[^\d\n]{0,200}'.$valor.'/iu';
+            $melhor = ['valor' => 0.0, 'linha' => -1];
+
+            foreach ($linhas as $indice => $linha) {
+                if (! preg_match($padrao, $linha, $encontrado)) {
+                    continue;
+                }
+
+                $lido = $this->moneyToFloat($encontrado[1]);
+
+                if ($lido > $melhor['valor']) {
+                    $melhor = ['valor' => $lido, 'linha' => $indice];
+                }
+            }
+
+            if ($melhor['valor'] > 0) {
+                return $melhor;
+            }
         }
 
-        return 0.0;
+        // Ultimo recurso, como era antes: rotulo e valor podem estar em linhas
+        // diferentes. Sem linha, porque nao ha uma so.
+        if (preg_match_all('/(?:'.$especificos.')\D+'.$valor.'/iu', $text, $todos)) {
+            return ['valor' => max(array_map(fn (string $v) => $this->moneyToFloat($v), $todos[1])), 'linha' => -1];
+        }
+
+        return ['valor' => 0.0, 'linha' => -1];
     }
 
     private function extractVatTotal(string $text): float
     {
-        if (! preg_match('/(?:total\s+de\s+i\.?\s*v\.?\s*a\.?|total\s+iva|valor\s+de\s+i\.?\s*v\.?\s*a\.?)\D+(\d{1,6}(?:[.\s]\d{3})*[,.]\d{2})/iu', $text, $matches)) {
+        $total = $this->totalComLinha($text);
+
+        $iva = $this->ivaPorRotuloProprio($text);
+
+        if ($iva === 0.0) {
+            $iva = $this->ivaLogoAbaixoDoTotal($text, $total['linha']);
+        }
+
+        // Um "IVA" acima de um terco do total e' quase de certeza outra coisa
+        // apanhada por engano.
+        return $total['valor'] > 0 && $iva > ($total['valor'] * 0.35) ? 0.0 : $iva;
+    }
+
+    private function ivaPorRotuloProprio(string $text): float
+    {
+        $padrao = '/(?:total\s+de\s+i\.?\s*v\.?\s*a\.?|total\s+iva|valor\s+de\s+i\.?\s*v\.?\s*a\.?)'
+            .'[^\d\n]{0,200}(\d{1,6}(?:[.\s]\d{3})*[,.]\d{2})/iu';
+
+        return preg_match($padrao, $text, $encontrado) ? $this->moneyToFloat($encontrado[1]) : 0.0;
+    }
+
+    /**
+     * "IVA incluido a taxa reduzida em vigor  3,57" e "... a taxa normal em
+     * vigor  99,77": duas linhas, e o IVA do documento e' a **soma** das duas.
+     *
+     * So' contam as linhas logo abaixo do total. O mesmo par repete-se no bloco
+     * de cada concessionaria do extracto, e somar o documento todo dava mais de
+     * o dobro do IVA verdadeiro — um erro que ia direito a contabilidade.
+     */
+    private function ivaLogoAbaixoDoTotal(string $text, int $linhaDoTotal): float
+    {
+        if ($linhaDoTotal < 0) {
             return 0.0;
         }
 
-        $vat = $this->moneyToFloat($matches[1]);
-        $total = $this->extractTotal($text);
+        $linhas = preg_split('/\R/u', $text) ?: [];
+        $padrao = '/i\.?\s*v\.?\s*a\.?[^\d\n]{0,200}(\d{1,6}(?:[.\s]\d{3})*[,.]\d{2})/iu';
+        $soma = 0.0;
 
-        return $total > 0 && $vat > ($total * 0.35) ? 0.0 : $vat;
+        for ($i = $linhaDoTotal + 1; $i <= $linhaDoTotal + 4 && $i < count($linhas); $i++) {
+            if (preg_match($padrao, $linhas[$i], $encontrado)) {
+                $soma += $this->moneyToFloat($encontrado[1]);
+            }
+        }
+
+        // Arredondar: 3,57 + 99,77 em virgula flutuante da 103,33999999999999,
+        // e isso chegava a base de dados como 10333 centimos em vez de 10334.
+        return round($soma, 2);
     }
 
     private function confidence(string $rawText, array $products, float $total, array $warnings): float

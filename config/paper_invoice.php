@@ -18,6 +18,22 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Os nossos NIF
+    |--------------------------------------------------------------------------
+    |
+    | Nunca sao aceites como NIF do fornecedor. As facturas trazem o NIF do
+    | cliente tantas vezes como o do emitente — o extracto da Via Verde poe o
+    | nosso no cabecalho, em "CONTRIBUINTE:" — e sem esta lista era esse que
+    | ficava no campo do fornecedor.
+    |
+    | Varios separados por virgula, no .env: NIFS_EMPRESA=515313700,500000000
+    |
+    */
+
+    'nifs_proprios' => env('NIFS_EMPRESA', ''),
+
     'binaries' => [
         'pdftotext' => env('PDFTOTEXT_BINARY'),
         'pdftoppm'  => env('PDFTOPPM_BINARY'),

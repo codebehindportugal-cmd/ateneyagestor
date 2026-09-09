@@ -96,6 +96,58 @@ class PaperInvoiceExtractorTest extends TestCase
         $this->assertSame('15/03/2026', $extractor->parseText('Emitido 2026-03-15')['invoice']['date']);
     }
 
+    /**
+     * O extracto mensal da Via Verde, com a disposicao real do documento de
+     * Agosto de 2026 (as colunas sao mesmo assim largas — vao 124 espacos
+     * entre o rotulo e o valor).
+     *
+     * Tres armadilhas de uma vez:
+     *  - "Total em Portagens" e' o subtotal de **cada** concessionaria, e ha
+     *    oito. Nao pode ser confundido com o total do documento.
+     *  - "Total em Euros" aparece duas vezes: 596,53 (o documento) e 1,08 (o
+     *    bloco das anuidades, mais abaixo). Vale o maior, nao o ultimo.
+     *  - O IVA vem separado por taxa, em duas linhas logo abaixo do total, e o
+     *    IVA do documento e' a soma das duas. Somar as do documento todo dava
+     *    mais do dobro, porque o par repete-se em cada bloco.
+     */
+    public function test_extracto_via_verde(): void
+    {
+        $coluna = str_repeat(' ', 124);
+
+        $texto = implode("\n", [
+            'DATA DE EMISSAO:'.$coluna.'31 agosto 2026',
+            'N DE DOCUMENTO:'.$coluna.'019.025.874/08/2026',
+            'CONTRIBUINTE:'.$coluna.'515313700',
+            'EXTRATO/RECIBO',
+            'Total em Euros'.$coluna.'596,53',
+            'IVA incluido a taxa reduzida em vigor'.$coluna.'3,57',
+            'IVA incluido a taxa normal em vigor'.$coluna.'99,77',
+            'Brisa Concessao Rodoviaria (BR)',
+            'Total em Portagens'.$coluna.'171,75',
+            'IVA incluido a taxa normal em vigor'.$coluna.'32,12',
+            'Autoestradas do Atlantico (AA)',
+            'Total em Portagens'.$coluna.'182,40',
+            'IVA incluido a taxa normal em vigor'.$coluna.'34,11',
+            'Via Verde Portugal (VV)',
+            'Total em Euros'.$coluna.'1,08',
+            'IVA incluido a taxa normal em vigor'.$coluna.'0,20',
+        ]);
+
+        $resultado = (new PaperInvoiceExtractor())->parseText($texto);
+
+        $this->assertSame(596.53, $resultado['invoice']['total']);
+        $this->assertSame(103.34, $resultado['invoice']['vatTotal']);
+        $this->assertSame('31/08/2026', $resultado['invoice']['date']);
+    }
+
+    /** Uma factura simples que escreve so' "Total" continua a ser lida. */
+    public function test_rotulo_generico_de_total(): void
+    {
+        $resultado = (new PaperInvoiceExtractor())->parseText("Fornecedor XPTO\nTotal 25,50");
+
+        $this->assertSame(25.50, $resultado['invoice']['total']);
+    }
+
     public function test_it_accepts_missing_qr_code(): void
     {
         $result = (new PaperInvoiceExtractor())->parseText('Fornecedor XPTO Total 1,00', null);

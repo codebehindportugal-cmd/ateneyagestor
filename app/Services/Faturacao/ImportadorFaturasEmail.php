@@ -188,6 +188,9 @@ class ImportadorFaturasEmail
         /** @var list<array{anexo: array, temp: string}> $porAnexar */
         $porAnexar = [];
 
+        /** @var list<array{anexo: array, temp: string, hash: string, leitura: array, total: int}> $candidatos */
+        $candidatos = [];
+
         foreach ($anexos as $anexo) {
             $hash = hash('sha256', $anexo['conteudo']);
 
@@ -210,27 +213,77 @@ class ImportadorFaturasEmail
             $total = (int) round(((float) ($leitura['invoice']['total'] ?? 0)) * 100);
 
             if ($total <= 0) {
-                // Sem total nao e' a factura — e' o detalhe, a capa, o aviso.
+                // Sem total nao e' a factura — e' a capa, o aviso, o anexo.
                 // A leitura vai junto: se no fim nenhum ficheiro tiver total, e'
-                // dela que sai o texto lido para as Notas. Sem isso, o documento
-                // que mais precisa de diagnostico era o unico que nao trazia
-                // nenhum — foi o que aconteceu com o primeiro email da Via Verde.
+                // dela que sai o texto lido para as Notas.
                 $porAnexar[] = ['anexo' => $anexo, 'temp' => $temporario, 'leitura' => $leitura];
 
                 continue;
             }
 
-            $documento = $this->criarDocumento($mensagem, $anexo, $temporario, $hash, $leitura, $total, $recebidoEm);
+            $candidatos[] = [
+                'anexo' => $anexo,
+                'temp' => $temporario,
+                'hash' => $hash,
+                'leitura' => $leitura,
+                'total' => $total,
+            ];
+        }
+
+        // ── Um gasto por mensagem: manda o maior total ──────────────────────
+        //
+        // O email da Via Verde traz o extracto (596,53) e o Detalhe, que
+        // reparte o mesmo valor por viatura e mostra subtotais — o maior deles
+        // 338,45. Os dois tem total, e com "cada total e' uma factura" o
+        // contabilista lancava 596,53 + 338,45 todos os meses.
+        //
+        // Um documento nao pode valer menos do que a sua propria decomposicao,
+        // por isso o maior e' o documento e os outros ficam como anexos dele.
+        //
+        // A troca: duas facturas verdadeiras na mesma mensagem passam a dar um
+        // documento e um anexo. E' o erro menos mau dos dois — o ficheiro fica
+        // a vista e o valor por lancar aparece nas Notas, ao passo que somar
+        // duas vezes o mesmo gasto nao aparece em lado nenhum.
+        usort($candidatos, fn (array $a, array $b) => $b['total'] <=> $a['total']);
+
+        if ($candidatos !== []) {
+            $principal = array_shift($candidatos);
+
+            $outros = array_map(fn (array $c) => [
+                'nome' => $c['anexo']['nome'],
+                'total' => $c['total'] / 100,
+            ], $candidatos);
+
+            $documento = $this->criarDocumento(
+                $mensagem,
+                $principal['anexo'],
+                $principal['temp'],
+                $principal['hash'],
+                $principal['leitura'],
+                $principal['total'],
+                $recebidoEm,
+                $outros,
+            );
+
             $documentos[] = $documento;
             $contas['documentos']++;
 
+            foreach ($candidatos as $candidato) {
+                $porAnexar[] = [
+                    'anexo' => $candidato['anexo'],
+                    'temp' => $candidato['temp'],
+                    'leitura' => $candidato['leitura'],
+                ];
+            }
+
             $relatar(sprintf(
-                '  #%d %s -> documento %d (%s, %s)',
+                '  #%d %s -> documento %d (%s, %s)%s',
                 $uid,
-                $anexo['nome'],
+                $principal['anexo']['nome'],
                 $documento->id,
                 $documento->fornecedor ?: 'fornecedor por identificar',
                 number_format($documento->amount, 2, ',', '.').' EUR',
+                $outros !== [] ? '  ('.count($outros).' outro(s) ficheiro(s) com total, anexados)' : '',
             ));
         }
 
@@ -353,6 +406,7 @@ class ImportadorFaturasEmail
         array $leitura,
         int $totalEmCentimos,
         Carbon $recebidoEm,
+        array $outrosTotais = [],
     ): AccountingDocument {
         $caminho = $this->moverParaDocumentos($temporario, $anexo, $recebidoEm, $hash);
 
@@ -379,7 +433,7 @@ class ImportadorFaturasEmail
             'category' => 'fornecedores',
             'brand_id' => $this->marcaPorDefeito(),
             'products' => $this->produtos($leitura['products'] ?? []),
-            'notes' => $this->notas($mensagem, $leitura),
+            'notes' => $this->notas($mensagem, $leitura, $outrosTotais),
             'origem' => 'email',
             'importado_contabilidade' => false,
             'email_message_id' => $mensagem->messageId(),
@@ -568,9 +622,21 @@ class ImportadorFaturasEmail
             ->all();
     }
 
-    private function notas(MimeMessage $mensagem, array $leitura): string
+    private function notas(MimeMessage $mensagem, array $leitura, array $outrosTotais = []): string
     {
         $blocos = [];
+
+        // Quem confere tem de saber que havia mais ficheiros com valor, e
+        // quais. Se um deles for mesmo uma segunda factura, e' aqui que se ve.
+        if ($outrosTotais !== []) {
+            $linhas = array_map(
+                fn (array $o) => sprintf('- %s: %s EUR', $o['nome'], number_format($o['total'], 2, ',', '.')),
+                $outrosTotais,
+            );
+
+            $blocos[] = "ATENCAO: outros ficheiros desta mensagem tambem tinham total e ficaram como anexos.\n"
+                ."Se algum for uma factura a parte, tem de ser lancado a mao:\n".implode("\n", $linhas);
+        }
 
         $blocos[] = 'Importado automaticamente do email.'
             ."\nDe: ".($mensagem->de() ?: '(desconhecido)')

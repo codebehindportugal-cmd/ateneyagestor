@@ -148,6 +148,41 @@ class PaperInvoiceExtractorTest extends TestCase
         $this->assertSame(25.50, $resultado['invoice']['total']);
     }
 
+    /**
+     * Os padroes do numero de documento sao case-insensitive e a classe
+     * `[A-Z0-9._\/-]` passa a aceitar qualquer letra: colhiam a palavra
+     * seguinte, e chegavam a inventar numeros a partir de frases.
+     *
+     * Casos reais: "FT 2026/12 Total", "FT BR2026/012201461 Data", o numero de
+     * documento "dever" tirado de "documento devera ser apresentada", e o "15"
+     * tirado de "no prazo de 15 dias. Documento valido para efeitos fiscais".
+     */
+    public function test_numero_de_documento_nao_apanha_palavras(): void
+    {
+        $extractor = new PaperInvoiceExtractor();
+
+        $this->assertSame(
+            'FT 2026/12',
+            $extractor->parseText("Fatura FT 2026/12\nTotal 25,50")['invoice']['number'],
+        );
+
+        // Sem numero e' melhor do que um numero inventado.
+        $this->assertSame(
+            '',
+            $extractor->parseText('Qualquer reclamacao devera ser apresentada no prazo de 15 dias. Documento valido para efeitos fiscais.')['invoice']['number'],
+        );
+    }
+
+    /** "Nº DE DOCUMENTO: X" — a ordem invertida nao era reconhecida. */
+    public function test_le_numero_com_a_ordem_invertida(): void
+    {
+        $resultado = (new PaperInvoiceExtractor())->parseText(
+            "N DE DOCUMENTO:                   019.025.874/08/2026"
+        );
+
+        $this->assertSame('019.025.874/08/2026', $resultado['invoice']['number']);
+    }
+
     public function test_it_accepts_missing_qr_code(): void
     {
         $result = (new PaperInvoiceExtractor())->parseText('Fornecedor XPTO Total 1,00', null);

@@ -57,6 +57,16 @@ class DiagnosticarFatura extends Command
         }
 
         foreach ($documento->anexos as $anexo) {
+            // Um CSV ou um XML nao se leem com o tesseract. Atirar-lhos gerava
+            // meia pagina de erro do leitor de imagens e escondia o resto.
+            if (! $anexo->isPreviewable()) {
+                $this->line('');
+                $this->line("── {$anexo->original_name}");
+                $this->line('  Ficheiro de dados ('.$anexo->mime_type.') — nao passa pelo leitor de facturas.');
+
+                continue;
+            }
+
             if ($anexo->storage_type !== 'local') {
                 $this->line('');
                 $this->warn("Anexo {$anexo->original_name} esta no NAS — nao o leio daqui.");

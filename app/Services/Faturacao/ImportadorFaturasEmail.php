@@ -191,12 +191,32 @@ class ImportadorFaturasEmail
         /** @var list<array{anexo: array, temp: string, hash: string, leitura: array, total: int}> $candidatos */
         $candidatos = [];
 
+        // Preenchido quando um dos ficheiros da mensagem ja e' um documento.
+        $documentoExistente = null;
+
         foreach ($anexos as $anexo) {
             $hash = hash('sha256', $anexo['conteudo']);
 
-            if (AccountingDocument::where('ficheiro_hash', $hash)->exists()) {
+            $jaImportado = AccountingDocument::where('ficheiro_hash', $hash)->first();
+
+            if ($jaImportado !== null) {
                 $contas['duplicados']++;
-                $relatar(sprintf('  #%d %s — ja tinha sido importado.', $uid, $anexo['nome']));
+
+                // Guardar QUAL o documento, nao so' que existe. A 09/09/2026 a
+                // factura da Via Verde foi salta por ja estar importada, e o
+                // Detalhe — que sozinho tem o maior total dos que sobraram —
+                // tomou-lhe o lugar e criou um documento novo de 338,45. O
+                // "maior total manda" so' e' verdade quando os candidatos estao
+                // todos em jogo; se um deles ja e' um documento, e' esse o
+                // documento da mensagem e os outros sao anexos dele.
+                $documentoExistente ??= $jaImportado;
+
+                $relatar(sprintf(
+                    '  #%d %s — ja tinha sido importado (documento %d).',
+                    $uid,
+                    $anexo['nome'],
+                    $jaImportado->id,
+                ));
 
                 continue;
             }
@@ -245,6 +265,28 @@ class ImportadorFaturasEmail
         // a vista e o valor por lancar aparece nas Notas, ao passo que somar
         // duas vezes o mesmo gasto nao aparece em lado nenhum.
         usort($candidatos, fn (array $a, array $b) => $b['total'] <=> $a['total']);
+
+        // A factura desta mensagem ja esta no painel: nao nasce documento novo,
+        // e tudo o que veio com ela passa a ser anexo dela.
+        if ($documentoExistente !== null) {
+            $documentos[] = $documentoExistente;
+
+            foreach ($candidatos as $candidato) {
+                $porAnexar[] = [
+                    'anexo' => $candidato['anexo'],
+                    'temp' => $candidato['temp'],
+                    'leitura' => $candidato['leitura'],
+                ];
+            }
+
+            $candidatos = [];
+
+            $relatar(sprintf(
+                '  #%d os restantes ficheiros vao para o documento %d, que ja existia.',
+                $uid,
+                $documentoExistente->id,
+            ));
+        }
 
         if ($candidatos !== []) {
             $principal = array_shift($candidatos);
@@ -331,6 +373,20 @@ class ImportadorFaturasEmail
             $dono = $documentos[0];
 
             foreach ($porAnexar as $pendente) {
+                // Reprocessar a mesma mensagem nao pode encher o documento de
+                // copias do mesmo anexo.
+                $jaAnexado = $dono->anexos()
+                    ->where('original_name', $pendente['anexo']['nome'])
+                    ->where('file_size', strlen($pendente['anexo']['conteudo']))
+                    ->exists();
+
+                if ($jaAnexado) {
+                    Storage::disk('local')->delete($pendente['temp']);
+                    $relatar(sprintf('  #%d %s — ja estava anexado.', $uid, $pendente['anexo']['nome']));
+
+                    continue;
+                }
+
                 try {
                     app(AttachmentService::class)->processUpload(
                         attachable: $dono,

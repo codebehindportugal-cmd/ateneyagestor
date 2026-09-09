@@ -621,6 +621,11 @@ class PaperInvoiceExtractor
     private function extractInvoiceNumber(string $text): string
     {
         $strictPatterns = [
+            // "Nº DE DOCUMENTO: 019.025.874/08/2026" — a ordem invertida
+            // ("numero de documento" em vez de "documento numero") nao casava
+            // com nenhum dos padroes seguintes, e o numero que ficava vinha do
+            // bloco de uma das concessionarias do extracto Via Verde.
+            '/N[\x{00ba}\x{00b0}o.\s]*(?:de\s+)?documento\s*[:#-]?\s*([A-Z0-9][A-Z0-9._\/-]{4,40})/iu',
             '/\bN[Âººo]?\s*(FAC\s+[A-Z0-9._\/-]+)/iu',
             '/(?:Fatura-recibo|Factura-recibo)\s*[:#]?\s*([^\r\n]+)/iu',
             '/(?:Fatura|Factura|Fatura-recibo|Factura-recibo)\s*[:#]?\s*((?:FAC|FT|FS|FR|NC|ND|RC)?\s*[A-Z0-9._\/-]+(?:\s+[A-Z0-9._\/-]+)?)/iu',
@@ -629,8 +634,14 @@ class PaperInvoiceExtractor
         ];
 
         foreach ($strictPatterns as $pattern) {
-            if (preg_match($pattern, $text, $matches)) {
-                return trim(preg_replace('/\s+/u', ' ', $matches[1] ?? $matches[0]) ?? '');
+            if (! preg_match($pattern, $text, $matches)) {
+                continue;
+            }
+
+            $candidato = $this->limparNumeroDeDocumento($matches[1] ?? $matches[0]);
+
+            if ($candidato !== '') {
+                return $candidato;
             }
         }
 
@@ -640,12 +651,57 @@ class PaperInvoiceExtractor
         ];
 
         foreach ($patterns as $pattern) {
-            if (preg_match($pattern, $text, $matches)) {
-                return trim($matches[1] ?? $matches[0]);
+            if (! preg_match($pattern, $text, $matches)) {
+                continue;
+            }
+
+            $candidato = $this->limparNumeroDeDocumento($matches[1] ?? $matches[0]);
+
+            if ($candidato !== '') {
+                return $candidato;
             }
         }
 
         return '';
+    }
+
+    /**
+     * Limpa o que os padroes apanham a mais.
+     *
+     * Os padroes sao case-insensitive e `[A-Z0-9._\/-]` passa a aceitar
+     * qualquer letra, por isso colhem tambem a palavra seguinte: o numero
+     * "FT 2026/12" saia "FT 2026/12 Total", e o do extracto Via Verde saia
+     * "FT BR2026/012201461 Data". Pior ainda, "documento devera ser
+     * apresentada" dava o numero de documento "dever".
+     *
+     * Duas regras: palavras sem digitos no fim vao fora, e um numero de
+     * documento sem digito nenhum nao e' um numero de documento.
+     */
+    private function limparNumeroDeDocumento(string $valor): string
+    {
+        $valor = trim(preg_replace('/\s+/u', ' ', $valor) ?? '');
+
+        if ($valor === '') {
+            return '';
+        }
+
+        $palavras = explode(' ', $valor);
+
+        while ($palavras !== [] && ! preg_match('/\d/', end($palavras))) {
+            array_pop($palavras);
+        }
+
+        $valor = implode(' ', $palavras);
+
+        // Curto demais nao e' um numero de documento: e' um numero apanhado de
+        // uma frase. O "Documento valido para efeitos fiscais" do rodape do
+        // detalhe da Via Verde, com "no prazo de 15 dias" por perto, dava o
+        // numero de documento "15".
+        //
+        // Preferir vazio a inventado: um campo em branco ve-se e corrige-se.
+        $digitos = preg_match_all('/\d/', $valor);
+
+        return (mb_strlen($valor) >= 5 && $digitos >= 2) ? $valor : '';
     }
 
     /**

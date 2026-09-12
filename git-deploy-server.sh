@@ -100,6 +100,22 @@ echo "==> Dono da app: $APP_OWNER"
 chown -R "$APP_OWNER" storage bootstrap/cache 2>/dev/null || true
 chmod -R ug+rwX storage bootstrap/cache 2>/dev/null || true
 
+# 7. Largar o opcache
+#
+# O PHP-FPM do Plesk guarda o bytecode e nao revalida os ficheiros: depois de
+# um deploy continuava a servir o codigo antigo, mesmo com os ficheiros novos
+# no disco. Ja nos custou uma tarde a perceber isto — fica automatico.
+echo "==> A reiniciar o PHP-FPM (largar o opcache)..."
+REINICIADOS=0
+for SERVICO in $(systemctl list-units --plain --no-legend --type=service 'plesk-php*-fpm*' 'php*-fpm*' 2>/dev/null | awk '{print $1}' | sort -u); do
+    if systemctl restart "$SERVICO" 2>/dev/null; then
+        echo "    $SERVICO"
+        REINICIADOS=$((REINICIADOS + 1))
+    fi
+done
+[ "$REINICIADOS" -eq 0 ] && echo "    (nenhum pool de PHP-FPM encontrado — confirma a mao)"
+systemctl reload apache2 2>/dev/null || true
+
 echo ""
 echo "==> Agora: $(git log --oneline -1)"
 echo "==> Espaço na partição:"

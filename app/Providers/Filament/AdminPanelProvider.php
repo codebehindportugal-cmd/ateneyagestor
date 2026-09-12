@@ -11,6 +11,7 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Support\Enums\MaxWidth;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -59,6 +60,16 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Sistema')
                     ->collapsed(),
             ])
+            // A folha de estilos do painel. Este projecto não tem build de
+            // Tailwind próprio — usa o CSS já compilado que vem no pacote do
+            // Filament, onde só existem as classes que o Filament usa. Coisas
+            // como `whitespace-pre-wrap` ou `line-through` não estão lá e não
+            // faziam nada. O ficheiro repõe esses utilitários e traz os
+            // estilos da lista de tarefas. Ver resources/views/filament/estilos-tarefas.blade.php.
+            ->renderHook(
+                PanelsRenderHook::STYLES_AFTER,
+                fn (): \Illuminate\Contracts\View\View => view('filament.estilos-tarefas'),
+            )
             ->discoverResources(in: app_path('Filament/Admin/Resources'), for: 'App\\Filament\\Admin\\Resources')
             ->discoverPages(in: app_path('Filament/Admin/Pages'), for: 'App\\Filament\\Admin\\Pages')
             ->pages([
@@ -69,7 +80,16 @@ class AdminPanelProvider extends PanelProvider
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
-                AuthenticateSession::class,
+                // O AuthenticateSession fica de fora de proposito.
+                //
+                // Ele guarda o hash da password na sessao e, quando a sessao
+                // expira mas o cookie de "lembrar-me" ainda existe, faz logout
+                // em vez de deixar reentrar — era isto que punha o painel a
+                // pedir login sozinho. O que se perde: uma sessao antiga fica
+                // valida depois de mudar a password, e ha que sair a mao nas
+                // outras maquinas. Com duas ou tres contas internas vale a
+                // troca; num painel aberto a clientes nao valeria.
+                // AuthenticateSession::class,
                 ShareErrorsFromSession::class,
                 VerifyCsrfToken::class,
                 SubstituteBindings::class,

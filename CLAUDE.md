@@ -353,6 +353,66 @@ ha uma caixa por documento que grava sozinha, e um contador no topo com quantos
 faltam. No `/admin` isso aparece como coluna, filtro e separador **Por importar
 pelo contabilista** — de leitura, para nao haver duas versoes da verdade.
 
+### Accoes em massa
+
+Ele fecha a contabilidade um mes de cada vez. Caixa a caixa sao trinta gestos e
+trinta hipoteses de saltar um sem dar por isso.
+
+**No portal do contabilista** ha uma caixa de escolha por linha, uma por marca e
+uma por mes, e uma barra no fundo que so' aparece quando ha alguma coisa
+escolhida:
+
+| | |
+|---|---|
+| **Marcar como importadas** / **Desmarcar** | `POST /contabilista/{token}/importado-em-massa` — um pedido so' para a seleccao toda |
+| **Descarregar ZIP** | `POST /contabilista/{token}/zip` com `ids[]` |
+| **ZIP do mês** (no cabecalho de cada mes) | o mesmo por `GET ?ano=&mes=` — e' so' um link, nao precisa de seleccao |
+
+Tres coisas que nao se adivinham:
+
+- **A resposta do lote devolve os ids que ficaram mesmo gravados**, e o JS
+  compara-os com os que mandou. Dizer "pronto" sem confirmar dava documentos por
+  lancados sem o estarem.
+- **O `visivelParaContabilista()` esta nas duas rotas.** Sem ele um id fora da
+  lista marcava — ou descarregava — um documento `por_rever`, que ele nem sequer
+  chega a ver na pagina.
+- **Escolher "o mes inteiro" com o filtro "por importar" ligado da o que se esta
+  a ver, nao o resto**; e mudar o filtro limpa a escolha, senao ia parar ao zip
+  o que ele julgava ter tirado.
+
+O zip sai arrumado **Ano / Mes / Marca**, com o nome de cada ficheiro em
+`AAAA-MM-DD_Fornecedor_NumeroDoc`. Os acompanhantes do email (o detalhe, o CSV,
+o XML) e as fotos vao para `anexos/<nome da factura>/` debaixo da mesma marca —
+excepto quando o documento **nao tem PDF**: ai a foto e' a factura e fica a
+vista, ao lado das outras. Ver `App\Services\Contabilidade\ZipDeDocumentos`.
+
+Duas armadilhas ja fechadas la dentro:
+
+1. **Nomes repetidos.** Duas facturas do mesmo fornecedor, no mesmo dia, sem
+   numero, davam o mesmo nome — e a segunda substituia a primeira dentro do zip
+   sem erro nenhum. Leva o `id` colado quando o nome ja existe.
+2. **Anexos que vivem no NAS.** O `ZipArchive` so' le os ficheiros do disco no
+   `close()`, por isso as copias temporarias do NAS so' se apagam **depois**
+   disso. O `AttachmentService::caminhoParaLeitura()` diz quais e' que sao
+   temporarias; um anexo que nao aparece e' saltado, porque um zip com um
+   ficheiro a menos e' melhor do que um download que rebenta a meio.
+
+O zip precisa da extensao **`php-zip`** no servidor. Sem ela a rota devolve a
+razao em vez de um ficheiro partido.
+
+**No `/admin`**, na tabela dos documentos: **Aprovar** (estado → aprovado) e
+**Editar em massa** (estado, marca, finalidade, categoria). Duas regras:
+
+- **O "Aprovar" deixa de fora o que esta `por_rever`.** Aprovar um documento que
+  ninguem olhou manda-o para o portal do contabilista — e' assim que os
+  extractos bancarios a 0,00 EUR la foram parar da primeira vez.
+- **No "Editar em massa" o que fica em branco nao e' escrito.** Um formulario
+  que grava tudo o que esta no ecra apagava a marca de trinta documentos so'
+  porque ninguem mexeu naquele campo.
+
+Continua a nao haver forma de marcar `importado_contabilidade` pelo `/admin`:
+quem marca e' ele.
+
 ## Ficheiros de projectos e tarefas
 
 Cada projecto e cada tarefa tem uma pasta de ficheiros — as fotos e documentos

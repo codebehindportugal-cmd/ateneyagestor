@@ -140,75 +140,116 @@ class ProjectTaskResource extends Resource
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['project', 'assignedUser']))
             ->defaultSort('project_id')
+            // Mesma leitura que a lista dentro do projecto (ManageProjectTasks):
+            // título em cima, chips por baixo, horas à direita e a descrição
+            // num painel que abre. A única diferença é o chip do projecto, que
+            // aqui faz falta e lá não.
             ->columns([
-                Tables\Columns\IconColumn::make('status')
-                    ->label('')
-                    ->icon(fn (ProjectTask $record) => $record->isDone()
-                        ? 'heroicon-s-check-circle'
-                        : ($record->status === 'cancelled' ? 'heroicon-o-x-circle' : 'heroicon-o-clock'))
-                    ->color(fn (ProjectTask $record) => ProjectTask::statusColor($record->status)),
+                Tables\Columns\Layout\Split::make([
+                    Tables\Columns\Layout\Stack::make([
+                        Tables\Columns\TextColumn::make('title')
+                            ->label('Tarefa')
+                            ->searchable()
+                            ->sortable()
+                            ->wrap()
+                            ->weight('semibold')
+                            ->color(fn (ProjectTask $record) => $record->isDone() ? 'gray' : null)
+                            ->extraAttributes(fn (?ProjectTask $record) => [
+                                'class' => $record?->isDone() ? 'atv-feito' : '',
+                            ]),
 
-                Tables\Columns\TextColumn::make('title')
-                    ->label('Tarefa')
-                    ->searchable()
-                    ->wrap()
-                    ->weight('medium')
-                    ->color(fn (ProjectTask $record) => $record->isDone() ? 'gray' : null)
-                    // A primeira linha da descrição chega para se perceber do que
-                    // se trata sem abrir; o resto vê-se no "Abrir".
-                    ->description(fn (ProjectTask $record) => str($record->description ?? '')
-                        ->explode("\n")
-                        ->first()),
+                        Tables\Columns\Layout\Split::make([
+                            Tables\Columns\TextColumn::make('project.name')
+                                ->label('Projecto')
+                                ->badge()
+                                ->size('xs')
+                                ->color('gray')
+                                ->icon('heroicon-m-folder')
+                                ->sortable()
+                                ->searchable()
+                                ->grow(false),
 
-                Tables\Columns\TextColumn::make('project.name')
-                    ->label('Projecto')
-                    ->badge()
-                    ->color('gray')
-                    ->sortable()
-                    ->searchable(),
+                            Tables\Columns\TextColumn::make('status')
+                                ->label('Estado')
+                                ->badge()
+                                ->size('xs')
+                                ->formatStateUsing(fn ($state) => ProjectTask::statusOptions()[$state] ?? $state)
+                                ->color(fn ($state) => ProjectTask::statusColor($state))
+                                ->sortable()
+                                ->grow(false),
 
-                Tables\Columns\TextColumn::make('assignedUser.name')
-                    ->label('Responsável')
-                    ->badge()
-                    ->color(fn ($state) => $state ? 'primary' : 'gray')
-                    ->placeholder('Por escolher')
-                    ->sortable()
-                    ->searchable(),
+                            Tables\Columns\TextColumn::make('assignedUser.name')
+                                ->label('Responsável')
+                                ->badge()
+                                ->size('xs')
+                                ->icon('heroicon-m-user')
+                                ->color(fn ($state) => $state ? 'primary' : 'gray')
+                                ->placeholder('Por escolher')
+                                ->sortable()
+                                ->searchable()
+                                ->grow(false),
 
-                Tables\Columns\TextColumn::make('status')
-                    ->label('Estado')
-                    ->badge()
-                    ->formatStateUsing(fn ($state) => ProjectTask::statusOptions()[$state] ?? $state)
-                    ->color(fn ($state) => ProjectTask::statusColor($state)),
+                            Tables\Columns\TextColumn::make('due_date')
+                                ->label('Prazo')
+                                ->size('xs')
+                                ->icon('heroicon-m-calendar-days')
+                                ->date('d/m/Y')
+                                ->tooltip(fn (ProjectTask $record) => $record->isOverdue()
+                                    ? 'Prazo ultrapassado'
+                                    : 'Prazo')
+                                ->color(fn (ProjectTask $record) => $record->isOverdue() ? 'danger' : 'gray')
+                                ->sortable()
+                                ->grow(false),
 
-                Tables\Columns\TextColumn::make('due_date')
-                    ->label('Prazo')
-                    ->date('d/m/Y')
-                    ->placeholder('—')
-                    ->sortable()
-                    ->color(fn (ProjectTask $record) => $record->isOverdue() ? 'danger' : null),
+                            Tables\Columns\TextColumn::make('completed_at')
+                                ->label('Concluída em')
+                                ->size('xs')
+                                ->icon('heroicon-m-check-circle')
+                                ->date('d/m/Y')
+                                ->color('gray')
+                                ->tooltip(fn (ProjectTask $record) => filled($record->completed_at)
+                                    ? 'Concluída em ' . $record->completed_at->format('d/m/Y H:i')
+                                        . ($record->completedBy?->name ? ' por ' . $record->completedBy->name : '')
+                                    : null)
+                                ->sortable()
+                                ->grow(false),
+                        ])->extraAttributes(['class' => 'atv-chips']),
+                    ])->space(2),
 
-                Tables\Columns\TextColumn::make('estimated_hours')
-                    ->label('Estimativa')
-                    ->placeholder('—')
-                    ->formatStateUsing(fn ($state) => ProjectTask::formatarHoras($state))
-                    ->color('gray')
-                    ->sortable()
-                    ->summarize(Tables\Columns\Summarizers\Sum::make()->label('Total')),
+                    Tables\Columns\Layout\Split::make([
+                        Tables\Columns\TextColumn::make('estimated_hours')
+                            ->label('Estimativa')
+                            ->badge()
+                            ->size('xs')
+                            ->color('gray')
+                            ->tooltip('Estimativa')
+                            ->formatStateUsing(fn ($state) => filled($state)
+                                ? ProjectTask::formatarHoras($state) . ' est.'
+                                : null)
+                            ->sortable()
+                            ->grow(false),
 
-                Tables\Columns\TextColumn::make('hours')
-                    ->label('Horas reais')
-                    ->placeholder('—')
-                    ->formatStateUsing(fn ($state) => ProjectTask::formatarHoras($state))
-                    ->toggleable(isToggledHiddenByDefault: true),
+                        Tables\Columns\TextColumn::make('hours')
+                            ->label('Horas reais')
+                            ->badge()
+                            ->size('xs')
+                            ->color('info')
+                            ->tooltip('Horas registadas')
+                            ->formatStateUsing(fn ($state) => filled($state)
+                                ? ProjectTask::formatarHoras($state) . ' reais'
+                                : null)
+                            ->sortable()
+                            ->grow(false),
+                    ])->grow(false)->extraAttributes(['class' => 'atv-horas']),
+                ])->from('md'),
 
-                Tables\Columns\TextColumn::make('completed_at')
-                    ->label('Concluída em')
-                    ->dateTime('d/m/Y H:i')
-                    ->placeholder('—')
-                    ->sortable()
-                    ->description(fn (ProjectTask $record) => $record->completedBy?->name)
-                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\Layout\Panel::make([
+                    Tables\Columns\ViewColumn::make('description')
+                        ->label('Descrição')
+                        ->view('filament.task-description'),
+                ])
+                    ->collapsible()
+                    ->visible(fn (?ProjectTask $record) => filled($record?->description)),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('project_id')

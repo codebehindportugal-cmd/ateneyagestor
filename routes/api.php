@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AgentController;
 use App\Http\Controllers\Api\ClaudeController;
+use App\Http\Controllers\Api\FaturaController;
 use App\Http\Controllers\Api\PaperInvoiceExtractionController;
 use App\Http\Controllers\Api\ProductivityController;
 use App\Http\Controllers\Api\SiteUpdateController;
@@ -72,6 +73,31 @@ Route::middleware('auth:sanctum')->prefix('claude')->group(function () {
 });
 
 Route::middleware('auth:sanctum')->post('/invoices/paper/extract', PaperInvoiceExtractionController::class);
+
+/*
+|--------------------------------------------------------------------------
+| Faturas de fornecedor (ingestao)
+|--------------------------------------------------------------------------
+|
+| A via das faturas que chegam em papel: quem as le (o chat) manda os dados ja
+| lidos e o documento entra como AccountingDocument, `origem = api`, no mesmo
+| sitio onde o importador de email (IMAP) poe as que chegam em PDF. O importador
+| de email nao muda nada; sao duas portas para a mesma tabela.
+|
+| O caminho e igual ao do agro.codebehind.pt e da gestao.hortadamaria.com
+| (/api/v1/faturas, /lote, /{id}/ficheiro), de proposito: mesmo trabalho, mesma
+| forma, nos tres projectos.
+|
+| Token Sanctum emitido a um User administrador, com a ability `faturas:write`.
+| O controlador confirma que o token e mesmo de um utilizador do painel — os
+| agentes de backup e os sincronizadores tambem tem tokens aqui.
+|
+*/
+Route::middleware(['auth:sanctum', 'abilities:faturas:write'])->prefix('v1')->group(function () {
+    Route::post('/faturas', [FaturaController::class, 'store']);
+    Route::post('/faturas/lote', [FaturaController::class, 'lote']);
+    Route::post('/faturas/{documento}/ficheiro', [FaturaController::class, 'ficheiro']);
+});
 
 Route::middleware('auth:sanctum')->prefix('productivity')->group(function () {
     Route::get('/config', [ProductivityController::class, 'config']);

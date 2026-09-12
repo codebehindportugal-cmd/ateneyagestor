@@ -143,6 +143,11 @@
                         <div class="cartao-mes bg-white rounded-xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
                             {{-- Cabeçalho do mês --}}
                             <div class="flex flex-wrap items-center gap-3 px-5 py-3 bg-slate-50 border-b border-slate-200">
+                                <label class="inline-flex items-center cursor-pointer select-none no-print" title="Escolher todos os documentos deste mês">
+                                    <input type="checkbox"
+                                           class="selector-mes h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                                    <span class="sr-only">Escolher o mês inteiro</span>
+                                </label>
                                 <h3 class="font-semibold text-slate-800">
                                     {{ $nomeDoMes }} <span class="font-normal text-slate-400 tnum">{{ $ano }}</span>
                                 </h3>
@@ -161,12 +166,23 @@
                                     {{ $dadosMes['total']['count'] }} doc(s) ·
                                     <span class="font-semibold text-slate-800 tnum">{{ number_format($dadosMes['total']['amount'], 2, ',', '.') }} €</span>
                                 </span>
+
+                                {{-- Um link, nao um botao: o mes inteiro nao precisa de seleccao nenhuma. --}}
+                                <a href="{{ route('contabilista.zip', ['token' => $token, 'ano' => $ano, 'mes' => $mes]) }}"
+                                   class="no-print inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition-colors whitespace-nowrap"
+                                   title="Descarrega todos os ficheiros de {{ $nomeDoMes }} de {{ $ano }} num zip">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                    </svg>
+                                    ZIP do mês
+                                </a>
                             </div>
 
                             <div class="overflow-x-auto">
                                 <table class="w-full text-sm">
                                     <thead>
                                         <tr class="text-[11px] text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                                            <th class="px-3 py-2.5 text-center font-semibold no-print w-10"><span class="sr-only">Escolher</span></th>
                                             <th class="px-4 py-2.5 text-left font-semibold">Tipo</th>
                                             <th class="px-4 py-2.5 text-left font-semibold">Nº Documento</th>
                                             <th class="px-4 py-2.5 text-left font-semibold">Fornecedor</th>
@@ -193,6 +209,11 @@
                                         <tbody class="divide-y divide-slate-100 grupo-marca" data-grupo="{{ $grupo }}">
                                             {{-- Sub-cabeçalho da marca dentro do mês --}}
                                             <tr class="bg-slate-50/70 border-t border-slate-200">
+                                                <td class="px-3 py-2 text-center no-print">
+                                                    <input type="checkbox"
+                                                           class="selector-grupo h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                           title="Escolher todos os documentos desta marca">
+                                                </td>
                                                 <td colspan="7" class="px-4 py-2">
                                                     <span class="inline-flex items-center gap-2">
                                                         <span class="inline-block w-2 h-2 rounded-full flex-shrink-0" style="background-color: {{ $corMarca }}"></span>
@@ -218,6 +239,11 @@
                                                 <tr class="hover:bg-slate-50/70 transition-colors linha-documento"
                                                     data-grupo="{{ $grupo }}"
                                                     data-importada="{{ $doc->importado_contabilidade ? '1' : '0' }}">
+                                                    <td class="px-3 py-3 text-center no-print">
+                                                        <input type="checkbox"
+                                                               class="selector-doc h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                               value="{{ $doc->id }}">
+                                                    </td>
                                                     <td class="px-4 py-3">
                                                         @php $tipos = \App\Models\AccountingDocument::tipos(); @endphp
                                                         <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200">
@@ -339,7 +365,7 @@
                                     {{-- Total do mês --}}
                                     <tfoot>
                                         <tr class="bg-slate-100 border-t-2 border-slate-300">
-                                            <td colspan="5" class="px-4 py-2.5 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                                            <td colspan="6" class="px-4 py-2.5 text-xs font-semibold text-slate-600 uppercase tracking-wide">
                                                 Total de {{ $nomeDoMes }} {{ $ano }}
                                             </td>
                                             <td class="px-4 py-2.5 text-right tnum text-sm text-slate-600 whitespace-nowrap">
@@ -379,11 +405,57 @@
         </footer>
     </div>
 
+    {{-- A barra so' aparece quando ha alguma coisa escolhida: uma barra sempre
+         a vista rouba espaco ao fundo da pagina para nao dizer nada. --}}
+    <div id="barra-seleccao"
+         class="no-print fixed inset-x-0 bottom-0 z-40 hidden border-t border-slate-700 bg-slate-900/95 backdrop-blur text-white shadow-2xl">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center gap-3">
+            <span class="text-sm font-semibold whitespace-nowrap">
+                <span id="conta-seleccao" class="tnum">0</span> documento(s) escolhidos
+            </span>
+
+            <button type="button" id="limpar-seleccao"
+                    class="text-xs text-slate-400 hover:text-white underline underline-offset-2">
+                limpar
+            </button>
+
+            <div class="ml-auto flex flex-wrap items-center gap-2">
+                <button type="button" id="accao-zip"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3.5 py-2 text-sm font-semibold text-white ring-1 ring-inset ring-white/20 hover:bg-white/20 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Descarregar ZIP
+                </button>
+
+                <button type="button" id="accao-desmarcar"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3.5 py-2 text-sm font-semibold text-white ring-1 ring-inset ring-white/20 hover:bg-white/20 transition-colors">
+                    Desmarcar
+                </button>
+
+                <button type="button" id="accao-marcar"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-white hover:bg-emerald-400 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Marcar como importadas
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- O zip da seleccao vai por POST: um mes com trezentos documentos nao
+         cabe num URL, e o browser trata do download sozinho. --}}
+    <form id="form-zip" method="POST" action="{{ route('contabilista.zip', ['token' => $token]) }}" class="hidden">
+        @csrf
+    </form>
+
     <script>
         // A caixa de marcar grava sozinha. A pagina e' comprida — recarrega-la
         // por cada documento fazia perder o sitio onde se ia.
         (function () {
             const token = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+            const urlMassa = @json(route('contabilista.marcar-importado-massa', ['token' => $token]));
 
             document.querySelectorAll('.marcar-importada').forEach(function (caixa) {
                 caixa.addEventListener('change', async function () {
@@ -476,12 +548,216 @@
                 }
             }
 
+            // ── Seleccao e accoes em lote ───────────────────────────────────
+            //
+            // Marcar um mes fechado caixa a caixa sao trinta gestos e trinta
+            // hipoteses de saltar um. Aqui escolhe-se o mes (ou a marca) de uma
+            // vez e a barra do fundo faz o resto: marcar, desmarcar, ou trazer
+            // os ficheiros todos num zip.
+
+            const barra    = document.getElementById('barra-seleccao');
+            const conta    = document.getElementById('conta-seleccao');
+            const formZip  = document.getElementById('form-zip');
+            const botaoZip = document.getElementById('accao-zip');
+            const botaoMarcar    = document.getElementById('accao-marcar');
+            const botaoDesmarcar = document.getElementById('accao-desmarcar');
+
+            function caixasDoc(dentro) {
+                return Array.from((dentro || document).querySelectorAll('.selector-doc'));
+            }
+
+            // Uma linha escondida pelo filtro nao entra: escolher "o mes
+            // inteiro" com o filtro ligado tem de dar o que se esta a ver.
+            function visivel(caixa) {
+                const linha = caixa.closest('tr');
+
+                return linha !== null && linha.style.display !== 'none';
+            }
+
+            function escolhidas() {
+                return caixasDoc().filter(function (caixa) { return caixa.checked; });
+            }
+
+            function marcarPai(caixa, filhas) {
+                const quantas = filhas.filter(function (f) { return f.checked; }).length;
+
+                caixa.checked = filhas.length > 0 && quantas === filhas.length;
+                caixa.indeterminate = quantas > 0 && quantas < filhas.length;
+            }
+
+            function sincronizarPais() {
+                document.querySelectorAll('.grupo-marca').forEach(function (grupo) {
+                    const caixa = grupo.querySelector('.selector-grupo');
+
+                    if (caixa) {
+                        marcarPai(caixa, caixasDoc(grupo).filter(visivel));
+                    }
+                });
+
+                document.querySelectorAll('.cartao-mes').forEach(function (cartao) {
+                    const caixa = cartao.querySelector('.selector-mes');
+
+                    if (caixa) {
+                        marcarPai(caixa, caixasDoc(cartao).filter(visivel));
+                    }
+                });
+            }
+
+            function actualizarBarra() {
+                const quantos = escolhidas().length;
+
+                conta.textContent = quantos;
+                barra.classList.toggle('hidden', quantos === 0);
+                document.body.style.paddingBottom = quantos === 0 ? '' : '5.5rem';
+
+                sincronizarPais();
+            }
+
+            function limparSeleccao() {
+                caixasDoc().forEach(function (caixa) { caixa.checked = false; });
+                actualizarBarra();
+            }
+
+            caixasDoc().forEach(function (caixa) {
+                caixa.addEventListener('change', actualizarBarra);
+            });
+
+            document.querySelectorAll('.selector-grupo').forEach(function (caixa) {
+                caixa.addEventListener('change', function () {
+                    caixasDoc(caixa.closest('.grupo-marca'))
+                        .filter(visivel)
+                        .forEach(function (filha) { filha.checked = caixa.checked; });
+
+                    actualizarBarra();
+                });
+            });
+
+            document.querySelectorAll('.selector-mes').forEach(function (caixa) {
+                caixa.addEventListener('change', function () {
+                    caixasDoc(caixa.closest('.cartao-mes'))
+                        .filter(visivel)
+                        .forEach(function (filha) { filha.checked = caixa.checked; });
+
+                    actualizarBarra();
+                });
+            });
+
+            document.getElementById('limpar-seleccao')?.addEventListener('click', limparSeleccao);
+
+            botaoZip?.addEventListener('click', function () {
+                const ids = escolhidas().map(function (caixa) { return caixa.value; });
+
+                if (ids.length === 0) {
+                    return;
+                }
+
+                formZip.querySelectorAll('input[name="ids[]"]').forEach(function (campo) {
+                    campo.remove();
+                });
+
+                ids.forEach(function (id) {
+                    const campo = document.createElement('input');
+                    campo.type = 'hidden';
+                    campo.name = 'ids[]';
+                    campo.value = id;
+                    formZip.appendChild(campo);
+                });
+
+                formZip.submit();
+            });
+
+            async function marcarEmLote(importado) {
+                const caixas = escolhidas();
+                const ids = caixas.map(function (caixa) { return Number(caixa.value); });
+
+                if (ids.length === 0) {
+                    return;
+                }
+
+                const botoes = [botaoMarcar, botaoDesmarcar, botaoZip];
+                botoes.forEach(function (botao) { if (botao) { botao.disabled = true; } });
+
+                try {
+                    const resposta = await fetch(urlMassa, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': token,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ ids: ids, importado: importado }),
+                    });
+
+                    if (resposta.status === 419) {
+                        throw new Error('A pagina esteve aberta demasiado tempo. Recarrega (F5) e marca outra vez.');
+                    }
+
+                    if (!resposta.ok) {
+                        throw new Error('O servidor respondeu ' + resposta.status + '.');
+                    }
+
+                    const dados = await resposta.json();
+                    const gravados = new Set((dados.ids ?? []).map(Number));
+
+                    caixas.forEach(function (caixa) {
+                        if (!gravados.has(Number(caixa.value))) {
+                            return;
+                        }
+
+                        const linha  = caixa.closest('tr');
+                        const marca  = linha?.querySelector('.marcar-importada');
+                        const rotulo = linha?.querySelector('[data-rotulo]');
+
+                        if (marca) {
+                            marca.checked = dados.importado;
+                        }
+
+                        linha?.setAttribute('data-importada', dados.importado ? '1' : '0');
+
+                        if (rotulo) {
+                            rotulo.textContent = dados.importado
+                                ? (dados.importado_em ?? 'Importada')
+                                : 'Por importar';
+                            rotulo.className = 'text-[11px] leading-tight '
+                                + (dados.importado ? 'text-emerald-600' : 'text-amber-600');
+                        }
+
+                        caixa.checked = false;
+                    });
+
+                    aplicarFiltro();
+                    actualizarBarra();
+
+                    // Um id que nao voltou nao ficou gravado. Dizer "pronto" na
+                    // mesma dava o documento por lancado sem o estar.
+                    if (gravados.size !== ids.length) {
+                        alert('Gravei ' + gravados.size + ' de ' + ids.length + '.\n\n'
+                            + 'Os restantes ja nao estao disponiveis no portal. Recarrega a pagina (F5).');
+                    }
+                } catch (erro) {
+                    alert('Nao consegui gravar.\n\n' + (erro?.message ?? erro));
+                } finally {
+                    botoes.forEach(function (botao) { if (botao) { botao.disabled = false; } });
+                }
+            }
+
+            botaoMarcar?.addEventListener('click', function () { marcarEmLote(true); });
+            botaoDesmarcar?.addEventListener('click', function () { marcarEmLote(false); });
+
             if (filtro) {
                 filtro.addEventListener('click', function () {
                     soPorImportar = !soPorImportar;
                     aplicarFiltro();
+
+                    // Uma escolha que desaparece de vista mas continua contada
+                    // acaba num zip com documentos que ele julgava ter tirado.
+                    limparSeleccao();
                 });
             }
+
+            actualizarBarra();
         })();
     </script>
 

@@ -7,6 +7,7 @@ use App\Models\AccountingDocument;
 use App\Models\Brand;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -459,6 +460,103 @@ class AccountingDocumentResource extends Resource
                         ->requiresConfirmation()
                         ->deselectRecordsAfterCompletion()
                         ->action(fn ($records) => $records->each->update(['estado' => 'pendente'])),
+
+                    // Aprovar em lote deixa de fora o que ainda esta "Por
+                    // rever" de proposito: aprovar um documento que ninguem
+                    // olhou manda-o para o portal do contabilista — e' assim
+                    // que os extractos bancarios a 0,00 EUR la foram parar da
+                    // primeira vez. Quem quiser aprova-los passa-os primeiro
+                    // por "Marcar como revistas", que e' um gesto consciente.
+                    Tables\Actions\BulkAction::make('aprovar')
+                        ->label('Aprovar')
+                        ->icon('heroicon-o-hand-thumb-up')
+                        ->color('info')
+                        ->requiresConfirmation()
+                        ->modalHeading('Aprovar documentos')
+                        ->modalDescription('Passa o estado a Aprovado. Os que ainda estao "Por rever" ficam de fora — esses passam primeiro por "Marcar como revistas".')
+                        ->modalSubmitActionLabel('Aprovar')
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function ($records) {
+                            $porRever = $records->where('estado', 'por_rever');
+                            $aprovar  = $records->where('estado', '!=', 'por_rever');
+
+                            $aprovar->each->update(['estado' => 'aprovado']);
+
+                            $aviso = Notification::make()
+                                ->title($aprovar->count().' documento(s) aprovados');
+
+                            if ($porRever->isNotEmpty()) {
+                                $aviso->body($porRever->count().' ficaram como estavam por ainda estarem "Por rever".')
+                                    ->warning();
+                            } else {
+                                $aviso->success();
+                            }
+
+                            $aviso->send();
+                        }),
+
+                    // Um formulario onde o que fica em branco nao e' escrito.
+                    // Um "editar em massa" que grava tudo o que esta no ecra
+                    // apaga a marca de trinta documentos so' porque ninguem
+                    // mexeu naquele campo.
+                    Tables\Actions\BulkAction::make('editarEmMassa')
+                        ->label('Editar em massa')
+                        ->icon('heroicon-o-pencil-square')
+                        ->color('warning')
+                        ->modalHeading('Editar documentos em massa')
+                        ->modalSubmitActionLabel('Alterar')
+                        ->deselectRecordsAfterCompletion()
+                        ->form([
+                            Forms\Components\Placeholder::make('aviso')
+                                ->label('')
+                                ->content('So os campos que preencheres sao alterados. O que deixares em "Nao alterar" fica como esta em cada documento.'),
+
+                            Forms\Components\Select::make('estado')
+                                ->label('Estado')
+                                ->options(AccountingDocument::estados())
+                                ->placeholder('Nao alterar'),
+
+                            Forms\Components\Select::make('brand_id')
+                                ->label('Marca / Empresa')
+                                ->options(fn () => Brand::selectOptions())
+                                ->searchable()
+                                ->preload()
+                                ->placeholder('Nao alterar'),
+
+                            Forms\Components\Select::make('title')
+                                ->label('Finalidade')
+                                ->options(AccountingDocument::finalidades())
+                                ->placeholder('Nao alterar'),
+
+                            Forms\Components\Select::make('category')
+                                ->label('Categoria')
+                                ->options(AccountingDocument::categories())
+                                ->placeholder('Nao alterar'),
+                        ])
+                        ->action(function ($records, array $data) {
+                            $mudancas = array_filter(
+                                $data,
+                                fn ($valor) => filled($valor)
+                            );
+
+                            if ($mudancas === []) {
+                                Notification::make()
+                                    ->warning()
+                                    ->title('Nao escolheste nada para alterar')
+                                    ->body('Preenche pelo menos um campo.')
+                                    ->send();
+
+                                return;
+                            }
+
+                            $records->each->update($mudancas);
+
+                            Notification::make()
+                                ->success()
+                                ->title($records->count().' documento(s) alterados')
+                                ->body('Campos alterados: '.implode(', ', array_keys($mudancas)).'.')
+                                ->send();
+                        }),
 
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),

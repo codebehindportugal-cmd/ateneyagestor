@@ -173,6 +173,42 @@ class AttachmentService
     }
 
     /**
+     * O caminho de um anexo no disco DESTA maquina, para quem precisa de o ler
+     * em vez de o mandar para o browser — o zip da contabilidade, por exemplo.
+     *
+     * Um anexo que vive no NAS tem de vir primeiro para uma copia temporaria;
+     * e' por isso que isto devolve tambem o `temporario`, e quem chamou tem de
+     * apagar essa copia quando acabar. Devolve `null` quando o ficheiro nao
+     * aparece: um zip com um anexo a menos e' melhor do que um zip que rebenta
+     * a meio e nao chega la nenhum.
+     *
+     * @return array{caminho: string, temporario: bool}|null
+     */
+    public function caminhoParaLeitura(Attachment $anexo): ?array
+    {
+        if ($anexo->storage_type === 'nas') {
+            try {
+                return [
+                    'caminho'    => $this->nas->downloadToTemp($anexo->file_path),
+                    'temporario' => true,
+                ];
+            } catch (\Throwable $e) {
+                Log::warning(
+                    "AttachmentService: nao consegui trazer {$anexo->file_path} do NAS. ".$e->getMessage()
+                );
+
+                return null;
+            }
+        }
+
+        $absoluto = storage_path("app/public/{$anexo->file_path}");
+
+        return file_exists($absoluto)
+            ? ['caminho' => $absoluto, 'temporario' => false]
+            : null;
+    }
+
+    /**
      * Apaga so' o ficheiro. O registo e' apagado por quem chamou — e' o
      * `deleting` do modelo que chama isto, e apagar la dentro dava recursao.
      *

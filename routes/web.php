@@ -5,6 +5,7 @@ use App\Support\ClaudeAgenda;
 use App\Http\Controllers\AccountantViewController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\ClientDocumentController;
+use App\Http\Controllers\CofreImportController;
 use App\Http\Controllers\SupplierInvoiceController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,6 +41,12 @@ Route::get('/contabilista/{token}/anexos/{attachment}/download', [AccountantView
     ->name('contabilista.anexos.download');
 Route::post('/contabilista/{token}/documentos/{id}/importado', [AccountantViewController::class, 'marcarImportado'])
     ->name('contabilista.marcar-importado');
+Route::post('/contabilista/{token}/importado-em-massa', [AccountantViewController::class, 'marcarImportadoEmMassa'])
+    ->name('contabilista.marcar-importado-massa');
+// GET para o botao do mes (e' so' um link); POST para a seleccao, que pode
+// levar centenas de ids e nao cabe num URL.
+Route::match(['get', 'post'], '/contabilista/{token}/zip', [AccountantViewController::class, 'zip'])
+    ->name('contabilista.zip');
 Route::get('/contabilista/{token}/supplier-invoices/{supplierInvoice}/download/{image?}', [AccountantViewController::class, 'supplierInvoiceDownload'])
     ->name('contabilista.supplier-invoices.download');
 
@@ -96,3 +103,12 @@ Route::middleware('auth:client')->group(function () {
     Route::get('/client/anexos/{attachment}/download', [AttachmentController::class, 'downloadCliente'])
         ->name('cliente.anexos.download');
 });
+
+// ── Cofre pessoal ────────────────────────────────────────────────────────────
+// O ficheiro .kdbx do KeePass e' lido no browser, com a senha do KeePass; aqui
+// so' chegam as entradas ja' lidas, para serem cifradas com a chave do cofre
+// que esta' na sessao. Fica fora do painel porque o Filament nao serve pedidos
+// JSON destes; `auth` garante a sessao e o controlador garante o resto.
+Route::middleware('auth')
+    ->post('/cofre/importar-keepass', CofreImportController::class)
+    ->name('cofre.importar');

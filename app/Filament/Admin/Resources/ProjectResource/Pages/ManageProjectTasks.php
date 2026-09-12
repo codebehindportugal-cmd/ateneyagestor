@@ -13,9 +13,11 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ManageRelatedRecords;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\HtmlString;
 
 class ManageProjectTasks extends ManageRelatedRecords
 {
@@ -166,9 +168,21 @@ class ManageProjectTasks extends ManageRelatedRecords
             // `description()` e nao `header()`: o header substitui a zona toda
             // do cabecalho da tabela, accoes incluidas — foi o que fez o botao
             // "Nova tarefa" desaparecer desta pagina.
-            ->description(fn () => view('filament.project-notes-header', [
-                'notes' => $this->getOwnerRecord()->notes,
-            ]))
+            //
+            // Tem de sair daqui como HtmlString ja renderizado. Devolver a View
+            // directamente fazia aparecer os marcadores do Livewire
+            // (`<!--[if BLOCK]><![endif]-->`) como texto no topo da pagina.
+            ->description(function (): ?Htmlable {
+                $notas = trim((string) $this->getOwnerRecord()->notes);
+
+                if ($notas === '') {
+                    return null;
+                }
+
+                return new HtmlString(
+                    view('filament.project-notes-header', ['notes' => $notas])->render()
+                );
+            })
             ->modifyQueryUsing(fn (Builder $query) => $query
                 ->with(['lastClaudeRun', 'assignedUser'])
                 // A rede de segurança do lado da consulta: as tarefas dele e
@@ -176,69 +190,115 @@ class ManageProjectTasks extends ManageRelatedRecords
                 ->visivelPara(Auth::user()))
             ->reorderable($admin ? 'position' : null)
             ->defaultSort('position')
+            // Isto deixou de ser uma grelha de colunas e passou a ser uma lista:
+            // título em cima, os dados secundários em chips por baixo, e as
+            // horas encostadas à direita. Com nove colunas, a coluna do título
+            // ficava com ~80px e a descrição inteira lá dentro — uma palavra
+            // por linha, e o resto da linha em branco. A descrição saiu dali
+            // para o painel que abre no fim.
             ->columns([
-                Tables\Columns\IconColumn::make('status')
-                    ->label('')
-                    ->icon(fn (ProjectTask $record) => $record->isDone()
-                        ? 'heroicon-s-check-circle'
-                        : ($record->status === 'cancelled' ? 'heroicon-o-x-circle' : 'heroicon-o-clock'))
-                    ->color(fn (ProjectTask $record) => ProjectTask::statusColor($record->status)),
+                Tables\Columns\Layout\Split::make([
+                    Tables\Columns\Layout\Stack::make([
+                        Tables\Columns\TextColumn::make('title')
+                            ->label('Tarefa')
+                            ->searchable()
+                            ->sortable()
+                            ->wrap()
+                            ->weight('semibold')
+                            ->color(fn (ProjectTask $record) => $record->isDone() ? 'gray' : null)
+                            // Risca o título das feitas — vê-se de relance sem
+                            // ter de ler o estado.
+                            ->extraAttributes(fn (?ProjectTask $record) => [
+                                'class' => $record?->isDone() ? 'atv-feito' : '',
+                            ]),
 
-                Tables\Columns\TextColumn::make('title')
-                    ->label('Tarefa')
-                    ->searchable()
-                    ->wrap()
-                    ->weight('medium')
-                    ->color(fn (ProjectTask $record) => $record->isDone() ? 'gray' : null)
-                    ->description(fn (ProjectTask $record) => $record->description),
+                        Tables\Columns\Layout\Split::make([
+                            Tables\Columns\TextColumn::make('status')
+                                ->label('Estado')
+                                ->badge()
+                                ->size('xs')
+                                ->formatStateUsing(fn ($state) => ProjectTask::statusOptions()[$state] ?? $state)
+                                ->color(fn ($state) => ProjectTask::statusColor($state))
+                                ->sortable()
+                                ->grow(false),
 
-                Tables\Columns\TextColumn::make('assignedUser.name')
-                    ->label('Responsável')
-                    ->badge()
-                    ->color(fn ($state) => $state ? 'primary' : 'gray')
-                    ->placeholder('Por atribuir')
-                    ->searchable()
-                    ->sortable(),
+                            Tables\Columns\TextColumn::make('assignedUser.name')
+                                ->label('Responsável')
+                                ->badge()
+                                ->size('xs')
+                                ->icon('heroicon-m-user')
+                                ->color(fn ($state) => $state ? 'primary' : 'gray')
+                                ->placeholder('Por atribuir')
+                                ->searchable()
+                                ->sortable()
+                                ->grow(false),
 
-                Tables\Columns\TextColumn::make('status')
-                    ->label('Estado')
-                    ->badge()
-                    ->formatStateUsing(fn ($state) => ProjectTask::statusOptions()[$state] ?? $state)
-                    ->color(fn ($state) => ProjectTask::statusColor($state)),
+                            Tables\Columns\TextColumn::make('due_date')
+                                ->label('Prazo')
+                                ->size('xs')
+                                ->icon('heroicon-m-calendar-days')
+                                ->date('d/m/Y')
+                                ->tooltip(fn (ProjectTask $record) => $record->isOverdue()
+                                    ? 'Prazo ultrapassado'
+                                    : 'Prazo')
+                                ->color(fn (ProjectTask $record) => $record->isOverdue() ? 'danger' : 'gray')
+                                ->sortable()
+                                ->grow(false),
 
-                Tables\Columns\TextColumn::make('due_date')
-                    ->label('Prazo')
-                    ->date('d/m/Y')
-                    ->placeholder('—')
-                    ->sortable()
-                    ->color(fn (ProjectTask $record) => $record->isOverdue() ? 'danger' : null),
+                            Tables\Columns\TextColumn::make('completed_at')
+                                ->label('Concluída em')
+                                ->size('xs')
+                                ->icon('heroicon-m-check-circle')
+                                ->date('d/m/Y')
+                                ->color('gray')
+                                ->tooltip(fn (ProjectTask $record) => filled($record->completed_at)
+                                    ? 'Concluída em ' . $record->completed_at->format('d/m/Y H:i')
+                                        . ($record->completedBy?->name ? ' por ' . $record->completedBy->name : '')
+                                    : null)
+                                ->sortable()
+                                ->grow(false),
+                        ])->extraAttributes(['class' => 'atv-chips']),
+                    ])->space(2),
 
-                Tables\Columns\TextColumn::make('estimated_hours')
-                    ->label('Estimativa')
-                    ->placeholder('—')
-                    ->formatStateUsing(fn ($state) => ProjectTask::formatarHoras($state))
-                    ->color('gray')
-                    ->sortable()
-                    ->summarize(Tables\Columns\Summarizers\Sum::make()->label('Total')),
+                    // As duas horas lado a lado, encostadas à direita: é a
+                    // comparação entre elas que interessa.
+                    Tables\Columns\Layout\Split::make([
+                        Tables\Columns\TextColumn::make('estimated_hours')
+                            ->label('Estimativa')
+                            ->badge()
+                            ->size('xs')
+                            ->color('gray')
+                            ->tooltip('Estimativa')
+                            ->formatStateUsing(fn ($state) => filled($state)
+                                ? ProjectTask::formatarHoras($state) . ' est.'
+                                : null)
+                            ->sortable()
+                            ->grow(false),
 
-                Tables\Columns\TextColumn::make('hours')
-                    ->label('Horas reais')
-                    ->placeholder('—')
-                    ->formatStateUsing(fn ($state) => ProjectTask::formatarHoras($state))
-                    ->summarize(Tables\Columns\Summarizers\Sum::make()->label('Total')),
+                        Tables\Columns\TextColumn::make('hours')
+                            ->label('Horas reais')
+                            ->badge()
+                            ->size('xs')
+                            ->color('info')
+                            ->tooltip('Horas registadas')
+                            ->formatStateUsing(fn ($state) => filled($state)
+                                ? ProjectTask::formatarHoras($state) . ' reais'
+                                : null)
+                            ->sortable()
+                            ->grow(false),
+                    ])->grow(false)->extraAttributes(['class' => 'atv-horas']),
+                ])->from('md'),
 
-                Tables\Columns\TextColumn::make('completed_at')
-                    ->label('Concluída em')
-                    ->dateTime('d/m/Y H:i')
-                    ->placeholder('—')
-                    ->sortable()
-                    ->description(fn (ProjectTask $record) => $record->completedBy?->name),
-
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Criada em')
-                    ->dateTime('d/m/Y H:i')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                // O painel colapsável: só existe uma vez por tabela e o
+                // Filament trata dele à parte (a setinha à direita da linha).
+                // Sem descrição, a linha não ganha setinha nenhuma.
+                Tables\Columns\Layout\Panel::make([
+                    Tables\Columns\ViewColumn::make('description')
+                        ->label('Descrição')
+                        ->view('filament.task-description'),
+                ])
+                    ->collapsible()
+                    ->visible(fn (?ProjectTask $record) => filled($record?->description)),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('assigned_user_id')

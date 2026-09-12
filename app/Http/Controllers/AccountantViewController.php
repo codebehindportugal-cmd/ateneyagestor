@@ -11,6 +11,7 @@ use App\Models\Setting;
 use App\Models\SupplierInvoice;
 use App\Services\AttachmentService;
 use App\Services\ClientDocumentService;
+use App\Services\Contabilidade\ZipDeDocumentos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -206,6 +207,110 @@ class AccountantViewController extends Controller
             'importado'    => $importado,
             'importado_em' => $documento->importado_em?->format('d/m/Y H:i'),
         ]);
+    }
+
+    /**
+     * O mesmo que o `marcarImportado`, mas para uma seleccao inteira.
+     *
+     * Marcar um mes fechado a caixa por caixa sao trinta pedidos e trinta
+     * hipoteses de saltar um sem dar por isso. Aqui e' um pedido so' e o
+     * numero que volta diz-lhe quantos e' que ficaram mesmo marcados.
+     */
+    public function marcarImportadoEmMassa(Request $request, string $token)
+    {
+        $this->validateGlobalToken($token);
+
+        $dados = $request->validate([
+            'ids'       => ['required', 'array', 'min:1'],
+            'ids.*'     => ['integer'],
+            'importado' => ['required', 'boolean'],
+        ]);
+
+        $importado = (bool) $dados['importado'];
+
+        // O scope aqui nao e' decoracao: sem ele um id fora da lista marcava um
+        // documento `por_rever`, que ele nem sequer chega a ver na pagina.
+        $documentos = AccountingDocument::query()
+            ->visivelParaContabilista()
+            ->whereIn('id', $dados['ids'])
+            ->get();
+
+        $agora = now();
+
+        foreach ($documentos as $documento) {
+            $documento->forceFill([
+                'importado_contabilidade' => $importado,
+                'importado_em'            => $importado ? $agora : null,
+                'importado_nota'          => $importado
+                    ? 'Marcado em lote pelo contabilista no portal'
+                    : null,
+            ])->save();
+        }
+
+        return response()->json([
+            'ok'           => true,
+            'importado'    => $importado,
+            'ids'          => $documentos->pluck('id')->all(),
+            'importado_em' => $importado ? $agora->format('d/m/Y H:i') : null,
+        ]);
+    }
+
+    /**
+     * Todos os ficheiros de uma seleccao — ou de um mes inteiro — num zip
+     * arrumado por Ano / Mes / Marca.
+     *
+     * Aceita GET (o botao do mes, que e' so' um link) e POST (a seleccao, que
+     * pode levar centenas de ids e nao cabe num URL).
+     */
+    public function zip(Request $request, string $token, ZipDeDocumentos $zips)
+    {
+        $this->validateGlobalToken($token);
+
+        $dados = $request->validate([
+            'ids'   => ['sometimes', 'array'],
+            'ids.*' => ['integer'],
+            'ano'   => ['sometimes', 'integer', 'between:2000,2100'],
+            'mes'   => ['sometimes', 'integer', 'between:1,12'],
+        ]);
+
+        $query = AccountingDocument::query()
+            ->visivelParaContabilista()
+            ->with('brand.parent', 'anexos')
+            ->orderBy('date');
+
+        $nome = 'contabilidade-'.now()->format('Y-m-d');
+
+        if (! empty($dados['ids'])) {
+            $query->whereIn('id', $dados['ids']);
+        } elseif (! empty($dados['ano'])) {
+            $query->where('year', $dados['ano']);
+            $nome = 'contabilidade-'.$dados['ano'];
+
+            if (! empty($dados['mes'])) {
+                $query->where('month', $dados['mes']);
+                $nome = sprintf('contabilidade-%d-%02d', $dados['ano'], $dados['mes']);
+            }
+        } else {
+            abort(422, 'Escolhe pelo menos um documento.');
+        }
+
+        $documentos = $query->get();
+
+        abort_if($documentos->isEmpty(), 404, 'Nao encontrei nenhum documento com essa selecao.');
+
+        $resultado = $zips->construir($documentos);
+
+        abort_if(
+            $resultado === null,
+            404,
+            'Nenhum dos documentos escolhidos tem ficheiro agarrado, por isso o zip ficaria vazio.'
+        );
+
+        return response()
+            ->download($resultado['caminho'], $nome.'.zip', [
+                'Content-Type' => 'application/zip',
+            ])
+            ->deleteFileAfterSend();
     }
 
     // ── Per-client accountant view (ClientDocuments) ─────────────────────────

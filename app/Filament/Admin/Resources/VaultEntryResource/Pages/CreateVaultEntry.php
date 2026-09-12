@@ -5,7 +5,6 @@ namespace App\Filament\Admin\Resources\VaultEntryResource\Pages;
 use App\Filament\Admin\Resources\VaultEntryResource;
 use App\Filament\Admin\Support\ExigeCofreAberto;
 use App\Services\Cofre\CofreCrypto;
-use App\Services\Cofre\CofreSessao;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateVaultEntry extends CreateRecord
@@ -27,7 +26,7 @@ class CreateVaultEntry extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $chave = CofreSessao::chaveObrigatoria();
+        $chave = $this->chaveDoCofreOuPara();
 
         $data['user_id'] = auth()->id();
         $data['segredo'] = CofreCrypto::cifrar((string) ($data['senha'] ?? ''), $chave);

@@ -58,7 +58,7 @@ class EditVaultEntry extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        $chave = CofreSessao::chaveObrigatoria();
+        $chave = $this->chaveDoCofreOuPara();
 
         $data['segredo'] = CofreCrypto::cifrar((string) ($data['senha'] ?? ''), $chave);
         $data['notas']   = filled($data['notas_claras'] ?? null)

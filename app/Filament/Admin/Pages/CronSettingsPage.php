@@ -102,10 +102,17 @@ class CronSettingsPage extends Page implements HasForms
                 ->icon('heroicon-o-server-stack')
                 ->color('gray')
                 ->action(fn () => $this->runCommand('server:check', 'Verificacao de servidores concluida')),
+            // ⚠️ Quem faz os backups e' o agente do CT 105, que tem as chaves,
+            // o NAS montado e a logica de frequencia e retencao. Este caminho e'
+            // o antigo (SSH a partir do painel) e esta' desligado em
+            // `cron.backup.enabled`. O botao segue o mesmo interruptor: sem
+            // isso, ficava aqui um botao vivo para um caminho que ninguem
+            // mantem — foi ele que escreveu o erro de 12/09 as 16:00.
             Action::make('run_backups')
                 ->label('Backup agora')
                 ->icon('heroicon-o-archive-box-arrow-down')
                 ->color('info')
+                ->visible(fn () => Setting::bool('cron.backup.enabled', true))
                 ->requiresConfirmation()
                 ->action(fn () => $this->runArtisanInBackground(
                     'backup:run --all',

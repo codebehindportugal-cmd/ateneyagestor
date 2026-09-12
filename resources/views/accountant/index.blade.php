@@ -31,16 +31,23 @@
             <div class="sm:text-right">
                 <p class="text-xl font-semibold tnum leading-tight">{{ number_format($grandTotal['amount'], 2, ',', '.') }} €</p>
                 <p class="text-xs text-slate-400">{{ $grandTotal['count'] }} documento(s) · gerado a {{ now()->format('d/m/Y \à\s H:i') }}</p>
-                @if(($porImportar['count'] ?? 0) > 0)
-                    <button type="button" id="filtro-por-importar"
-                            class="mt-2 inline-flex items-center gap-2 rounded-full bg-amber-400/15 px-3 py-1 text-xs font-semibold text-amber-300 ring-1 ring-amber-400/30 hover:bg-amber-400/25 transition-colors">
-                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                        <span>{{ $porImportar['count'] }} por importar · {{ number_format($porImportar['amount'], 2, ',', '.') }} €</span>
-                        <span class="text-amber-200/70" data-estado>mostrar só estes</span>
-                    </button>
-                @else
-                    <p class="mt-2 text-xs text-emerald-400">Está tudo importado.</p>
-                @endif
+                {{-- Os contadores sao sempre renderizados e escondidos com
+                     style inline quando nao se aplicam. Antes so' existiam no
+                     HTML quando > 0 e eram Blade puro: marcar documentos nao os
+                     fazia descer, e e' justamente o numero que ele olha para
+                     saber quanto falta ao fechar o mes. Quem os actualiza agora
+                     e' o recalcularContadores(), la' em baixo.
+                     Style inline e nao o atributo `hidden` porque as classes de
+                     display do Tailwind ganham ao [hidden] da folha do browser. --}}
+                <button type="button" id="filtro-por-importar"
+                        @if(($porImportar['count'] ?? 0) < 1) style="display:none" @endif
+                        class="mt-2 inline-flex items-center gap-2 rounded-full bg-amber-400/15 px-3 py-1 text-xs font-semibold text-amber-300 ring-1 ring-amber-400/30 hover:bg-amber-400/25 transition-colors">
+                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                    <span data-contador-topo>{{ $porImportar['count'] }} por importar · {{ number_format($porImportar['amount'], 2, ',', '.') }} €</span>
+                    <span class="text-amber-200/70" data-estado>mostrar só estes</span>
+                </button>
+                <p class="mt-2 text-xs text-emerald-400" data-tudo-importado
+                   @if(($porImportar['count'] ?? 0) > 0) style="display:none" @endif>Está tudo importado.</p>
             </div>
         </div>
     </header>
@@ -120,16 +127,16 @@
         @endif
 
         @forelse($anos as $ano => $dadosAno)
-            <section>
+            <section data-ano="{{ $ano }}">
                 {{-- Cabeçalho do ano --}}
                 <div class="flex flex-wrap items-center gap-3 mb-4">
                     <h2 class="text-xl font-semibold text-slate-800 tnum">{{ $ano }}</h2>
-                    @if($dadosAno['total']['porImportar'] > 0)
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
-                            <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                            {{ $dadosAno['total']['porImportar'] }} por importar
-                        </span>
-                    @endif
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200"
+                          data-contador-ano="{{ $ano }}"
+                          @if(($dadosAno['total']['porImportar'] ?? 0) < 1) style="display:none" @endif>
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        <span data-valor>{{ $dadosAno['total']['porImportar'] }}</span> por importar
+                    </span>
                     <span class="ml-auto inline-flex items-center gap-1.5 text-sm text-slate-500 bg-white border border-slate-200 rounded-full px-3.5 py-1 shadow-sm whitespace-nowrap">
                         {{ $dadosAno['total']['count'] }} doc(s) ·
                         <span class="font-semibold text-slate-800 tnum">{{ number_format($dadosAno['total']['amount'], 2, ',', '.') }} €</span>
@@ -140,7 +147,8 @@
                     @foreach($dadosAno['meses'] as $mes => $dadosMes)
                         @php $nomeDoMes = \App\Models\AccountingDocument::monthName($mes); @endphp
 
-                        <div class="cartao-mes bg-white rounded-xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+                        <div class="cartao-mes bg-white rounded-xl shadow-sm ring-1 ring-slate-200 overflow-hidden"
+                             data-mes-chave="{{ $ano }}-{{ $mes }}">
                             {{-- Cabeçalho do mês --}}
                             <div class="flex flex-wrap items-center gap-3 px-5 py-3 bg-slate-50 border-b border-slate-200">
                                 <label class="inline-flex items-center cursor-pointer select-none no-print" title="Escolher todos os documentos deste mês">
@@ -152,15 +160,16 @@
                                     {{ $nomeDoMes }} <span class="font-normal text-slate-400 tnum">{{ $ano }}</span>
                                 </h3>
 
-                                @if($dadosMes['total']['porImportar'] > 0)
-                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
-                                        {{ $dadosMes['total']['porImportar'] }} por importar
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                                        Mês fechado
-                                    </span>
-                                @endif
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200"
+                                      data-contador-mes="{{ $ano }}-{{ $mes }}"
+                                      @if(($dadosMes['total']['porImportar'] ?? 0) < 1) style="display:none" @endif>
+                                    <span data-valor>{{ $dadosMes['total']['porImportar'] }}</span> por importar
+                                </span>
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200"
+                                      data-mes-fechado="{{ $ano }}-{{ $mes }}"
+                                      @if(($dadosMes['total']['porImportar'] ?? 0) > 0) style="display:none" @endif>
+                                    Mês fechado
+                                </span>
 
                                 <span class="ml-auto text-sm text-slate-500 whitespace-nowrap">
                                     {{ $dadosMes['total']['count'] }} doc(s) ·
@@ -238,6 +247,7 @@
                                                 @endphp
                                                 <tr class="hover:bg-slate-50/70 transition-colors linha-documento"
                                                     data-grupo="{{ $grupo }}"
+                                                    data-total="{{ $totalComIva }}"
                                                     data-importada="{{ $doc->importado_contabilidade ? '1' : '0' }}">
                                                     <td class="px-3 py-3 text-center no-print">
                                                         <input type="checkbox"
@@ -492,6 +502,7 @@
 
                         linha?.setAttribute('data-importada', dados.importado ? '1' : '0');
                         aplicarFiltro();
+                        recalcularContadores();
 
                         if (rotulo) {
                             rotulo.textContent = dados.importado
@@ -729,6 +740,7 @@
 
                     aplicarFiltro();
                     actualizarBarra();
+                    recalcularContadores();
 
                     // Um id que nao voltou nao ficou gravado. Dizer "pronto" na
                     // mesma dava o documento por lancado sem o estar.
@@ -754,6 +766,70 @@
                     // Uma escolha que desaparece de vista mas continua contada
                     // acaba num zip com documentos que ele julgava ter tirado.
                     limparSeleccao();
+                });
+            }
+
+            function euros(n) {
+                const partes = n.toFixed(2).split('.');
+                return partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + partes[1];
+            }
+
+            // Os contadores ("X por importar") eram Blade renderizado no
+            // servidor: marcar documentos nao os fazia descer, e e' justamente
+            // o numero que ele olha para saber quanto falta ao fechar o mes.
+            // Recalculam-se aqui a partir do proprio DOM, que ja' tem o estado
+            // certo de cada linha em data-importada.
+            function porImportarDentro(raiz) {
+                if (!raiz) {
+                    return { n: 0, total: 0 };
+                }
+
+                const linhas = Array.from(raiz.querySelectorAll('.linha-documento'))
+                    .filter(function (linha) { return linha.getAttribute('data-importada') === '0'; });
+
+                return {
+                    n: linhas.length,
+                    total: linhas.reduce(function (soma, linha) {
+                        return soma + (parseFloat(linha.dataset.total) || 0);
+                    }, 0),
+                };
+            }
+
+            function mostrar(elemento, visivel) {
+                if (elemento) {
+                    elemento.style.display = visivel ? '' : 'none';
+                }
+            }
+
+            function recalcularContadores() {
+                const topo = porImportarDentro(document);
+                const rotulo = document.querySelector('[data-contador-topo]');
+
+                if (rotulo) {
+                    rotulo.textContent = topo.n + ' por importar \u00b7 ' + euros(topo.total) + ' \u20ac';
+                }
+
+                mostrar(document.getElementById('filtro-por-importar'), topo.n > 0);
+                mostrar(document.querySelector('[data-tudo-importado]'), topo.n === 0);
+
+                document.querySelectorAll('[data-contador-ano]').forEach(function (cracha) {
+                    const conta = porImportarDentro(
+                        document.querySelector('section[data-ano="' + cracha.dataset.contadorAno + '"]')
+                    );
+                    const valor = cracha.querySelector('[data-valor]');
+
+                    if (valor) { valor.textContent = conta.n; }
+                    mostrar(cracha, conta.n > 0);
+                });
+
+                document.querySelectorAll('[data-contador-mes]').forEach(function (cracha) {
+                    const chave = cracha.dataset.contadorMes;
+                    const conta = porImportarDentro(document.querySelector('[data-mes-chave="' + chave + '"]'));
+                    const valor = cracha.querySelector('[data-valor]');
+
+                    if (valor) { valor.textContent = conta.n; }
+                    mostrar(cracha, conta.n > 0);
+                    mostrar(document.querySelector('[data-mes-fechado="' + chave + '"]'), conta.n === 0);
                 });
             }
 

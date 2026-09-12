@@ -46,3 +46,11 @@ yarn-error.log
 /*.log
 DEPLOY_STATUS.txt
 deploy-status.html
+
+# Copias de seguranca deixadas por editores e por correccoes a mao. Sem esta
+# regra vao para o repositorio e para producao — o SyncProjectResource.php.bak
+# tinha 34 KB. Nao sao carregadas (o PSR-4 so' apanha .php), mas nao ha razao
+# para la' estarem.
+*.bak
+*.bak-*
+*.orig

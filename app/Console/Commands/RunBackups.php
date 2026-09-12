@@ -11,8 +11,7 @@ class RunBackups extends Command
     protected $signature = 'backup:run
         {--server= : ID ou nome do servidor (pode repetir: --server=1 --server=2)}
         {--client= : ID do cliente — faz backup de todos os seus servidores}
-        {--all    : Faz backup de todos os servidores activos}
-        {--type=  : Filtra por tipo (wordpress, plesk, vps_laravel)}';
+        {--all    : Faz backup de todos os servidores activos}';
 
     protected $description = 'Cria backups de servidores e envia para o NAS';
 
@@ -35,7 +34,12 @@ class RunBackups extends Command
         $results = [];
 
         foreach ($servers as $server) {
-            $this->line("<fg=cyan>▶ {$server->name}</> ({$server->type->value}) — {$server->client?->name}");
+            // ⚠️ Nao ler `$server->type` aqui: a coluna saiu de `servers` na
+            // migracao 2026_08_27_000001_create_sites_table (dropColumn) quando
+            // o painel passou ao modelo maquina-com-sites — o tipo vive agora em
+            // `sites`. Ler dava "Attempt to read property value on null" e o
+            // comando morria no primeiro servidor, sem copiar nada.
+            $this->line("<fg=cyan>▶ {$server->name}</> — {$server->client?->name}");
 
             $run = $backupService->backup(
                 $server,
@@ -76,10 +80,6 @@ class RunBackups extends Command
     private function resolveServers()
     {
         $query = Server::with('client')->where('is_active', true);
-
-        if ($type = $this->option('type')) {
-            $query->where('type', $type);
-        }
 
         if ($this->option('all')) {
             return $query->get();

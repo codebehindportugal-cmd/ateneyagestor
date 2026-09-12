@@ -33,7 +33,6 @@ class ImportarKeePass extends Page
 
     protected static string $view = 'filament.admin.pages.importar-keepass';
 
-    public ?string $title = 'Importar do KeePass';
 
     public function mount(): void
     {

@@ -36,7 +36,6 @@ class CofrePessoal extends Page implements HasForms
 
     protected static string $view = 'filament.admin.pages.cofre-pessoal';
 
-    public ?string $title = 'Cofre pessoal';
 
     public ?array $dadosCriar = [];
 

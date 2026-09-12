@@ -52,10 +52,10 @@ class CofrePessoal extends Page implements HasForms
 
     public function mount(): void
     {
-        $this->form('formCriar')->fill();
-        $this->form('formDesbloquear')->fill();
-        $this->form('formMudar')->fill();
-        $this->form('formRecuperar')->fill();
+        $this->getForm('formCriar')->fill();
+        $this->getForm('formDesbloquear')->fill();
+        $this->getForm('formMudar')->fill();
+        $this->getForm('formRecuperar')->fill();
     }
 
     protected function getForms(): array
@@ -186,13 +186,13 @@ class CofrePessoal extends Page implements HasForms
             return;
         }
 
-        $dados = $this->form('formCriar')->getState();
+        $dados = $this->getForm('formCriar')->getState();
 
         [, $chave, $codigo] = Vault::criar(auth()->user(), $dados['master']);
 
         CofreSessao::destrancar($chave);
 
-        $this->form('formCriar')->fill();
+        $this->getForm('formCriar')->fill();
         $this->codigoParaMostrar = $codigo;
 
         Notification::make()
@@ -204,7 +204,7 @@ class CofrePessoal extends Page implements HasForms
 
     public function desbloquear(): void
     {
-        $dados = $this->form('formDesbloquear')->getState();
+        $dados = $this->getForm('formDesbloquear')->getState();
         $cofre = $this->getCofre();
 
         if (! $cofre) {
@@ -214,7 +214,7 @@ class CofrePessoal extends Page implements HasForms
         try {
             CofreSessao::destrancar($cofre->abrirCom($dados['master']));
         } catch (CofreException $e) {
-            $this->form('formDesbloquear')->fill();
+            $this->getForm('formDesbloquear')->fill();
 
             Notification::make()
                 ->title('Não abriu')
@@ -225,7 +225,7 @@ class CofrePessoal extends Page implements HasForms
             return;
         }
 
-        $this->form('formDesbloquear')->fill();
+        $this->getForm('formDesbloquear')->fill();
 
         Notification::make()->title('Cofre aberto')->success()->send();
     }
@@ -250,11 +250,11 @@ class CofrePessoal extends Page implements HasForms
             return;
         }
 
-        $dados = $this->form('formMudar')->getState();
+        $dados = $this->getForm('formMudar')->getState();
 
         $cofre->mudarMasterPassword($chave, $dados['nova']);
 
-        $this->form('formMudar')->fill();
+        $this->getForm('formMudar')->fill();
 
         Notification::make()
             ->title('Master password mudada')
@@ -291,7 +291,7 @@ class CofrePessoal extends Page implements HasForms
             return;
         }
 
-        $dados = $this->form('formRecuperar')->getState();
+        $dados = $this->getForm('formRecuperar')->getState();
 
         try {
             $chave = $cofre->abrirComCodigo($dados['codigo']);
@@ -313,7 +313,7 @@ class CofrePessoal extends Page implements HasForms
         $this->codigoParaMostrar   = $cofre->novoCodigoRecuperacao($chave);
         $this->mostrarRecuperacao  = false;
 
-        $this->form('formRecuperar')->fill();
+        $this->getForm('formRecuperar')->fill();
 
         Notification::make()
             ->title('Cofre recuperado')

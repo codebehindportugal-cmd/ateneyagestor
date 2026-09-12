@@ -24,18 +24,30 @@ class SshService
      */
     public function run(Server $server, string $command, int $timeout = 30): array
     {
-        $ssh = new SSH2($server->host, $server->port ?? 22);
-        $ssh->setTimeout($timeout);
+        $porta   = (int) ($server->port ?: 22);
+        $keyPath = self::chaveDoServidor($server);
 
-        $keyPath = self::expandTilde($server->ssh_key_path);
-        if (! $keyPath || ! file_exists($keyPath)) {
-            throw new \RuntimeException("Chave SSH não encontrada: {$keyPath}. Configura o caminho da chave na ficha do servidor.");
+        try {
+            $ssh = new SSH2($server->host, $porta);
+            $ssh->setTimeout($timeout);
+        } catch (\Throwable $e) {
+            // A mensagem crua do phpseclib ("Error 111") não diz a ninguém o
+            // que fazer a seguir. Estas são as três causas de sempre.
+            throw new \RuntimeException(
+                "Não consegui ligar a {$server->name} ({$server->host}:{$porta}). "
+                .'Ou o SSH está noutra porta — corrige o campo Porta na ficha do servidor —, '
+                .'ou a firewall não deixa entrar o IP deste painel, ou a máquina está em baixo. '
+                ."Detalhe: {$e->getMessage()}"
+            );
         }
 
         $key = PublicKeyLoader::load(file_get_contents($keyPath));
 
         if (! $ssh->login($server->user ?? 'root', $key)) {
-            throw new \RuntimeException("Autenticação SSH falhou em {$server->host}. Verifica o utilizador e a chave.");
+            throw new \RuntimeException(
+                "A chave foi recusada por {$server->host} (utilizador '".($server->user ?: 'root')."'). "
+                .'Confirma que a chave pública do painel está no authorized_keys desse utilizador.'
+            );
         }
 
         $output = $ssh->exec($command);
@@ -56,6 +68,43 @@ class SshService
         }
 
         return $this->run($server, self::PRESET_COMMANDS[$preset]['command']);
+    }
+
+    /**
+     * A chave a usar com este servidor: a da ficha, ou a do .env quando a
+     * ficha não tem nenhuma (SSH_CHAVE_POR_OMISSAO).
+     *
+     * Vale a pena dizer aqui porque é que isto falha tantas vezes: o painel
+     * corre como o utilizador do vhost, não como root. Uma chave em
+     * /root/.ssh/ existe mas não se abre, e o erro parece o mesmo de não
+     * existir. Por isso a mensagem distingue os dois casos.
+     */
+    public static function chaveDoServidor(Server $server): string
+    {
+        $caminho = self::expandTilde($server->ssh_key_path ?: config('ssh.chave_por_omissao'));
+
+        if (! $caminho) {
+            throw new \RuntimeException(
+                "O servidor {$server->name} não tem chave SSH configurada. "
+                .'Preenche "Caminho da chave SSH" na ficha do servidor, ou define SSH_CHAVE_POR_OMISSAO no .env do painel.'
+            );
+        }
+
+        if (! file_exists($caminho)) {
+            throw new \RuntimeException(
+                "Não encontrei a chave SSH em {$caminho} (caminho no servidor do painel, não no teu computador)."
+            );
+        }
+
+        if (! is_readable($caminho)) {
+            throw new \RuntimeException(
+                "A chave {$caminho} existe mas o painel não a consegue ler. "
+                .'Corre como o utilizador do vhost — uma chave em /root/.ssh/ não serve. '
+                .'Põe a chave numa pasta do painel e dá-lhe dono do vhost com permissões 600.'
+            );
+        }
+
+        return $caminho;
     }
 
     public static function expandTilde(?string $path): ?string

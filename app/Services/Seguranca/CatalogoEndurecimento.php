@@ -148,7 +148,7 @@ class CatalogoEndurecimento
                 label: 'Base de dados aberta à Internet',
                 severidade: 'critica',
                 porque: 'O MySQL só precisa de ser ouvido pela própria máquina. À escuta em 0.0.0.0 é um convite.',
-                comando: "ss -lnt 2>/dev/null | awk '{print \$4}' | grep -E ':3306\$' | grep -vE '^(127\\.0\\.0\\.1|\\[::1\\])' || echo nenhum",
+                comando: "ss -lnt 2>/dev/null | awk '{print \$4}' | grep -E ':3306\$' | grep -vE '^(127\\.0\\.0\\.1|\\[::1\\]|\\[::ffff:127\\.0\\.0\\.1\\])' || echo nenhum",
                 avaliar: function (string $s): array {
                     $s = trim($s);
 
@@ -218,7 +218,7 @@ class CatalogoEndurecimento
                 label: 'PHP em modo de produção',
                 severidade: 'importante',
                 porque: 'display_errors mostra caminhos e senhas em páginas de erro; expose_php anuncia a versão em cada resposta.',
-                comando: "for f in /etc/php/*/fpm/php.ini /etc/php/*/apache2/php.ini; do [ -f \"\$f\" ] && grep -HE '^(expose_php|display_errors)[[:space:]]*=' \"\$f\"; done 2>/dev/null || echo 'sem php.ini'",
+                comando: "for f in /etc/php/*/fpm/php.ini /etc/php/*/apache2/php.ini /opt/plesk/php/*/etc/php.ini; do [ -f \"\$f\" ] && grep -HE '^(expose_php|display_errors)[[:space:]]*=' \"\$f\"; done 2>/dev/null || echo 'sem php.ini'",
                 avaliar: function (string $s): array {
                     $s = trim($s);
 
@@ -235,7 +235,7 @@ class CatalogoEndurecimento
                         ? ['estado' => 'ok', 'detalhe' => 'expose_php e display_errors desligados']
                         : ['estado' => 'falha', 'detalhe' => implode("\n", $mal)];
                 },
-                correcao: 'for f in /etc/php/*/fpm/php.ini /etc/php/*/apache2/php.ini; do [ -f "$f" ] && sed -i -e "s/^expose_php[[:space:]]*=.*/expose_php = Off/" -e "s/^display_errors[[:space:]]*=.*/display_errors = Off/" "$f"; done; for s in $(systemctl list-units --type=service --no-legend "php*-fpm*" 2>/dev/null | awk "{print \$1}"); do systemctl reload "$s"; done; systemctl reload apache2 2>/dev/null; echo feito',
+                correcao: 'for f in /etc/php/*/fpm/php.ini /etc/php/*/apache2/php.ini /opt/plesk/php/*/etc/php.ini; do [ -f "$f" ] && sed -i -e "s/^expose_php[[:space:]]*=.*/expose_php = Off/" -e "s/^display_errors[[:space:]]*=.*/display_errors = Off/" "$f"; done; for s in $(systemctl list-units --type=service --no-legend "php*-fpm*" 2>/dev/null | awk "{print \$1}"); do systemctl reload "$s"; done; systemctl reload apache2 2>/dev/null; echo feito',
             ),
 
             new Verificacao(
@@ -243,7 +243,7 @@ class CatalogoEndurecimento
                 label: 'Pastas do site com escrita para toda a gente',
                 severidade: 'importante',
                 porque: 'Uma pasta 777 deixa qualquer processo da máquina — incluindo o PHP de outro site — escrever lá dentro.',
-                comando: "find /var/www -maxdepth 5 -type d -perm -o+w 2>/dev/null | head -20 || echo nenhum",
+                comando: "find /var/www -maxdepth 5 -type d -perm -o+w ! -perm -1000 2>/dev/null | head -20 || echo nenhum",
                 avaliar: function (string $s): array {
                     $s = trim($s);
 
@@ -255,7 +255,7 @@ class CatalogoEndurecimento
 
                     return ['estado' => 'falha', 'detalhe' => "{$linhas} pasta(s):\n{$s}"];
                 },
-                correcao: 'find /var/www -type d -perm -o+w -exec chmod o-w {} + 2>/dev/null; find /var/www -type f -perm -o+w -exec chmod o-w {} + 2>/dev/null; echo feito',
+                correcao: 'find /var/www -type d -perm -o+w ! -perm -1000 -exec chmod o-w {} + 2>/dev/null; find /var/www -type f -perm -o+w -exec chmod o-w {} + 2>/dev/null; echo feito',
                 perigo: 'Se algum plugin de WordPress dependia de escrita livre, pode passar a pedir credenciais FTP para actualizar.',
             ),
 

@@ -1,0 +1,162 @@
+2026-09-12 03:00:24,040 INFO pedido #29: alvorfisconta-com
+2026-09-12 03:00:24,059 INFO alvorfisconta-com em contabo-d (45.10.154.155)
+2026-09-12 03:00:26,299 INFO sem wp-cli no servidor; a deixar um wp-cli.phar em /tmp
+2026-09-12 03:00:28,043 INFO wp-cli: php /tmp/wp-cli.phar
+2026-09-12 03:00:31,286 INFO estado inicial: https://alvorfisconta.com HTTP 200 (189705 bytes)
+2026-09-12 03:00:43,356 INFO 2 por actualizar: duplicate-page (plugin), wordpress-seo (plugin)
+2026-09-12 03:00:46,556 INFO espaco ok: 503 MB a copiar, 175210 MB livres
+2026-09-12 03:00:46,853 INFO a tirar copia (ficheiros e base de dados)...
+2026-09-12 03:01:25,356 INFO copia em /var/backups/ateneya-updates/alvorfisconta-com/2026-09-12_010047
+2026-09-12 03:01:25,620 INFO a actualizar duplicate-page (4.5.5 -> 4.5.9)
+2026-09-12 03:01:34,325 INFO   ok
+2026-09-12 03:01:34,616 INFO a actualizar wordpress-seo (24.9 -> 28.4)
+2026-09-12 03:01:43,075 INFO   ok
+2026-09-12 03:01:47,100 INFO terminado: 2 actualizados, 0 repostos
+2026-09-12 03:01:48,052 INFO pedido #30: ateneya
+2026-09-12 03:01:48,053 INFO ateneya em contabo-a (89.117.58.229)
+2026-09-12 03:01:50,283 INFO wp-cli: wp
+2026-09-12 03:01:54,040 INFO estado inicial: https://ateneya.com HTTP 200 (95057 bytes)
+2026-09-12 03:02:05,319 INFO 2 por actualizar: advanced-custom-fields-pro (plugin), microsoft-clarity (plugin)
+2026-09-12 03:02:08,178 INFO espaco ok: 484 MB a copiar, 31816 MB livres
+2026-09-12 03:02:08,432 INFO a tirar copia (ficheiros e base de dados)...
+2026-09-12 03:02:39,474 INFO copia em /var/backups/ateneya-updates/ateneya/2026-09-12_010208
+2026-09-12 03:02:39,745 INFO a actualizar advanced-custom-fields-pro (6.2.0 -> 6.8.10)
+2026-09-12 03:02:44,882 INFO   falhou a actualizar: PHP Warning:  ftp_nlist() expects parameter 1 to be resource, null given in /var/www/ateneya.com/wp-admin/includes/class-wp-filesystem-ftpext.php on line 492
+Warning: ftp_nlist() expects parameter 1 to be resource, null given in /var/www/ateneya.com/wp-admin/includes/class-wp-filesystem-ftpext.php on line 492
+PHP Warning:  ftp_pwd() expects parameter 1 to be resource, null given in /var/www/ateney
+2026-09-12 03:02:45,209 INFO a actualizar microsoft-clarity (0.10.28 -> 0.10.30)
+2026-09-12 03:02:52,094 INFO   ok
+2026-09-12 03:02:53,329 INFO terminado: 1 actualizados, 0 repostos
+2026-09-12 03:02:54,312 INFO pedido #31: codebehindtech-com
+2026-09-12 03:02:54,313 INFO codebehindtech-com em contabo-c (185.213.25.187)
+2026-09-12 03:02:55,511 INFO sem wp-cli no servidor; a deixar um wp-cli.phar em /tmp
+2026-09-12 03:02:56,260 INFO wp-cli: php /tmp/wp-cli.phar
+2026-09-12 03:02:58,600 INFO estado inicial: https://codebehindtech.com HTTP 200 (167235 bytes)
+2026-09-12 03:03:08,119 INFO 2 por actualizar: official-facebook-pixel (plugin), js_composer (plugin)
+2026-09-12 03:03:09,564 INFO espaco ok: 565 MB a copiar, 29322 MB livres
+2026-09-12 03:03:09,779 INFO a tirar copia (ficheiros e base de dados)...
+2026-09-12 03:03:33,842 INFO copia em /var/backups/ateneya-updates/codebehindtech-com/2026-09-12_010310
+2026-09-12 03:03:34,124 INFO a actualizar official-facebook-pixel (4.1.0 -> 5.2.2)
+2026-09-12 03:03:41,907 INFO   ok
+2026-09-12 03:03:42,122 INFO a actualizar js_composer (6.2.0 -> 9.0.1)
+2026-09-12 03:03:46,235 INFO   falhou a actualizar: PHP Warning:  The magic method Vc_Manager::__wakeup() must have public visibility in /var/www/codebehindtech.com/public_html/wp-content/plugins/js_composer/include/classes/core/class-vc-manager.php on line 203
+Warning: The magic method Vc_Manager::__wakeup() must have public visibility in /var/www/codebehindtech.com/public_html/wp-content/plugins/js_composer/include/classes/core/class-vc-manager.p
+2026-09-12 03:03:47,097 INFO terminado: 1 actualizados, 0 repostos
+2026-09-12 03:03:48,101 INFO pedido #32: faustinoclemente-pt
+2026-09-12 03:03:48,101 INFO faustinoclemente-pt em faustino-clemente (207.180.216.208)
+2026-09-12 03:03:51,247 INFO sem wp-cli no servidor; a deixar um wp-cli.phar em /tmp
+2026-09-12 03:03:52,567 INFO wp-cli: php /tmp/wp-cli.phar
+2026-09-12 03:03:57,882 INFO estado inicial: https://faustinoclemente.pt HTTP 200 (269628 bytes)
+2026-09-12 03:04:19,625 INFO 3 por actualizar: google-listings-and-ads (plugin), wp-whatsapp-chat (plugin), translatepress-multilingual (plugin)
+2026-09-12 03:04:21,860 INFO espaco ok: 603 MB a copiar, 186082 MB livres
+2026-09-12 03:04:22,171 INFO a tirar copia (ficheiros e base de dados)...
+2026-09-12 03:05:03,848 INFO copia em /var/backups/ateneya-updates/faustinoclemente-pt/2026-09-12_010422
+2026-09-12 03:05:04,229 INFO a actualizar google-listings-and-ads (3.9.2 -> 3.9.3)
+2026-09-12 03:05:24,936 INFO   ok
+2026-09-12 03:05:25,284 INFO a actualizar wp-whatsapp-chat (8.6.3 -> 8.6.4)
+2026-09-12 03:05:39,122 INFO   ok
+2026-09-12 03:05:39,412 INFO a actualizar translatepress-multilingual (3.3.4 -> 3.3.5)
+2026-09-12 03:05:54,587 INFO   ok
+2026-09-12 03:05:57,286 INFO terminado: 3 actualizados, 0 repostos
+2026-09-12 03:05:58,405 INFO pedido #33: frutaalvor-com
+2026-09-12 03:05:58,406 INFO frutaalvor-com em contabo-b (89.117.58.85)
+2026-09-12 03:06:00,231 INFO sem wp-cli no servidor; a deixar um wp-cli.phar em /tmp
+2026-09-12 03:06:01,557 INFO wp-cli: php /tmp/wp-cli.phar
+2026-09-12 03:06:08,395 INFO estado inicial: https://frutalvor.com HTTP 200 (219731 bytes)
+2026-09-12 03:06:19,182 INFO 3 por actualizar: LayerSlider (plugin), Ultimate_VC_Addons (plugin), js_composer (plugin)
+2026-09-12 03:06:21,828 INFO espaco ok: 582 MB a copiar, 23668 MB livres
+2026-09-12 03:06:22,106 INFO a tirar copia (ficheiros e base de dados)...
+2026-09-12 03:07:02,110 INFO copia em /var/backups/ateneya-updates/frutaalvor-com/2026-09-12_010622
+2026-09-12 03:07:02,436 INFO a actualizar LayerSlider (7.11.1 -> 8.4.1)
+2026-09-12 03:07:08,434 INFO   falhou a actualizar: Warning: License registration is required to receive updates. Please read our <a href="https://layerslider.com/documentation/#activation" target="_blank">online documentation</a> to learn more.
+Error: No plugins updated (1 failed).
+2026-09-12 03:07:08,673 INFO a actualizar Ultimate_VC_Addons (3.19.22 -> 3.21.6)
+2026-09-12 03:07:12,158 INFO   falhou a actualizar: Warning: O pacote de instalação não está disponível.
+Error: No plugins updated (1 failed).
+2026-09-12 03:07:12,405 INFO a actualizar js_composer (7.8 -> 9.0.1)
+2026-09-12 03:07:16,244 INFO   falhou a actualizar: Warning: O pacote de instalação não está disponível.
+Error: No plugins updated (1 failed).
+2026-09-12 03:07:18,200 INFO terminado: 0 actualizados, 0 repostos
+2026-09-12 03:07:19,258 INFO pedido #34: horaciovleal-com
+2026-09-12 03:07:19,258 INFO horaciovleal-com em contabo-b (89.117.58.85)
+2026-09-12 03:07:20,361 INFO sem wp-cli no servidor; a deixar um wp-cli.phar em /tmp
+2026-09-12 03:07:21,108 INFO wp-cli: php /tmp/wp-cli.phar
+2026-09-12 03:07:25,127 INFO estado inicial: https://horaciovleal.com HTTP 200 (47588 bytes)
+2026-09-12 03:07:36,222 INFO 2 por actualizar: acf_pro (plugin), google-analytics-for-wordpress (plugin)
+2026-09-12 03:07:38,587 INFO espaco ok: 874 MB a copiar, 23836 MB livres
+2026-09-12 03:07:38,801 INFO a tirar copia (ficheiros e base de dados)...
+2026-09-12 03:08:41,231 INFO copia em /var/backups/ateneya-updates/horaciovleal-com/2026-09-12_010739
+2026-09-12 03:08:41,484 INFO a actualizar acf_pro (6.2.7 -> 6.8.9)
+2026-09-12 03:08:46,872 INFO   falhou a actualizar: Warning: O pacote de instalação não está disponível.
+Error: No plugins updated (1 failed).
+2026-09-12 03:08:47,088 INFO a actualizar google-analytics-for-wordpress (11.1.3 -> 11.2.0)
+2026-09-12 03:08:58,011 INFO   ok
+2026-09-12 03:08:59,363 INFO terminado: 1 actualizados, 0 repostos
+2026-09-12 03:09:00,359 INFO pedido #35: hortadamaria-loja
+2026-09-12 03:09:00,360 INFO hortadamaria-loja em horta (161.97.124.152)
+2026-09-12 03:09:04,647 INFO sem wp-cli no servidor; a deixar um wp-cli.phar em /tmp
+2026-09-12 03:09:05,321 ERROR pedido #35 abortado: sem wp-cli e nao foi possivel instalar um temporario ()
+2026-09-12 03:09:06,093 INFO pedido #36: jacfaria-com
+2026-09-12 03:09:06,093 INFO jacfaria-com em contabo-b (89.117.58.85)
+2026-09-12 03:09:07,246 INFO sem wp-cli no servidor; a deixar um wp-cli.phar em /tmp
+2026-09-12 03:09:08,039 INFO wp-cli: php /tmp/wp-cli.phar
+2026-09-12 03:09:14,117 INFO estado inicial: https://jacfaria.com HTTP 200 (173713 bytes)
+2026-09-12 03:09:24,101 INFO 1 por actualizar: js_composer (plugin)
+2026-09-12 03:09:26,350 INFO espaco ok: 2449 MB a copiar, 23804 MB livres
+2026-09-12 03:09:26,564 INFO a tirar copia (ficheiros e base de dados)...
+2026-09-12 03:12:11,388 INFO copia em /var/backups/ateneya-updates/jacfaria-com/2026-09-12_010926
+2026-09-12 03:12:11,692 INFO a actualizar js_composer (6.4.0 -> 9.0.1)
+2026-09-12 03:12:18,361 INFO   falhou a actualizar: Warning: O pacote de instalação não está disponível.
+Error: No plugins updated (1 failed).
+2026-09-12 03:12:21,114 INFO terminado: 0 actualizados, 0 repostos
+2026-09-12 15:53:20,968 WARNING painel devolveu HTTP 500
+2026-09-12 15:53:51,211 WARNING painel devolveu HTTP 500
+2026-09-12 15:54:21,473 WARNING painel devolveu HTTP 500
+2026-09-12 15:54:51,725 WARNING painel devolveu HTTP 500
+2026-09-12 15:55:21,969 WARNING painel devolveu HTTP 500
+2026-09-12 15:55:52,222 WARNING painel devolveu HTTP 500
+2026-09-12 15:56:22,500 WARNING painel devolveu HTTP 500
+2026-09-12 15:56:52,735 WARNING painel devolveu HTTP 500
+2026-09-12 15:57:23,014 WARNING painel devolveu HTTP 500
+2026-09-12 15:57:53,291 WARNING painel devolveu HTTP 500
+2026-09-12 15:58:23,533 WARNING painel devolveu HTTP 500
+2026-09-12 15:58:53,785 WARNING painel devolveu HTTP 500
+2026-09-12 15:59:24,042 WARNING painel devolveu HTTP 500
+2026-09-12 15:59:54,293 WARNING painel devolveu HTTP 500
+2026-09-12 16:00:24,528 WARNING painel devolveu HTTP 500
+2026-09-12 16:00:54,764 WARNING painel devolveu HTTP 500
+2026-09-12 16:01:24,979 WARNING painel devolveu HTTP 500
+2026-09-12 16:01:55,250 WARNING painel devolveu HTTP 500
+2026-09-12 16:02:25,479 WARNING painel devolveu HTTP 500
+2026-09-12 16:02:55,715 WARNING painel devolveu HTTP 500
+2026-09-12 16:03:26,016 WARNING painel devolveu HTTP 500
+2026-09-12 16:03:56,259 WARNING painel devolveu HTTP 500
+2026-09-12 16:04:26,526 WARNING painel devolveu HTTP 500
+2026-09-12 16:04:56,764 WARNING painel devolveu HTTP 500
+2026-09-12 16:05:27,028 WARNING painel devolveu HTTP 500
+2026-09-12 16:05:57,298 WARNING painel devolveu HTTP 500
+2026-09-12 16:06:27,566 WARNING painel devolveu HTTP 500
+2026-09-12 16:06:57,812 WARNING painel devolveu HTTP 500
+2026-09-12 16:07:28,060 WARNING painel devolveu HTTP 500
+2026-09-12 16:07:58,311 WARNING painel devolveu HTTP 500
+2026-09-12 16:08:28,551 WARNING painel devolveu HTTP 500
+2026-09-12 16:08:58,828 WARNING painel devolveu HTTP 500
+2026-09-12 16:09:29,108 WARNING painel devolveu HTTP 500
+2026-09-12 16:09:59,356 WARNING painel devolveu HTTP 500
+2026-09-12 16:10:29,643 WARNING painel devolveu HTTP 500
+2026-09-12 16:10:59,913 WARNING painel devolveu HTTP 500
+2026-09-12 16:11:30,255 WARNING painel devolveu HTTP 500
+2026-09-12 16:12:00,508 WARNING painel devolveu HTTP 500
+2026-09-12 16:12:30,751 WARNING painel devolveu HTTP 500
+2026-09-12 16:13:00,992 WARNING painel devolveu HTTP 500
+2026-09-12 16:13:31,207 WARNING painel devolveu HTTP 500
+2026-09-12 16:14:01,512 WARNING painel devolveu HTTP 500
+2026-09-12 16:14:31,757 WARNING painel devolveu HTTP 500
+2026-09-12 16:15:02,051 WARNING painel devolveu HTTP 500
+2026-09-12 16:15:32,302 WARNING painel devolveu HTTP 500
+2026-09-12 16:16:02,574 WARNING painel devolveu HTTP 500
+2026-09-12 16:16:32,831 WARNING painel devolveu HTTP 500
+2026-09-12 16:17:04,237 WARNING painel devolveu HTTP 500
+2026-09-12 16:17:34,514 WARNING painel devolveu HTTP 500
+2026-09-12 16:18:04,757 WARNING painel devolveu HTTP 500
+2026-09-12 16:18:34,985 WARNING painel devolveu HTTP 500

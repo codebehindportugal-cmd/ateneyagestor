@@ -1,0 +1,365 @@
+{
+  "\u0000plugin-vue:export-helper": [
+    "/build/assets/_plugin-vue_export-helper-1tPrXgE0.js"
+  ],
+  "node_modules/aos/dist/aos.css": [
+    "/build/assets/Welcome-BsWPFXaD.js",
+    "/build/assets/Welcome-Bq8fR4qj.css"
+  ],
+  "node_modules/laravel-vite-plugin/inertia-helpers/index.js": [],
+  "resources/js/Components/ApplicationLogo.vue": [
+    "/build/assets/AuthenticatedLayout-YwNb4Zy1.js"
+  ],
+  "resources/js/Components/CookieBanner.vue": [
+    "/build/assets/CookieBanner-Cf0YSWpg.js"
+  ],
+  "resources/js/Components/DangerButton.vue": [
+    "/build/assets/Modal-DmdYTugb.js"
+  ],
+  "resources/js/Components/Dropdown.vue": [
+    "/build/assets/AuthenticatedLayout-YwNb4Zy1.js"
+  ],
+  "resources/js/Components/DropdownLink.vue": [
+    "/build/assets/AuthenticatedLayout-YwNb4Zy1.js"
+  ],
+  "resources/js/Components/InputError.vue": [
+    "/build/assets/TextInput-mzmZGPAG.js"
+  ],
+  "resources/js/Components/InputLabel.vue": [
+    "/build/assets/TextInput-mzmZGPAG.js"
+  ],
+  "resources/js/Components/Modal.vue": [
+    "/build/assets/Modal-DmdYTugb.js"
+  ],
+  "resources/js/Components/NavLink.vue": [
+    "/build/assets/AuthenticatedLayout-YwNb4Zy1.js"
+  ],
+  "resources/js/Components/PrimaryButton.vue": [
+    "/build/assets/PrimaryButton-Dob6vmzN.js"
+  ],
+  "resources/js/Components/PublicShell.vue": [
+    "/build/assets/PublicShell-w1n6S5Xb.js"
+  ],
+  "resources/js/Components/ResponsiveNavLink.vue": [
+    "/build/assets/AuthenticatedLayout-YwNb4Zy1.js"
+  ],
+  "resources/js/Components/SantanaHeroScene.vue": [
+    "/build/assets/Home-ltv7syIL.js",
+    "/build/assets/Home-Bewi04JE.css"
+  ],
+  "resources/js/Components/SantanaHeroScene.vue?vue&type=style&index=0&scoped=c6852df9&lang.css": [
+    "/build/assets/Home-ltv7syIL.js",
+    "/build/assets/Home-Bewi04JE.css"
+  ],
+  "resources/js/Components/SecondaryButton.vue": [
+    "/build/assets/DeleteUserForm-Bq0v0CVQ.js"
+  ],
+  "resources/js/Components/SponsorsSlider.vue": [
+    "/build/assets/SponsorsSlider-CUXZJoI8.js"
+  ],
+  "resources/js/Components/TextInput.vue": [
+    "/build/assets/TextInput-mzmZGPAG.js"
+  ],
+  "resources/js/Composables/usePermissions.js": [
+    "/build/assets/AppLayout-BWDcck4N.js"
+  ],
+  "resources/js/Layouts/AppLayout.vue": [
+    "/build/assets/AppLayout-BWDcck4N.js"
+  ],
+  "resources/js/Layouts/AuthenticatedLayout.vue": [
+    "/build/assets/AuthenticatedLayout-YwNb4Zy1.js"
+  ],
+  "resources/js/Layouts/GuestLayout.vue": [
+    "/build/assets/GuestLayout-BDzZaDZW.js",
+    "/build/assets/GuestLayout-C_O-b1SC.css"
+  ],
+  "resources/js/Layouts/GuestLayout.vue?vue&type=style&index=0&scoped=65ab688a&lang.css": [
+    "/build/assets/GuestLayout-BDzZaDZW.js",
+    "/build/assets/GuestLayout-C_O-b1SC.css"
+  ],
+  "resources/js/Pages/Auth/ConfirmPassword.vue": [
+    "/build/assets/ConfirmPassword-DmZTkrvn.js"
+  ],
+  "resources/js/Pages/Auth/ForgotPassword.vue": [
+    "/build/assets/ForgotPassword-BG62F2ps.js"
+  ],
+  "resources/js/Pages/Auth/Login.vue": [
+    "/build/assets/Login-BFmHJZdg.js",
+    "/build/assets/Login-DeCc61Wj.css"
+  ],
+  "resources/js/Pages/Auth/Login.vue?vue&type=style&index=0&scoped=8dbddb8f&lang.css": [
+    "/build/assets/Login-BFmHJZdg.js",
+    "/build/assets/Login-DeCc61Wj.css"
+  ],
+  "resources/js/Pages/Auth/Register.vue": [
+    "/build/assets/Register-N7Vp9OKX.js"
+  ],
+  "resources/js/Pages/Auth/ResetPassword.vue": [
+    "/build/assets/ResetPassword-BU7pEE1J.js"
+  ],
+  "resources/js/Pages/Auth/VerifyEmail.vue": [
+    "/build/assets/VerifyEmail-BcUgCkbY.js"
+  ],
+  "resources/js/Pages/Bar/Index.vue": [
+    "/build/assets/Index-CeBeigji.js"
+  ],
+  "resources/js/Pages/Bar/NovaContaBar.vue": [
+    "/build/assets/NovaContaBar-CZBLddw4.js"
+  ],
+  "resources/js/Pages/Bar/NovoPrepago.vue": [
+    "/build/assets/NovoPrepago-BfQA2suH.js"
+  ],
+  "resources/js/Pages/Bar/Show.vue": [
+    "/build/assets/Show-Cph47LDh.js"
+  ],
+  "resources/js/Pages/Bar/TalaoSenha.vue": [
+    "/build/assets/TalaoSenha-jL_pWlzE.js",
+    "/build/assets/TalaoSenha-iDJ1Gw_o.css"
+  ],
+  "resources/js/Pages/Bar/TalaoSenha.vue?vue&type=style&index=0&lang.css": [
+    "/build/assets/TalaoSenha-jL_pWlzE.js",
+    "/build/assets/TalaoSenha-iDJ1Gw_o.css"
+  ],
+  "resources/js/Pages/Caixa/Index.vue": [
+    "/build/assets/Index-D9Vh5g-X.js"
+  ],
+  "resources/js/Pages/Cliente/Confirmacao.vue": [
+    "/build/assets/Confirmacao-D_uZHfJW.js"
+  ],
+  "resources/js/Pages/Cliente/Mesa.vue": [
+    "/build/assets/Mesa-LddWsUR3.js"
+  ],
+  "resources/js/Pages/ContasFesta/Index.vue": [
+    "/build/assets/Index-D3Ax5t62.js"
+  ],
+  "resources/js/Pages/Cotas/EmAtraso.vue": [
+    "/build/assets/EmAtraso-tKIhDuUx.js"
+  ],
+  "resources/js/Pages/Cotas/Index.vue": [
+    "/build/assets/Index-CoPUGUbt.js"
+  ],
+  "resources/js/Pages/Dashboard.vue": [
+    "/build/assets/Dashboard-Z73GdN1o.js"
+  ],
+  "resources/js/Pages/Dashboard/Index.vue": [
+    "/build/assets/Index-BtnTDPBs.js"
+  ],
+  "resources/js/Pages/Eventos/Edit.vue": [
+    "/build/assets/Edit-CixusyDk.js"
+  ],
+  "resources/js/Pages/Eventos/Index.vue": [
+    "/build/assets/Index--nT8i_eI.js"
+  ],
+  "resources/js/Pages/Eventos/PublicShow.vue": [
+    "/build/assets/PublicShow-CK7z9hwH.js"
+  ],
+  "resources/js/Pages/Eventos/Show.vue": [
+    "/build/assets/Show-D3URewns.js"
+  ],
+  "resources/js/Pages/FaturasCompras/Index.vue": [
+    "/build/assets/Index-BCwLkBX_.js"
+  ],
+  "resources/js/Pages/Home.vue": [
+    "/build/assets/Home-ltv7syIL.js",
+    "/build/assets/Home-Bewi04JE.css"
+  ],
+  "resources/js/Pages/Home.vue?vue&type=style&index=0&scoped=7ea0ea17&lang.css": [
+    "/build/assets/Home-ltv7syIL.js",
+    "/build/assets/Home-Bewi04JE.css"
+  ],
+  "resources/js/Pages/Impressoras/Index.vue": [
+    "/build/assets/Index-BN6PKixr.js"
+  ],
+  "resources/js/Pages/Legal/Cookies.vue": [
+    "/build/assets/Cookies-BmsK0OUn.js"
+  ],
+  "resources/js/Pages/Legal/Privacidade.vue": [
+    "/build/assets/Privacidade-BB-jnrGQ.js"
+  ],
+  "resources/js/Pages/Legal/Termos.vue": [
+    "/build/assets/Termos-BhTBMs34.js"
+  ],
+  "resources/js/Pages/Manutencao/Limpeza.vue": [
+    "/build/assets/Limpeza-EMPnwjn0.js"
+  ],
+  "resources/js/Pages/Manutencao/Logs.vue": [
+    "/build/assets/Logs-DNAy2lxj.js"
+  ],
+  "resources/js/Pages/Mesas/Form.vue": [
+    "/build/assets/Form-Dloh8-zP.js"
+  ],
+  "resources/js/Pages/Mesas/Index.vue": [
+    "/build/assets/Index-DNhOdRsn.js"
+  ],
+  "resources/js/Pages/Paginas/Edit.vue": [
+    "/build/assets/Edit-CKGGTcmM.js"
+  ],
+  "resources/js/Pages/Paginas/Index.vue": [
+    "/build/assets/Index-HIgz23UR.js"
+  ],
+  "resources/js/Pages/Patrocinadores/Index.vue": [
+    "/build/assets/Index-BwTQ_0TU.js"
+  ],
+  "resources/js/Pages/Pedidos/Index.vue": [
+    "/build/assets/Index-BweoO33M.js"
+  ],
+  "resources/js/Pages/Pedidos/Show.vue": [
+    "/build/assets/Show-Bb6NTZhS.js"
+  ],
+  "resources/js/Pages/Pedidos/Talao.vue": [
+    "/build/assets/Talao-D7eiuxPL.js"
+  ],
+  "resources/js/Pages/Pos/Index.vue": [
+    "/build/assets/Index-D4OJUql0.js",
+    "/build/assets/Index-B0wLXxSH.css"
+  ],
+  "resources/js/Pages/Pos/Index.vue?vue&type=style&index=0&scoped=e4c553c9&lang.css": [
+    "/build/assets/Index-D4OJUql0.js",
+    "/build/assets/Index-B0wLXxSH.css"
+  ],
+  "resources/js/Pages/Pos/Login.vue": [
+    "/build/assets/Login-r7teWsdg.js",
+    "/build/assets/Login-Bu88hTw1.css"
+  ],
+  "resources/js/Pages/Pos/Login.vue?vue&type=style&index=0&scoped=174b12a4&lang.css": [
+    "/build/assets/Login-r7teWsdg.js",
+    "/build/assets/Login-Bu88hTw1.css"
+  ],
+  "resources/js/Pages/Pos/TalaoSenha.vue": [
+    "/build/assets/TalaoSenha-D_1W887-.js",
+    "/build/assets/TalaoSenha-iDJ1Gw_o.css"
+  ],
+  "resources/js/Pages/Pos/TalaoSenha.vue?vue&type=style&index=0&lang.css": [
+    "/build/assets/TalaoSenha-D_1W887-.js",
+    "/build/assets/TalaoSenha-iDJ1Gw_o.css"
+  ],
+  "resources/js/Pages/PosCotas/EmAtraso.vue": [
+    "/build/assets/EmAtraso-9IDSJBY9.js"
+  ],
+  "resources/js/Pages/PosCotas/Index.vue": [
+    "/build/assets/Index-Dw0YnxyM.js"
+  ],
+  "resources/js/Pages/PosCotas/NovoSocio.vue": [
+    "/build/assets/NovoSocio-DOl61_gG.js"
+  ],
+  "resources/js/Pages/PosCotas/Pesquisa.vue": [
+    "/build/assets/Pesquisa-DHJaNo6v.js"
+  ],
+  "resources/js/Pages/PosCotas/Recibo.vue": [
+    "/build/assets/Recibo-CSzIv55V.js"
+  ],
+  "resources/js/Pages/PosCotas/ResumoDia.vue": [
+    "/build/assets/ResumoDia-DFYJG-B1.js"
+  ],
+  "resources/js/Pages/PosCotas/Socio.vue": [
+    "/build/assets/Socio-DuqkSL8X.js"
+  ],
+  "resources/js/Pages/PosReservas/Ecra.vue": [
+    "/build/assets/Ecra-Bm6l2opj.js",
+    "/build/assets/Ecra-BzsSoka5.css"
+  ],
+  "resources/js/Pages/PosReservas/Ecra.vue?vue&type=style&index=0&scoped=971af08a&lang.css": [
+    "/build/assets/Ecra-Bm6l2opj.js",
+    "/build/assets/Ecra-BzsSoka5.css"
+  ],
+  "resources/js/Pages/PosReservas/Index.vue": [
+    "/build/assets/Index-DvsPN1Jl.js",
+    "/build/assets/Index-CGHGU0FT.css"
+  ],
+  "resources/js/Pages/PosReservas/Index.vue?vue&type=style&index=0&scoped=f093e32c&lang.css": [
+    "/build/assets/Index-DvsPN1Jl.js",
+    "/build/assets/Index-CGHGU0FT.css"
+  ],
+  "resources/js/Pages/PosRest/Historico.vue": [
+    "/build/assets/Historico-ChTeLJRj.js"
+  ],
+  "resources/js/Pages/PosRest/Index.vue": [
+    "/build/assets/Index-CXsQrWFZ.js"
+  ],
+  "resources/js/Pages/PosRest/Mesa.vue": [
+    "/build/assets/Mesa-B1mTER2l.js"
+  ],
+  "resources/js/Pages/PosRest/Mesas.vue": [
+    "/build/assets/Mesas-CKND3v6N.js"
+  ],
+  "resources/js/Pages/PosRest/Talao.vue": [
+    "/build/assets/Talao-CXDXuJuw.js"
+  ],
+  "resources/js/Pages/Produtos/Index.vue": [
+    "/build/assets/Index-CgoNzWvI.js"
+  ],
+  "resources/js/Pages/Profile/Edit.vue": [
+    "/build/assets/Edit-DDGTKHYC.js"
+  ],
+  "resources/js/Pages/Profile/Partials/DeleteUserForm.vue": [
+    "/build/assets/DeleteUserForm-Bq0v0CVQ.js"
+  ],
+  "resources/js/Pages/Profile/Partials/UpdatePasswordForm.vue": [
+    "/build/assets/UpdatePasswordForm-BbvL7Zq0.js"
+  ],
+  "resources/js/Pages/Profile/Partials/UpdateProfileInformationForm.vue": [
+    "/build/assets/UpdateProfileInformationForm-CorJf5xm.js"
+  ],
+  "resources/js/Pages/Public/Patrocinios.vue": [
+    "/build/assets/Patrocinios-B7xpahME.js",
+    "/build/assets/Patrocinios-DZBcDZjg.css"
+  ],
+  "resources/js/Pages/Public/Patrocinios.vue?vue&type=style&index=0&scoped=5abafea4&lang.css": [
+    "/build/assets/Patrocinios-B7xpahME.js",
+    "/build/assets/Patrocinios-DZBcDZjg.css"
+  ],
+  "resources/js/Pages/Public/Precario.vue": [
+    "/build/assets/Precario-Cb9z0QDW.js"
+  ],
+  "resources/js/Pages/Public/SobreNos.vue": [
+    "/build/assets/SobreNos-Su0miUQL.js"
+  ],
+  "resources/js/Pages/Public/SponsorScreen.vue": [
+    "/build/assets/SponsorScreen-JRYL-3eg.js",
+    "/build/assets/SponsorScreen-BNONrnry.css"
+  ],
+  "resources/js/Pages/Public/SponsorScreen.vue?vue&type=style&index=0&scoped=81490ef5&lang.css": [
+    "/build/assets/SponsorScreen-JRYL-3eg.js",
+    "/build/assets/SponsorScreen-BNONrnry.css"
+  ],
+  "resources/js/Pages/Relatorios/Index.vue": [
+    "/build/assets/Index-BMB8uDER.js"
+  ],
+  "resources/js/Pages/Relatorios/PorPeriodo.vue": [
+    "/build/assets/PorPeriodo-M10iI6lP.js"
+  ],
+  "resources/js/Pages/Reservas/Index.vue": [
+    "/build/assets/Index-DhLd-qMT.js"
+  ],
+  "resources/js/Pages/Sala/Index.vue": [
+    "/build/assets/Index-DabeuW_2.js"
+  ],
+  "resources/js/Pages/Secao/Ecra.vue": [
+    "/build/assets/Ecra-CcLz8CU2.js"
+  ],
+  "resources/js/Pages/Secao/Sala.vue": [
+    "/build/assets/Sala-9JyugB0f.js"
+  ],
+  "resources/js/Pages/Socios/Form.vue": [
+    "/build/assets/Form-CY3SKNsc.js"
+  ],
+  "resources/js/Pages/Socios/Index.vue": [
+    "/build/assets/Index-afuuXV-p.js"
+  ],
+  "resources/js/Pages/Socios/Show.vue": [
+    "/build/assets/Show-BWpwcoVc.js"
+  ],
+  "resources/js/Pages/Users/Index.vue": [
+    "/build/assets/Index-BjxG3iFv.js"
+  ],
+  "resources/js/Pages/Welcome.vue": [
+    "/build/assets/Welcome-BsWPFXaD.js",
+    "/build/assets/Welcome-Bq8fR4qj.css"
+  ],
+  "resources/js/Pages/Welcome.vue?vue&type=style&index=0&scoped=336e3ced&lang.css": [
+    "/build/assets/Welcome-BsWPFXaD.js",
+    "/build/assets/Welcome-Bq8fR4qj.css"
+  ],
+  "resources/js/ssr.js": [],
+  "vendor/tightenco/ziggy/dist/index.js": []
+}

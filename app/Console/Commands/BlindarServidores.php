@@ -194,9 +194,13 @@ class BlindarServidores extends Command
         $porta = (int) ($servidor->port ?: 22);
 
         $comando = implode("\n", [
-            // Quantas chaves há no authorized_keys do root que não sejam a nossa.
+            // Quantas chaves há no authorized_keys do root que sejam de uma
+            // PESSOA. 17/09/2026: contava-se tudo o que não fosse do painel, e
+            // a chave do agente de backups (backup-agent@proxmox) passava por
+            // chave do dono — a senha foi desligada em máquinas onde o André
+            // não tinha chave nenhuma, e ficou de fora.
             'echo "@@@chaves"',
-            "grep -v painel-ateneya /root/.ssh/authorized_keys 2>/dev/null | grep -cE '^(ssh-|ecdsa-|sk-)' || echo 0",
+            "grep -v -e painel-ateneya -e 'backup-agent@' /root/.ssh/authorized_keys 2>/dev/null | grep -cE '^(ssh-|ecdsa-|sk-)' || echo 0",
             // Portas à escuta para fora, tirando as três que a firewall abre.
             'echo "@@@portas"',
             'ss -lnt 2>/dev/null | awk \'NR>1{print $4}\' | grep -vE \'^(127\\.|\\[::1\\]|\\[::ffff:127)\' '
@@ -230,7 +234,7 @@ class BlindarServidores extends Command
             'permitido' => $temChaveDele,
             'porque'    => $temChaveDele
                 ? ''
-                : 'a única chave no authorized_keys do root é a do painel — desligar a senha deixava-te sem entrada nesta máquina',
+                : 'no authorized_keys do root só há chaves de máquinas (painel, agente de backups) — desligar a senha deixava-te sem entrada. Instala primeiro a tua: php artisan seguranca:instalar-chave',
         ];
 
         return [

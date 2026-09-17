@@ -3,6 +3,7 @@
 namespace App\Services\Faturacao;
 
 use App\Models\AccountingDocument;
+use App\Models\Setting;
 use App\Services\AttachmentService;
 use App\Services\PaperInvoice\PaperInvoiceExtractor;
 use Carbon\Carbon;
@@ -102,12 +103,35 @@ class ImportadorFaturasEmail
             }
 
             $desde = Carbon::now()->subDays(max(1, $dias ?? (int) $config['days']));
-            $uids = $caixa->procurarDesde($desde, $incluirLidas);
+            $encontrados = $caixa->procurarDesde($desde, $incluirLidas);
+
+            // ⚠️ 17/09/2026: as mensagens sem anexo ficam por ler de proposito
+            // (a caixa e' lida por pessoas). Como a pesquisa vem por ordem de
+            // UID e o limite corta as primeiras, cada corrida analisava SEMPRE
+            // as mesmas 40 newsletters e nunca chegava as facturas que vinham
+            // depois — a ultima entrou a 06/09. Agora lembram-se as que ja se
+            // viu que nao tem anexo, e o limite so' conta as que faltam ver.
+            // `--todas` volta a olhar para tudo.
+            $chaveVistas = $this->chaveSemAnexo($config);
+            $vistas = $this->uidsSemAnexo($chaveVistas);
+            // Esquecer as que ja nao aparecem (lidas, movidas, fora da janela):
+            // a lista nao cresce para sempre.
+            $vistas = array_intersect_key($vistas, array_flip($encontrados));
+
+            $uids = $incluirLidas
+                ? $encontrados
+                : array_values(array_filter($encontrados, fn (int $uid) => ! isset($vistas[$uid])));
 
             $maximo = max(1, $limite ?? (int) $config['max_messages']);
+            $saltadas = count($encontrados) - count($uids);
             $uids = array_slice($uids, 0, $maximo);
 
-            $relatar(sprintf('%d mensagem(ns) a analisar desde %s.', count($uids), $desde->format('d/m/Y')));
+            $relatar(sprintf(
+                '%d mensagem(ns) a analisar desde %s%s.',
+                count($uids),
+                $desde->format('d/m/Y'),
+                $saltadas > 0 ? " ({$saltadas} ja vistas sem anexo, saltadas)" : '',
+            ));
 
             foreach ($uids as $uid) {
                 $contas['mensagens']++;
@@ -122,6 +146,7 @@ class ImportadorFaturasEmail
                     );
 
                     if ($anexos === []) {
+                        $vistas[$uid] = true;
                         $contas['semAnexo']++;
                         $relatar(sprintf('  #%d "%s" — sem anexo de factura, deixada na caixa.', $uid, Str::limit($mensagem->assunto(), 50)));
 
@@ -152,9 +177,29 @@ class ImportadorFaturasEmail
             }
         } finally {
             $caixa->fechar();
+
+            if (isset($chaveVistas, $vistas)) {
+                Setting::set($chaveVistas, json_encode(array_keys($vistas)));
+            }
         }
 
         return $contas;
+    }
+
+    /** Uma lista por caixa e pasta: mudar de conta nao herda os UIDs da outra. */
+    private function chaveSemAnexo(array $config): string
+    {
+        return 'faturas_email.sem_anexo.'.md5(strtolower((string) $config['username']).'|'.$config['folder']);
+    }
+
+    /** @return array<int, true> */
+    private function uidsSemAnexo(string $chave): array
+    {
+        $lista = json_decode((string) Setting::get($chave, '[]'), true);
+
+        return is_array($lista)
+            ? array_fill_keys(array_map('intval', $lista), true)
+            : [];
     }
 
     // ── Uma mensagem, um gasto ───────────────────────────────────────────────

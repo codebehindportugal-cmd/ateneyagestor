@@ -24,6 +24,9 @@ use Illuminate\Support\Str;
  */
 class ImportadorFaturasEmail
 {
+    /** Dia em que o importador deixou de depender do "lido" do email. */
+    private const INICIO_DA_LISTA = '2026-09-17 00:00:00';
+
     public function __construct(
         private readonly PaperInvoiceExtractor $extractor,
     ) {
@@ -103,19 +106,32 @@ class ImportadorFaturasEmail
             }
 
             $desde = Carbon::now()->subDays(max(1, $dias ?? (int) $config['days']));
-            $encontrados = $caixa->procurarDesde($desde, $incluirLidas);
 
-            // ⚠️ 17/09/2026: as mensagens sem anexo ficam por ler de proposito
-            // (a caixa e' lida por pessoas). Como a pesquisa vem por ordem de
-            // UID e o limite corta as primeiras, cada corrida analisava SEMPRE
-            // as mesmas 40 newsletters e nunca chegava as facturas que vinham
-            // depois — a ultima entrou a 06/09. Agora lembram-se as que ja se
-            // viu que nao tem anexo, e o limite so' conta as que faltam ver.
-            // `--todas` volta a olhar para tudo.
-            $chaveVistas = $this->chaveSemAnexo($config);
-            $vistas = $this->uidsSemAnexo($chaveVistas);
-            // Esquecer as que ja nao aparecem (lidas, movidas, fora da janela):
-            // a lista nao cresce para sempre.
+            // ⚠️ 17/09/2026 (2.a correccao): a pesquisa era `UNSEEN SINCE`.
+            // Mas a caixa e' lida por pessoas — basta alguem abrir o email da
+            // factura no telemovel para ele ficar lido e o importador nunca
+            // mais o ver. E' o mais provavel para as facturas de 07/09 em
+            // diante: enquanto o limite as deixava para tras (ver abaixo),
+            // alguem as abriu, e quando o limite deixou de ser problema ja
+            // estavam lidas.
+            //
+            // Agora procura-se TUDO desde a data, lido ou nao, e quem decide o
+            // que ja foi tratado e' o proprio importador: uma lista de UIDs ja
+            // vistos (sem anexo, ou ja importados). O "lido" do email volta a
+            // ser so' das pessoas. Os duplicados continuam travados pelo hash
+            // do ficheiro e pelo numero+NIF da factura.
+            //
+            // (1.a correccao, mesmo dia: como a pesquisa vem por ordem de UID e
+            // o limite corta as primeiras, cada corrida analisava SEMPRE as
+            // mesmas 40 newsletters e nunca chegava as facturas.)
+            //
+            // `--todas` ignora a lista e volta a olhar para tudo.
+            $encontrados = $caixa->procurarDesde($desde, incluirLidas: true);
+
+            $chaveVistas = $this->chaveVistas($config, $caixa->uidValidity());
+            $vistas = $this->uidsVistos($caixa, $chaveVistas, $config);
+            // Esquecer as que ja nao aparecem (movidas, apagadas, fora da
+            // janela): a lista nao cresce para sempre.
             $vistas = array_intersect_key($vistas, array_flip($encontrados));
 
             $uids = $incluirLidas
@@ -124,13 +140,16 @@ class ImportadorFaturasEmail
 
             $maximo = max(1, $limite ?? (int) $config['max_messages']);
             $saltadas = count($encontrados) - count($uids);
+            $restam = max(0, count($uids) - $maximo);
             $uids = array_slice($uids, 0, $maximo);
 
             $relatar(sprintf(
-                '%d mensagem(ns) a analisar desde %s%s.',
-                count($uids),
+                '%d mensagem(ns) na caixa desde %s · %d ja tratadas · %d a analisar agora%s.',
+                count($encontrados),
                 $desde->format('d/m/Y'),
-                $saltadas > 0 ? " ({$saltadas} ja vistas sem anexo, saltadas)" : '',
+                $saltadas,
+                count($uids),
+                $restam > 0 ? " · {$restam} ficam para a proxima corrida" : '',
             ));
 
             foreach ($uids as $uid) {
@@ -147,6 +166,7 @@ class ImportadorFaturasEmail
 
                     if ($anexos === []) {
                         $vistas[$uid] = true;
+                        $this->guardarVistos($chaveVistas, $vistas);
                         $contas['semAnexo']++;
                         $relatar(sprintf('  #%d "%s" — sem anexo de factura, deixada na caixa.', $uid, Str::limit($mensagem->assunto(), 50)));
 
@@ -160,9 +180,14 @@ class ImportadorFaturasEmail
                     $contas['duplicados'] += $resultado['duplicados'];
                     $contas['anexos'] += $resultado['anexos'];
 
+                    // Guardado logo, mensagem a mensagem: o botao do painel
+                    // corre dentro do pedido web, e se o PHP o cortar a meio
+                    // (tempo maximo) o `finally` nao chega a correr.
+                    $vistas[$uid] = true;
+                    $this->guardarVistos($chaveVistas, $vistas);
+
                     // Uma mensagem cujos anexos ja estavam todos importados
-                    // tambem se arruma: caso contrario voltava a ser analisada
-                    // em todas as corridas ate sair da janela de dias.
+                    // tambem se arruma.
                     $caixa->marcarLida($uid);
 
                     if ($destino !== '') {
@@ -179,27 +204,195 @@ class ImportadorFaturasEmail
             $caixa->fechar();
 
             if (isset($chaveVistas, $vistas)) {
-                Setting::set($chaveVistas, json_encode(array_keys($vistas)));
+                $this->guardarVistos($chaveVistas, $vistas);
             }
         }
 
         return $contas;
     }
 
-    /** Uma lista por caixa e pasta: mudar de conta nao herda os UIDs da outra. */
-    private function chaveSemAnexo(array $config): string
+    /**
+     * So' olha, nao mexe: diz, mensagem a mensagem, o que o importador faria
+     * e porque. E' a resposta a "porque e' que esta factura nao entrou?".
+     *
+     * @return list<array{uid: int, data: string, de: string, assunto: string, lida: bool, tratada: bool, anexos: list<string>, estado: string}>
+     */
+    public function listar(?int $dias = null, ?int $limite = null): array
+    {
+        $config = $this->config();
+        $caixa = new ImapMailbox($config);
+        $caixa->ligar();
+
+        try {
+            $pasta = (string) $config['folder'];
+            $caixa->escolherPasta($pasta, soLeitura: true);
+
+            $desde = Carbon::now()->subDays(max(1, $dias ?? (int) $config['days']));
+            $todas = $caixa->procurarDesde($desde, incluirLidas: true);
+            $porLer = array_flip($caixa->procurarDesde($desde, incluirLidas: false));
+
+            $vistas = $this->uidsVistos($caixa, $this->chaveVistas($config, $caixa->uidValidity()), $config);
+
+            // As mais recentes primeiro: e' quase sempre por essas que se pergunta.
+            $todas = array_slice(array_reverse($todas), 0, max(1, $limite ?? 100));
+
+            $linhas = [];
+
+            foreach ($todas as $uid) {
+                try {
+                    $mensagem = MimeMessage::deBruto($caixa->mensagemEmBruto($uid));
+                    $anexos = $mensagem->anexosDeFatura(
+                        minimoImagemBytes: max(0, (int) $config['min_image_kb']) * 1024,
+                        maximoBytes: max(1, (int) $config['max_attachment_mb']) * 1024 * 1024,
+                    );
+
+                    $importados = 0;
+
+                    foreach ($anexos as $anexo) {
+                        if ($this->documentoPorHash($anexo['conteudo']) !== null) {
+                            $importados++;
+                        }
+                    }
+
+                    $tratada = isset($vistas[$uid]);
+
+                    $estado = match (true) {
+                        $anexos === [] => 'sem anexo PDF/imagem — nao entra',
+                        $importados > 0 && ($tratada || $importados === count($anexos)) => 'ja importada',
+                        $importados > 0 => 'em parte importada — o resto entra na proxima corrida',
+                        $tratada => 'dada como tratada, sem documento no painel (apagado?)',
+                        default => 'POR IMPORTAR — entra na proxima corrida',
+                    };
+
+                    $linhas[] = [
+                        'uid' => $uid,
+                        'data' => $mensagem->data()?->format('d/m/Y H:i') ?? '?',
+                        'de' => $mensagem->de(),
+                        'assunto' => $mensagem->assunto(),
+                        'lida' => ! isset($porLer[$uid]),
+                        'tratada' => $tratada,
+                        'anexos' => array_map(fn (array $a) => $a['nome'], $anexos),
+                        'estado' => $estado,
+                    ];
+                } catch (\Throwable $e) {
+                    $linhas[] = [
+                        'uid' => $uid,
+                        'data' => '?',
+                        'de' => '?',
+                        'assunto' => '?',
+                        'lida' => ! isset($porLer[$uid]),
+                        'tratada' => isset($vistas[$uid]),
+                        'anexos' => [],
+                        'estado' => 'ERRO a ler: '.$e->getMessage(),
+                    ];
+                }
+            }
+
+            return $linhas;
+        } finally {
+            $caixa->fechar();
+        }
+    }
+
+    /**
+     * Uma lista por caixa, pasta e UIDVALIDITY: mudar de conta nao herda os
+     * UIDs da outra, e um servidor que renumere a caixa nao faz saltar
+     * mensagens novas que calhem com numeros antigos.
+     */
+    private function chaveVistas(array $config, string $uidValidity): string
+    {
+        return 'faturas_email.vistas.'.md5(strtolower((string) $config['username']).'|'.$config['folder'].'|'.$uidValidity);
+    }
+
+    /** A lista da 1.a correccao (so' as sem anexo), antes de haver UIDVALIDITY. */
+    private function chaveSemAnexoAntiga(array $config): string
     {
         return 'faturas_email.sem_anexo.'.md5(strtolower((string) $config['username']).'|'.$config['folder']);
     }
 
     /** @return array<int, true> */
-    private function uidsSemAnexo(string $chave): array
+    private function uidsVistos(ImapMailbox $caixa, string $chave, array $config): array
     {
-        $lista = json_decode((string) Setting::get($chave, '[]'), true);
+        $valor = Setting::get($chave);
 
-        return is_array($lista)
-            ? array_fill_keys(array_map('intval', $lista), true)
-            : [];
+        if ($valor !== null) {
+            $lista = json_decode((string) $valor, true);
+
+            return is_array($lista)
+                ? array_fill_keys(array_map('intval', $lista), true)
+                : [];
+        }
+
+        // Primeira corrida com esta chave. Sem semente, todas as mensagens
+        // lidas dos ultimos dias voltavam a ser analisadas — incluindo as que
+        // o importador antigo ja tinha tratado e cujo documento alguem apagou
+        // de proposito (os extractos bancarios de 08/09, por exemplo), que
+        // voltariam a nascer.
+        //
+        // A semente:
+        //  - as que a versao anterior ja sabia que nao tinham anexo;
+        //  - as lidas que chegaram ANTES do dia do ultimo documento vindo do
+        //    email. O importador antigo ia por ordem de UID, por isso tudo o
+        //    que estava antes dessa factura ja tinha passado por ele. As lidas
+        //    desse dia em diante — as que ficaram presas — voltam a ser vistas.
+        $lista = json_decode((string) Setting::get($this->chaveSemAnexoAntiga($config), '[]'), true);
+        $vistas = is_array($lista) ? array_fill_keys(array_map('intval', $lista), true) : [];
+
+        // So' conta o que o importador antigo trouxe: o que entrou a partir de
+        // 17/09 ja pode ser uma factura atrasada, e usa-la como marco
+        // esconderia as que ficaram presas antes dela.
+        $ultima = AccountingDocument::query()
+            ->where('origem', 'email')
+            ->where('created_at', '<', self::INICIO_DA_LISTA)
+            ->max('email_recebido_em');
+
+        if ($ultima !== null) {
+            foreach ($caixa->procurarLidasAntes(Carbon::parse($ultima)) as $uid) {
+                $vistas[$uid] = true;
+            }
+        }
+
+        return $vistas;
+    }
+
+    /** @param  array<int, true>  $vistas */
+    private function guardarVistos(string $chave, array $vistas): void
+    {
+        Setting::set($chave, json_encode(array_keys($vistas)));
+    }
+
+    /**
+     * O documento que ja tem este ficheiro.
+     *
+     * A API de facturas grava o hash em sha1 e o importador em sha256 — ate
+     * 17/09/2026 os dois nunca se encontravam, e uma factura enviada pela API
+     * voltava a entrar quando chegava tambem por email. Procura-se pelos dois.
+     */
+    private function documentoPorHash(string $conteudo): ?AccountingDocument
+    {
+        return AccountingDocument::query()
+            ->whereIn('ficheiro_hash', [hash('sha256', $conteudo), sha1($conteudo)])
+            ->first();
+    }
+
+    /**
+     * A mesma factura ja lancada por outra porta (a mao, pela API, ou com
+     * outro PDF): mesmo numero e mesmo NIF. Sem numero ou sem NIF nao se
+     * arrisca — dois fornecedores diferentes podem ter a "FT 2026/12".
+     */
+    private function documentoPorNumero(array $leitura): ?AccountingDocument
+    {
+        $numero = trim((string) ($leitura['invoice']['number'] ?? ''));
+        $nif = trim((string) ($leitura['supplier']['taxNumber'] ?? ''));
+
+        if ($numero === '' || $nif === '') {
+            return null;
+        }
+
+        return AccountingDocument::query()
+            ->where('invoice_number', $numero)
+            ->where('supplier_nif', $nif)
+            ->first();
     }
 
     // ── Uma mensagem, um gasto ───────────────────────────────────────────────
@@ -242,7 +435,7 @@ class ImportadorFaturasEmail
         foreach ($anexos as $anexo) {
             $hash = hash('sha256', $anexo['conteudo']);
 
-            $jaImportado = AccountingDocument::where('ficheiro_hash', $hash)->first();
+            $jaImportado = $this->documentoPorHash($anexo['conteudo']);
 
             if ($jaImportado !== null) {
                 $contas['duplicados']++;
@@ -310,6 +503,40 @@ class ImportadorFaturasEmail
         // a vista e o valor por lancar aparece nas Notas, ao passo que somar
         // duas vezes o mesmo gasto nao aparece em lado nenhum.
         usort($candidatos, fn (array $a, array $b) => $b['total'] <=> $a['total']);
+
+        // O ficheiro e' novo, mas a factura pode nao ser: agora que tambem se
+        // olha para emails ja lidos, uma factura que alguem lancou a mao (ou
+        // pela API, com outro PDF) nao pode nascer outra vez.
+        if ($documentoExistente === null && $candidatos !== []) {
+            $mesmaFactura = $this->documentoPorNumero($candidatos[0]['leitura']);
+
+            if ($mesmaFactura !== null) {
+                $documentoExistente = $mesmaFactura;
+                $contas['duplicados']++;
+
+                $relatar(sprintf(
+                    '  #%d %s — a factura %s ja existe no painel (documento %d).',
+                    $uid,
+                    $candidatos[0]['anexo']['nome'],
+                    $mesmaFactura->invoice_number,
+                    $mesmaFactura->id,
+                ));
+
+                // O PDF principal nao vira anexo de um documento que ja tem o
+                // seu: so' o guarda se o documento nao tiver ficheiro nenhum.
+                $principal = array_shift($candidatos);
+
+                if (blank($mesmaFactura->file_path) && empty($mesmaFactura->image_paths)) {
+                    $caminho = $this->moverParaDocumentos($principal['temp'], $principal['anexo'], $recebidoEm, $principal['hash']);
+                    $this->guardarCaminho($mesmaFactura, $caminho, $principal['anexo']);
+                    $mesmaFactura->ficheiro_hash ??= $principal['hash'];
+                    $mesmaFactura->save();
+                    $relatar(sprintf('  #%d %s -> ficheiro do documento %d, que nao tinha nenhum', $uid, $principal['anexo']['nome'], $mesmaFactura->id));
+                } else {
+                    Storage::disk('local')->delete($principal['temp']);
+                }
+            }
+        }
 
         // A factura desta mensagem ja esta no painel: nao nasce documento novo,
         // e tudo o que veio com ela passa a ser anexo dela.

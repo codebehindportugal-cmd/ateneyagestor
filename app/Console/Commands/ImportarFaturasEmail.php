@@ -12,13 +12,18 @@ class ImportarFaturasEmail extends Command
     protected $signature = 'faturas:importar-email
         {--dias= : Quantos dias para tras procurar (por omissao, o do config)}
         {--limite= : Quantas mensagens processar nesta corrida}
-        {--todas : Inclui mensagens ja lidas, nao so as novas}
+        {--todas : Volta a analisar tambem as mensagens que o importador ja tratou}
+        {--listar : So mostra o que esta na caixa e o que aconteceria a cada mensagem (nao importa nada)}
         {--teste : So testa a ligacao e sai}';
 
     protected $description = 'Traz as facturas que chegaram a faturacao@ateneya.com e cria os documentos de contabilidade';
 
     public function handle(ImportadorFaturasEmail $importador): int
     {
+        if ($this->option('listar')) {
+            return $this->listar($importador);
+        }
+
         if (! config('faturas_email.enabled') && ! $this->option('teste')) {
             $this->warn('A importacao por email esta desligada. Poe FATURAS_EMAIL_ENABLED=true no .env.');
 
@@ -97,6 +102,41 @@ class ImportarFaturasEmail extends Command
                 rtrim((string) config('app.url'), '/').'/admin/accounting-documents',
             );
         }
+
+        return self::SUCCESS;
+    }
+
+    private function listar(ImportadorFaturasEmail $importador): int
+    {
+        try {
+            $linhas = $importador->listar(
+                dias: $this->option('dias') !== null ? (int) $this->option('dias') : null,
+                limite: $this->option('limite') !== null ? (int) $this->option('limite') : null,
+            );
+        } catch (\Throwable $e) {
+            $this->error($e->getMessage());
+
+            return self::FAILURE;
+        }
+
+        if ($linhas === []) {
+            $this->warn('Nenhuma mensagem na caixa dentro da janela de dias.');
+
+            return self::SUCCESS;
+        }
+
+        $this->table(
+            ['UID', 'Data', 'De', 'Assunto', 'Lida', 'Anexos', 'Estado'],
+            array_map(fn (array $l) => [
+                $l['uid'],
+                $l['data'],
+                \Illuminate\Support\Str::limit($l['de'], 30),
+                \Illuminate\Support\Str::limit($l['assunto'], 40),
+                $l['lida'] ? 'sim' : 'nao',
+                \Illuminate\Support\Str::limit(implode(', ', $l['anexos']) ?: '-', 40),
+                $l['estado'],
+            ], $linhas),
+        );
 
         return self::SUCCESS;
     }

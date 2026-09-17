@@ -181,6 +181,18 @@ class ImapMailbox
         return array_values(array_unique($nomes));
     }
 
+    /**
+     * O UIDVALIDITY da ultima pasta escolhida. Se o servidor o mudar, os UIDs
+     * antigos passam a apontar para outras mensagens — por isso entra na
+     * chave de tudo o que se lembra por UID.
+     */
+    private string $uidValidity = '';
+
+    public function uidValidity(): string
+    {
+        return $this->uidValidity;
+    }
+
     /** Devolve quantas mensagens a pasta tem. */
     public function escolherPasta(string $pasta, bool $soLeitura = false): int
     {
@@ -188,13 +200,20 @@ class ImapMailbox
             ($soLeitura ? 'EXAMINE ' : 'SELECT ').$this->citar($pasta)
         );
 
+        $total = 0;
+        $this->uidValidity = '';
+
         foreach ($blocos as $bloco) {
             if (preg_match('/^\*\s+(\d+)\s+EXISTS/i', $bloco['texto'], $m)) {
-                return (int) $m[1];
+                $total = (int) $m[1];
+            }
+
+            if (preg_match('/\[UIDVALIDITY\s+(\d+)\]/i', $bloco['texto'], $m)) {
+                $this->uidValidity = $m[1];
             }
         }
 
-        return 0;
+        return $total;
     }
 
     public function criarPasta(string $pasta): void
@@ -237,15 +256,25 @@ class ImapMailbox
      */
     public function procurarDesde(\DateTimeInterface $desde, bool $incluirLidas = false): array
     {
-        $meses = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        $data = sprintf(
-            '%02d-%s-%04d',
-            (int) $desde->format('j'),
-            $meses[((int) $desde->format('n')) - 1],
-            (int) $desde->format('Y')
-        );
+        return $this->procurar(($incluirLidas ? '' : 'UNSEEN ').'SINCE '.self::dataImap($desde));
+    }
 
-        return $this->procurar(($incluirLidas ? '' : 'UNSEEN ')."SINCE {$data}");
+    /** Mensagens ja lidas que chegaram antes do dia indicado (exclusive). */
+    public function procurarLidasAntes(\DateTimeInterface $antes): array
+    {
+        return $this->procurar('SEEN BEFORE '.self::dataImap($antes));
+    }
+
+    private static function dataImap(\DateTimeInterface $data): string
+    {
+        $meses = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        return sprintf(
+            '%02d-%s-%04d',
+            (int) $data->format('j'),
+            $meses[((int) $data->format('n')) - 1],
+            (int) $data->format('Y')
+        );
     }
 
     /** A mensagem inteira, cabecalhos incluidos, sem a marcar como lida. */

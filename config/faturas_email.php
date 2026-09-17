@@ -37,9 +37,9 @@ return [
 
     /*
     | Para onde vai a mensagem depois de importada. Vazio = fica na entrada,
-    | apenas marcada como lida. Uma pasta ("Importadas") e' mais seguro: se
-    | alguem abrir a caixa no telemovel e ler um email por engano, ele deixa
-    | de estar por importar e passava despercebido.
+    | apenas marcada como lida. Desde 17/09/2026 o "lido" ja nao decide nada:
+    | o importador olha para todas as mensagens da janela e lembra-se das que
+    | ja tratou, por isso ler um email no telemovel nao o esconde.
     */
     'processed_folder' => env('FATURAS_EMAIL_PROCESSED_FOLDER'),
 

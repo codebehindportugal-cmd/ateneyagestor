@@ -209,7 +209,9 @@ class FaturaController extends Controller
         $pasta = ($ehPdf ? 'accounting-documents' : 'accounting-document-images').'/api/'.$data->format('Y/m');
 
         $conteudo = file_get_contents($ficheiro->getRealPath());
-        $hash = sha1($conteudo);
+        // sha256, como o importador de email: com sha1 os dois nunca se
+        // encontravam e a mesma factura entrava pelas duas portas.
+        $hash = hash('sha256', $conteudo);
 
         $nome = Str::limit(Str::slug(pathinfo($ficheiro->getClientOriginalName(), PATHINFO_FILENAME)), 60, '')
             .'-'.substr($hash, 0, 8).'.'.($ehPdf ? 'pdf' : strtolower($ficheiro->getClientOriginalExtension() ?: 'jpg'));

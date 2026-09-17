@@ -149,7 +149,7 @@ class MimeMessage
     {
         $anexos = [];
 
-        foreach ($this->partes as $parte) {
+        foreach ($this->partesComZipsAbertos() as $parte) {
             $mime = strtolower($parte['mime']);
             $tamanho = strlen($parte['conteudo']);
             $extensao = self::extensaoDe($parte['nome'], $mime);
@@ -158,7 +158,18 @@ class MimeMessage
                 continue;
             }
 
-            $ehPdf = in_array($mime, ['application/pdf', 'application/x-pdf'], true)
+            // O conteudo manda, nao o rotulo: ha fornecedores que mandam o PDF
+            // como `application/octet-stream`, sem nome, ou com o nome
+            // "004605684" sem extensao — e ficava de fora como "sem anexo".
+            $parecePdf = self::ehPdfPeloConteudo($parte['conteudo']);
+
+            if ($parecePdf && $extensao !== 'pdf') {
+                $extensao = 'pdf';
+                $mime = 'application/pdf';
+            }
+
+            $ehPdf = $parecePdf
+                || in_array($mime, ['application/pdf', 'application/x-pdf'], true)
                 || $extensao === 'pdf';
 
             $ehImagem = str_starts_with($mime, 'image/')
@@ -183,8 +194,16 @@ class MimeMessage
                 }
             }
 
+            // Sem nome, o assunto e' a melhor pista do que e' ("Fatura 004605684").
+            $base = trim(preg_replace('/[^\p{L}\p{N}]+/u', '-', mb_substr($this->assunto(), 0, 60)) ?? '', '-');
+            $nome = $parte['nome'] ?: (($base !== '' ? $base : 'anexo').'.'.($extensao ?: 'bin'));
+
+            if ($ehPdf && strtolower(pathinfo($nome, PATHINFO_EXTENSION)) !== 'pdf') {
+                $nome .= '.pdf';
+            }
+
             $anexos[] = [
-                'nome' => $parte['nome'] ?: ('anexo.'.($extensao ?: 'bin')),
+                'nome' => $nome,
                 'mime' => $mime,
                 'conteudo' => $parte['conteudo'],
                 'extensao' => $extensao ?: ($ehPdf ? 'pdf' : 'jpg'),
@@ -193,6 +212,114 @@ class MimeMessage
         }
 
         return $anexos;
+    }
+
+    /**
+     * O texto do email (a parte text/plain, ou o HTML sem etiquetas). Serve
+     * para perceber se um email SEM PDF fala de uma factura — as que so'
+     * trazem um link para a area de cliente.
+     */
+    public function texto(): string
+    {
+        $simples = '';
+        $html = '';
+
+        foreach ($this->partes as $parte) {
+            if ($parte['nome'] !== null && $parte['disposicao'] === 'attachment') {
+                continue;
+            }
+
+            if ($parte['mime'] === 'text/plain') {
+                $simples .= "\n".$parte['conteudo'];
+            } elseif ($parte['mime'] === 'text/html') {
+                $html .= "\n".$parte['conteudo'];
+            }
+        }
+
+        $texto = trim($simples) !== ''
+            ? $simples
+            : html_entity_decode(strip_tags(preg_replace('/<(style|script)\b.*?<\/\1>/is', ' ', $html) ?? $html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        if (! mb_check_encoding($texto, 'UTF-8')) {
+            $texto = mb_convert_encoding($texto, 'UTF-8', 'ISO-8859-1');
+        }
+
+        return trim(preg_replace('/\s+/u', ' ', $texto) ?? $texto);
+    }
+
+    public static function ehPdfPeloConteudo(string $conteudo): bool
+    {
+        // A assinatura %PDF- pode vir depois de algum lixo no inicio.
+        return str_contains(substr($conteudo, 0, 1024), '%PDF-');
+    }
+
+    /**
+     * As partes da mensagem, com os ZIP substituidos pelo que trazem dentro.
+     * Ha fornecedores que mandam a factura comprimida.
+     *
+     * @return list<array{mime: string, nome: ?string, disposicao: string, contentId: ?string, conteudo: string}>
+     */
+    private function partesComZipsAbertos(): array
+    {
+        $partes = [];
+
+        foreach ($this->partes as $parte) {
+            $nome = strtolower((string) $parte['nome']);
+            $ehZip = str_ends_with($nome, '.zip')
+                || in_array(strtolower($parte['mime']), ['application/zip', 'application/x-zip-compressed'], true)
+                // Assinatura ZIP so' conta sem extensao: .xlsx e .docx tambem
+                // sao ZIP por dentro e tem de entrar inteiros.
+                || (pathinfo($nome, PATHINFO_EXTENSION) === '' && str_starts_with($parte['conteudo'], "PK\x03\x04"));
+
+            if (! $ehZip || ! class_exists(\ZipArchive::class)) {
+                $partes[] = $parte;
+
+                continue;
+            }
+
+            $temporario = tempnam(sys_get_temp_dir(), 'fatzip');
+
+            try {
+                file_put_contents($temporario, $parte['conteudo']);
+                $zip = new \ZipArchive();
+
+                if ($zip->open($temporario) !== true) {
+                    $partes[] = $parte;
+
+                    continue;
+                }
+
+                // Limite de ficheiros e de tamanho: um ZIP e' a forma classica
+                // de esconder uma bomba de descompressao.
+                for ($i = 0; $i < min($zip->numFiles, 50); $i++) {
+                    $info = $zip->statIndex($i);
+
+                    if ($info === false || str_ends_with($info['name'], '/') || $info['size'] > 25 * 1024 * 1024) {
+                        continue;
+                    }
+
+                    $conteudo = $zip->getFromIndex($i);
+
+                    if ($conteudo === false) {
+                        continue;
+                    }
+
+                    $partes[] = [
+                        'mime' => self::ehPdfPeloConteudo($conteudo) ? 'application/pdf' : 'application/octet-stream',
+                        'nome' => self::limparNome(basename($info['name'])),
+                        'disposicao' => 'attachment',
+                        'contentId' => null,
+                        'conteudo' => $conteudo,
+                    ];
+                }
+
+                $zip->close();
+            } finally {
+                @unlink($temporario);
+            }
+        }
+
+        return $partes;
     }
 
     /** Ficheiros que acompanham uma factura mas nunca sao a factura. */

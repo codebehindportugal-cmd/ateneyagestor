@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 class ImportarFaturasEmail extends Command
 {
     protected $signature = 'faturas:importar-email
-        {--dias= : Quantos dias para tras procurar (por omissao, desde o dia 1 do mes anterior)}
+        {--dias= : Limita aos ultimos N dias (por omissao, a caixa toda)}
         {--limite= : Quantas mensagens processar nesta corrida}
         {--todas : Volta a analisar tambem as mensagens ja vistas sem factura}
         {--listar : So mostra o que esta na caixa e o que aconteceria a cada mensagem (nao importa nada)}
@@ -71,13 +71,14 @@ class ImportarFaturasEmail extends Command
 
         $this->newLine();
         $this->info(sprintf(
-            '%d mensagem(ns) analisadas · %d documento(s) criados · %d ficheiro(s) anexados · %d duplicado(s) · %d sem anexo de factura · %d retirada(s) da caixa.',
+            '%d mensagem(ns) analisadas · %d documento(s) criados · %d ficheiro(s) anexados · %d duplicado(s) · %d factura(s) retiradas da caixa · %d sem factura para o lixo · %d sem PDF para "Faturas sem PDF".',
             $contas['mensagens'],
             $contas['documentos'],
             $contas['anexos'],
             $contas['duplicados'],
-            $contas['semAnexo'],
             $contas['apagadas'],
+            $contas['descartadas'],
+            $contas['semPdf'],
         ));
 
         if ($contas['porRever'] > 0) {

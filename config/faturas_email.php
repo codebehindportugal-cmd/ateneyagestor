@@ -55,17 +55,29 @@ return [
     */
     'after_import' => env('FATURAS_EMAIL_AFTER_IMPORT', 'lixo'),
 
+    /*
+    | Mensagens sem factura (newsletters, avisos, PDFs que nao sao facturas).
+    | A caixa so' serve para facturas, por isso por omissao saem dela:
+    |   arrumar — vao para o lixo; as que falam de factura mas nao trazem PDF
+    |             (link para a area de cliente) vao para a pasta abaixo.
+    |   manter  — ficam na caixa.
+    | Cada uma fica registada em storage/logs/faturas-email.log.
+    */
+    'without_invoice' => env('FATURAS_EMAIL_WITHOUT_INVOICE', 'arrumar'),
+    'no_pdf_folder' => env('FATURAS_EMAIL_NO_PDF_FOLDER', 'Faturas sem PDF'),
+
     // Vazio = descobre-se sozinha (atributo \Trash, ou Trash/Lixo/...).
     'trash_folder' => env('FATURAS_EMAIL_TRASH_FOLDER'),
 
     // So' usada com after_import=mover.
     'processed_folder' => env('FATURAS_EMAIL_PROCESSED_FOLDER'),
 
-    // Por omissao le-se desde o dia 1 do mes anterior (o mes todo mais a
-    // virada do mes). Um numero de dias maior do que isso alarga a janela.
+    // Por omissao le-se a caixa TODA, de qualquer data (e' uma fila: o que
+    // la' esta ainda nao foi tratado). Um numero limita aos ultimos N dias.
     'days' => env('FATURAS_EMAIL_DAYS') !== null ? (int) env('FATURAS_EMAIL_DAYS') : null,
 
-    // Mensagens processadas por corrida.
+    // Mensagens processadas por corrida (o agendador corre de 30 em 30 min;
+    // para despachar um atraso grande: --limite=500 na linha de comandos).
     'max_messages' => (int) env('FATURAS_EMAIL_MAX_MESSAGES', 40),
 
     // Anexos maiores do que isto sao ignorados (MB).

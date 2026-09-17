@@ -68,7 +68,7 @@ class ImportadorFaturasEmail
 
     /**
      * @param  callable(string):void|null  $relatar  recebe cada passo, para o comando o escrever
-     * @return array{mensagens: int, documentos: int, porRever: int, anexos: int, duplicados: int, semAnexo: int, apagadas: int, erros: list<string>}
+     * @return array{mensagens: int, documentos: int, porRever: int, anexos: int, duplicados: int, semAnexo: int, apagadas: int, descartadas: int, semPdf: int, erros: list<string>}
      */
     public function correr(
         ?int $dias = null,
@@ -77,7 +77,15 @@ class ImportadorFaturasEmail
         ?callable $relatar = null,
     ): array {
         $config = $this->config();
-        $relatar ??= static fn (string $linha) => null;
+        $ecra = $relatar ?? static fn (string $linha) => null;
+
+        // Tudo o que a corrida diz fica tambem num ficheiro: a do agendador
+        // nao tem ecra, e "porque e' que esta factura nao entrou?" pergunta-se
+        // dias depois.
+        $relatar = function (string $linha) use ($ecra): void {
+            $ecra($linha);
+            $this->registar($linha);
+        };
 
         $contas = [
             'mensagens' => 0,
@@ -87,6 +95,8 @@ class ImportadorFaturasEmail
             'duplicados' => 0,
             'semAnexo' => 0,
             'apagadas' => 0,
+            'descartadas' => 0,
+            'semPdf' => 0,
             'erros' => [],
         ];
 
@@ -94,19 +104,24 @@ class ImportadorFaturasEmail
         $caixa->ligar();
 
         try {
-            // 17/09/2026 (3.a correccao): a caixa passa a ser uma fila. Le-se
-            // o mes todo, em todas as pastas onde uma factura pode cair (a
-            // entrada e o spam), e a mensagem sai da caixa assim que a factura
-            // ficou guardada no painel. O que la' fica e' so' o que ainda nao
-            // entrou — ve-se de relance o que falta, em vez de o adivinhar.
+            // 17/09/2026: a caixa faturacao@ so' serve para isto, por isso e'
+            // uma fila. Le-se a caixa TODA (entrada e spam, qualquer data), e
+            // cada mensagem sai dela depois de tratada:
+            //  - com factura -> guardada no painel e a mensagem vai para o lixo;
+            //  - sem factura -> vai para o lixo (fica registada no log);
+            //  - fala de factura mas nao traz PDF (link para a area de
+            //    cliente) -> vai para a pasta "Faturas sem PDF", para alguem a
+            //    ir buscar a mao.
+            // O que fica na entrada e' so' o que deu erro.
             $pastas = $this->pastasAVer($caixa, $config);
             $depois = $this->oQueFazerDepois($caixa, $config, $relatar);
             $desde = $this->desde($dias, $config);
             $restante = max(1, $limite ?? (int) $config['max_messages']);
 
             $relatar(sprintf(
-                'Desde %s · pastas: %s · depois de importar: %s.',
-                $desde->format('d/m/Y'),
+                '--- %s · desde %s · pastas: %s · depois de importar: %s.',
+                Carbon::now()->format('d/m/Y H:i'),
+                $desde?->format('d/m/Y') ?? 'sempre (caixa toda)',
                 implode(', ', array_map(fn (array $p) => $p['nome'].($p['spam'] ? ' (spam)' : ''), $pastas)),
                 $depois['descricao'],
             ));
@@ -138,7 +153,7 @@ class ImportadorFaturasEmail
         ImapMailbox $caixa,
         array $config,
         array $pasta,
-        Carbon $desde,
+        ?Carbon $desde,
         int $maximo,
         bool $incluirLidas,
         array $depois,
@@ -161,7 +176,9 @@ class ImportadorFaturasEmail
         // Quem decide o que ja foi tratado e' a lista de UIDs vistos (as
         // mensagens sem anexo, que ficam na caixa) — as importadas saem da
         // caixa e deixam de aparecer. `--todas` ignora a lista.
-        $encontrados = $caixa->procurarDesde($desde, incluirLidas: true);
+        $encontrados = $desde !== null
+            ? $caixa->procurarDesde($desde, incluirLidas: true)
+            : $caixa->procurar('ALL');
 
         $chaveVistas = $this->chaveVistas($config, $caixa->uidValidity(), $pasta['nome']);
         $vistas = $this->uidsVistos($caixa, $chaveVistas, $config, $pasta['nome']);
@@ -197,15 +214,26 @@ class ImportadorFaturasEmail
                     );
 
                     if ($anexos === []) {
-                        $vistas[$uid] = true;
-                        $this->guardarVistos($chaveVistas, $vistas);
                         $contas['semAnexo']++;
-                        $relatar(sprintf('  #%d "%s" — sem anexo de factura, fica na caixa.', $uid, Str::limit($mensagem->assunto(), 50)));
+
+                        if (! $this->tirarSemFactura($caixa, $config, $uid, $pasta['nome'], $mensagem, $depois, $contas, $relatar)) {
+                            $vistas[$uid] = true;
+                            $this->guardarVistos($chaveVistas, $vistas);
+                        }
 
                         continue;
                     }
 
                     $resultado = $this->processarMensagem($mensagem, $anexos, $uid, $relatar);
+
+                    if ($resultado['naoEFactura']) {
+                        if (! $this->tirarSemFactura($caixa, $config, $uid, $pasta['nome'], $mensagem, $depois, $contas, $relatar)) {
+                            $vistas[$uid] = true;
+                            $this->guardarVistos($chaveVistas, $vistas);
+                        }
+
+                        continue;
+                    }
 
                     $contas['documentos'] += $resultado['documentos'];
                     $contas['porRever'] += $resultado['porRever'];
@@ -245,6 +273,109 @@ class ImportadorFaturasEmail
         }
 
         return count($uids);
+    }
+
+    /**
+     * Uma mensagem sem factura sai da caixa. Se fala de factura (o
+     * fornecedor manda so' um link), vai para a pasta "Faturas sem PDF" em
+     * vez do lixo: e' uma factura que alguem tem de ir buscar a mao.
+     *
+     * @param  array{modo: string, pasta: ?string, descricao: string}  $depois
+     * @return bool se a mensagem saiu da pasta
+     */
+    private function tirarSemFactura(
+        ImapMailbox $caixa,
+        array $config,
+        int $uid,
+        string $pastaActual,
+        MimeMessage $mensagem,
+        array $depois,
+        array &$contas,
+        callable $relatar,
+    ): bool {
+        $assunto = Str::limit($mensagem->assunto(), 60);
+        $de = Str::limit($mensagem->de(), 40);
+
+        if (strtolower((string) ($config['without_invoice'] ?? 'arrumar')) === 'manter') {
+            $relatar(sprintf('  #%d "%s" (%s) — sem factura, fica na caixa.', $uid, $assunto, $de));
+
+            return false;
+        }
+
+        if (self::falaDeFactura($mensagem->assunto().' '.mb_substr($mensagem->texto(), 0, 5000))) {
+            $pastaSemPdf = $this->pastaSemPdf($caixa, $config);
+
+            if ($pastaSemPdf !== null && $pastaSemPdf !== $pastaActual) {
+                $this->arrumar($caixa, $uid, $pastaActual, ['modo' => 'mover', 'pasta' => $pastaSemPdf, 'descricao' => ''], static fn () => null);
+                $contas['semPdf']++;
+                $relatar(sprintf('  #%d "%s" (%s) — fala de factura mas nao traz PDF -> %s', $uid, $assunto, $de, $pastaSemPdf));
+
+                return true;
+            }
+        }
+
+        if ($this->arrumar($caixa, $uid, $pastaActual, $depois, static fn () => null)) {
+            $contas['descartadas']++;
+            $relatar(sprintf('  #%d "%s" (%s) — sem factura -> %s', $uid, $assunto, $de, $depois['pasta'] ?? 'apagada'));
+
+            return true;
+        }
+
+        $relatar(sprintf('  #%d "%s" (%s) — sem factura, fica na caixa.', $uid, $assunto, $de));
+
+        return false;
+    }
+
+    private ?string $cachePastaSemPdf = null;
+
+    /** A pasta "Faturas sem PDF", criada ao lado da entrada se nao existir. */
+    private function pastaSemPdf(ImapMailbox $caixa, array $config): ?string
+    {
+        if ($this->cachePastaSemPdf !== null) {
+            return $this->cachePastaSemPdf;
+        }
+
+        $nome = trim((string) ($config['no_pdf_folder'] ?? 'Faturas sem PDF'));
+
+        if ($nome === '') {
+            return null;
+        }
+
+        $this->cachePastas ??= $caixa->pastasComAtributos();
+        $existentes = array_map(fn (array $p) => $p['nome'], $this->cachePastas);
+
+        // Servidores como o Dovecot do Plesk poem tudo debaixo de "INBOX.".
+        $prefixo = '';
+
+        foreach ($this->cachePastas as $pasta) {
+            if (preg_match('/^INBOX([.\/])./i', $pasta['nome'], $m)) {
+                $prefixo = 'INBOX'.$m[1];
+
+                break;
+            }
+        }
+
+        foreach ([$nome, $prefixo.$nome] as $candidato) {
+            if (in_array($candidato, $existentes, true)) {
+                return $this->cachePastaSemPdf = $candidato;
+            }
+        }
+
+        $novo = str_starts_with(strtoupper($nome), 'INBOX') ? $nome : $prefixo.$nome;
+        $caixa->criarPasta($novo);
+        $this->cachePastas = null;
+
+        return $this->cachePastaSemPdf = $novo;
+    }
+
+    private function registar(string $linha): void
+    {
+        try {
+            $ficheiro = storage_path('logs/faturas-email.log');
+            @file_put_contents($ficheiro, $linha."\n", FILE_APPEND | LOCK_EX);
+        } catch (\Throwable) {
+            // O registo nunca pode parar a importacao.
+        }
     }
 
     /**
@@ -383,21 +514,14 @@ class ImportadorFaturasEmail
     }
 
     /**
-     * Desde o dia 1 do mes anterior: cobre o mes todo e a virada do mes (a
-     * factura de dia 31 que so' se ve no dia 2). Um `--dias` maior alarga.
+     * Por omissao a caixa toda (null): e' uma fila, e o que la' esta ainda
+     * nao foi tratado, seja de quando for. `--dias` limita.
      */
-    private function desde(?int $dias, array $config): Carbon
+    private function desde(?int $dias, array $config): ?Carbon
     {
-        $inicioDoMes = Carbon::now()->startOfMonth()->subMonthNoOverflow();
         $dias ??= isset($config['days']) && $config['days'] !== null ? (int) $config['days'] : null;
 
-        if ($dias === null || $dias <= 0) {
-            return $inicioDoMes;
-        }
-
-        $porDias = Carbon::now()->subDays($dias);
-
-        return $porDias->lessThan($inicioDoMes) ? $porDias : $inicioDoMes;
+        return ($dias === null || $dias <= 0) ? null : Carbon::now()->subDays($dias);
     }
 
     /**
@@ -437,8 +561,8 @@ class ImportadorFaturasEmail
                     $uids = $caixa->procurarTexto($texto);
                     $porLer = array_flip($caixa->procurar('UNSEEN'));
                 } else {
-                    $uids = $caixa->procurarDesde($desde, incluirLidas: true);
-                    $porLer = array_flip($caixa->procurarDesde($desde, incluirLidas: false));
+                    $uids = $desde !== null ? $caixa->procurarDesde($desde, incluirLidas: true) : $caixa->procurar('ALL');
+                    $porLer = array_flip($caixa->procurar('UNSEEN'));
                 }
 
                 $vistas = $this->uidsVistos($caixa, $this->chaveVistas($config, $caixa->uidValidity(), $pasta['nome']), $config, $pasta['nome']);
@@ -464,7 +588,7 @@ class ImportadorFaturasEmail
     }
 
     /** @return array{uid: int, data: string, de: string, assunto: string, lida: bool, anexos: list<string>, estado: string} */
-    private function avaliar(ImapMailbox $caixa, int $uid, array $config, bool $vista, bool $lida, Carbon $desde, bool $foraDaJanelaConta): array
+    private function avaliar(ImapMailbox $caixa, int $uid, array $config, bool $vista, bool $lida, ?Carbon $desde, bool $foraDaJanelaConta): array
     {
         try {
             $mensagem = MimeMessage::deBruto($caixa->mensagemEmBruto($uid));
@@ -494,12 +618,13 @@ class ImportadorFaturasEmail
         $data = $mensagem->data();
 
         $estado = match (true) {
-            $anexos === [] && $partes === [] => 'sem anexos — fica na caixa (se for factura, veio por link e nao entra)',
-            $anexos === [] => 'anexos ignorados (nao sao PDF/imagem/dados)',
+            $anexos === [] && self::falaDeFactura($mensagem->assunto().' '.mb_substr($mensagem->texto(), 0, 5000)) => 'fala de factura mas NAO traz PDF (link?) -> vai para "Faturas sem PDF"',
+            $anexos === [] && $partes === [] => 'sem anexos e sem factura -> vai para o lixo',
+            $anexos === [] => 'anexos que nao sao PDF/imagem/dados -> vai para o lixo',
             $importados > 0 && ($vista || $importados === count($anexos)) => 'ja esta no painel — sai da caixa na proxima corrida',
             $importados > 0 => 'em parte importada — o resto entra na proxima corrida',
-            $foraDaJanelaConta && $data !== null && $data < $desde => 'POR IMPORTAR, mas fora da janela ('.$desde->format('d/m/Y').') — usa --dias',
-            default => 'POR IMPORTAR — entra na proxima corrida',
+            $foraDaJanelaConta && $desde !== null && $data !== null && $data < $desde => 'POR IMPORTAR, mas fora da janela ('.$desde->format('d/m/Y').') — usa --dias',
+            default => 'POR IMPORTAR — entra na proxima corrida (se o PDF nao for factura, vai para o lixo)',
         };
 
         return [
@@ -567,22 +692,89 @@ class ImportadorFaturasEmail
 
     /**
      * A mesma factura ja lancada por outra porta (a mao, pela API, ou com
-     * outro PDF): mesmo numero e mesmo NIF. Sem numero ou sem NIF nao se
-     * arrisca — dois fornecedores diferentes podem ter a "FT 2026/12".
+     * outro PDF).
+     *
+     * So' com dados de confianca: o ATCUD (unico por factura), ou o numero
+     * lido do QR **e** o mesmo total. O numero lido do texto do PDF nao
+     * serve — o leitor apanha as vezes o numero de cliente ou de contrato, que
+     * e' igual em todas as facturas do fornecedor, e a partir da segunda
+     * todas eram dadas como "ja existe" (17/09/2026).
      */
-    private function documentoPorNumero(array $leitura): ?AccountingDocument
+    private function documentoPorNumero(array $leitura, int $totalEmCentimos): ?AccountingDocument
     {
-        $numero = trim((string) ($leitura['invoice']['number'] ?? ''));
         $nif = trim((string) ($leitura['supplier']['taxNumber'] ?? ''));
+        $atcud = trim((string) ($leitura['invoice']['atcud'] ?? ''));
 
-        if ($numero === '' || $nif === '') {
+        if ($nif === '') {
+            return null;
+        }
+
+        if (mb_strlen($atcud) >= 5 && $atcud !== '0') {
+            return AccountingDocument::query()
+                ->where('atcud', $atcud)
+                ->where('supplier_nif', $nif)
+                ->first();
+        }
+
+        $numero = $this->numeroDoQr($leitura);
+
+        if ($numero === '') {
             return null;
         }
 
         return AccountingDocument::query()
             ->where('invoice_number', $numero)
             ->where('supplier_nif', $nif)
+            ->where('amount_cents', $totalEmCentimos)
             ->first();
+    }
+
+    /** O numero da factura, so' quando vem do QR (campo G). */
+    private function numeroDoQr(array $leitura): string
+    {
+        $qr = (string) ($leitura['qrData'] ?? '');
+
+        if ($qr === '' || ! preg_match('/(?:^|\*)G:([^*]+)/', $qr, $m)) {
+            return '';
+        }
+
+        return trim($m[1]);
+    }
+
+    /** @param  list<array{anexo: array, temp: string, leitura: ?array}>  $pendentes */
+    private function nenhumPareceFactura(array $pendentes): bool
+    {
+        foreach ($pendentes as $pendente) {
+            $leitura = $pendente['leitura'];
+
+            // Dados (CSV/XML) ou leitura falhada: na duvida, e' factura.
+            if (! $pendente['anexo']['legivel'] || $leitura === null) {
+                return false;
+            }
+
+            $texto = trim((string) ($leitura['rawText'] ?? ''));
+
+            if ($texto === '' || mb_strlen($texto) < 40) {
+                return false; // nao se conseguiu ler: nao se decide as cegas
+            }
+
+            if (! empty($leitura['qrData'])
+                || trim((string) ($leitura['invoice']['atcud'] ?? '')) !== ''
+                || (float) ($leitura['invoice']['total'] ?? 0) > 0
+                || self::falaDeFactura($texto)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static function falaDeFactura(string $texto): bool
+    {
+        return (bool) preg_match(
+            '/\b(fatura|factura|faturas|facturas|fatura-recibo|invoice|recibo|nota\s+de\s+cr[eé]dito|atcud|documento\s+de\s+cobran[cç]a)\b/iu',
+            $texto,
+        );
     }
 
     // ── Uma mensagem, um gasto ───────────────────────────────────────────────
@@ -604,11 +796,11 @@ class ImportadorFaturasEmail
      * quem decide e' o total, nao a contagem de ficheiros.
      *
      * @param  list<array{nome: string, mime: string, conteudo: string, extensao: string, legivel: bool}>  $anexos
-     * @return array{documentos: int, porRever: int, duplicados: int, anexos: int, guardada: bool}
+     * @return array{documentos: int, porRever: int, duplicados: int, anexos: int, guardada: bool, naoEFactura: bool}
      */
     private function processarMensagem(MimeMessage $mensagem, array $anexos, int $uid, callable $relatar): array
     {
-        $contas = ['documentos' => 0, 'porRever' => 0, 'duplicados' => 0, 'anexos' => 0, 'guardada' => false];
+        $contas = ['documentos' => 0, 'porRever' => 0, 'duplicados' => 0, 'anexos' => 0, 'guardada' => false, 'naoEFactura' => false];
         $falhas = 0;
         $recebidoEm = $mensagem->data() ? Carbon::instance($mensagem->data()) : Carbon::now();
 
@@ -684,39 +876,80 @@ class ImportadorFaturasEmail
         // O email da Via Verde traz o extracto (596,53) e o Detalhe, que
         // reparte o mesmo valor por viatura e mostra subtotais — o maior deles
         // 338,45. Os dois tem total, e com "cada total e' uma factura" o
-        // contabilista lancava 596,53 + 338,45 todos os meses.
+        // contabilista lancava 596,53 + 338,45 todos os meses. Por isso o
+        // maior e' o documento e os outros ficam como anexos dele.
         //
-        // Um documento nao pode valer menos do que a sua propria decomposicao,
-        // por isso o maior e' o documento e os outros ficam como anexos dele.
-        //
-        // A troca: duas facturas verdadeiras na mesma mensagem passam a dar um
-        // documento e um anexo. E' o erro menos mau dos dois — o ficheiro fica
-        // a vista e o valor por lancar aparece nas Notas, ao passo que somar
-        // duas vezes o mesmo gasto nao aparece em lado nenhum.
+        // EXCEPCAO (17/09/2026): ficheiros com QR proprio e numeros de
+        // factura diferentes sao facturas diferentes, e cada uma da' o seu
+        // documento. Antes, um email com duas facturas deixava uma delas
+        // escondida como anexo da outra — contava como "saltada".
         usort($candidatos, fn (array $a, array $b) => $b['total'] <=> $a['total']);
 
-        // O ficheiro e' novo, mas a factura pode nao ser: agora que tambem se
-        // olha para emails ja lidos, uma factura que alguem lancou a mao (ou
-        // pela API, com outro PDF) nao pode nascer outra vez.
-        if ($documentoExistente === null && $candidatos !== []) {
-            $mesmaFactura = $this->documentoPorNumero($candidatos[0]['leitura']);
+        $separadas = [];
+        $numerosVistos = [];
+
+        foreach ($candidatos as $indice => $candidato) {
+            $numero = $this->numeroDoQr($candidato['leitura']);
+
+            if ($numero !== '' && ! isset($numerosVistos[$numero])) {
+                $numerosVistos[$numero] = true;
+                $separadas[$indice] = $candidato;
+            }
+        }
+
+        if (count($separadas) < 2) {
+            $separadas = [];
+        }
+
+        if ($documentoExistente !== null && $separadas !== []) {
+            // A que ja existe (pelo hash) nao volta a nascer.
+            $separadas = array_filter(
+                $separadas,
+                fn (array $c) => $this->numeroDoQr($c['leitura']) !== (string) $documentoExistente->invoice_number,
+            );
+        }
+
+        $resto = array_values(array_diff_key($candidatos, $separadas));
+
+        if ($separadas !== []) {
+            $principais = array_values($separadas);
+        } elseif ($documentoExistente === null && $resto !== []) {
+            $principais = [array_shift($resto)];
+        } else {
+            $principais = [];
+        }
+
+        // A factura desta mensagem ja esta no painel: e' esse o documento, e o
+        // que nao for factura propria passa a ser anexo dele.
+        if ($documentoExistente !== null) {
+            $documentos[] = $documentoExistente;
+
+            if ($resto !== []) {
+                $relatar(sprintf(
+                    '  #%d os restantes ficheiros vao para o documento %d, que ja existia.',
+                    $uid,
+                    $documentoExistente->id,
+                ));
+            }
+        }
+
+        foreach ($principais as $principal) {
+            // O ficheiro e' novo, mas a factura pode nao ser: uma que alguem
+            // lancou a mao ou pela API, com outro PDF, nao nasce outra vez.
+            $mesmaFactura = $this->documentoPorNumero($principal['leitura'], $principal['total']);
 
             if ($mesmaFactura !== null) {
-                $documentoExistente = $mesmaFactura;
                 $contas['duplicados']++;
 
                 $relatar(sprintf(
                     '  #%d %s — a factura %s ja existe no painel (documento %d).',
                     $uid,
-                    $candidatos[0]['anexo']['nome'],
+                    $principal['anexo']['nome'],
                     $mesmaFactura->invoice_number,
                     $mesmaFactura->id,
                 ));
 
-                // O PDF principal nao vira anexo de um documento que ja tem o
-                // seu: so' o guarda se o documento nao tiver ficheiro nenhum.
-                $principal = array_shift($candidatos);
-
+                // O PDF so' se guarda se o documento nao tiver ficheiro nenhum.
                 if (blank($mesmaFactura->file_path) && empty($mesmaFactura->image_paths)) {
                     $caminho = $this->moverParaDocumentos($principal['temp'], $principal['anexo'], $recebidoEm, $principal['hash']);
                     $this->guardarCaminho($mesmaFactura, $caminho, $principal['anexo']);
@@ -726,38 +959,17 @@ class ImportadorFaturasEmail
                 } else {
                     Storage::disk('local')->delete($principal['temp']);
                 }
-            }
-        }
 
-        // A factura desta mensagem ja esta no painel: nao nasce documento novo,
-        // e tudo o que veio com ela passa a ser anexo dela.
-        if ($documentoExistente !== null) {
-            $documentos[] = $documentoExistente;
+                if (! in_array($mesmaFactura->id, array_map(fn ($d) => $d->id, $documentos), true)) {
+                    $documentos[] = $mesmaFactura;
+                }
 
-            foreach ($candidatos as $candidato) {
-                $porAnexar[] = [
-                    'anexo' => $candidato['anexo'],
-                    'temp' => $candidato['temp'],
-                    'leitura' => $candidato['leitura'],
-                ];
+                continue;
             }
 
-            $candidatos = [];
-
-            $relatar(sprintf(
-                '  #%d os restantes ficheiros vao para o documento %d, que ja existia.',
-                $uid,
-                $documentoExistente->id,
-            ));
-        }
-
-        if ($candidatos !== []) {
-            $principal = array_shift($candidatos);
-
-            $outros = array_map(fn (array $c) => [
-                'nome' => $c['anexo']['nome'],
-                'total' => $c['total'] / 100,
-            ], $candidatos);
+            $outros = $separadas === []
+                ? array_map(fn (array $c) => ['nome' => $c['anexo']['nome'], 'total' => $c['total'] / 100], $resto)
+                : [];
 
             $documento = $this->criarDocumento(
                 $mensagem,
@@ -777,14 +989,6 @@ class ImportadorFaturasEmail
                 $contas['porRever']++;
             }
 
-            foreach ($candidatos as $candidato) {
-                $porAnexar[] = [
-                    'anexo' => $candidato['anexo'],
-                    'temp' => $candidato['temp'],
-                    'leitura' => $candidato['leitura'],
-                ];
-            }
-
             $relatar(sprintf(
                 '  #%d %s -> documento %d (%s, %s)%s',
                 $uid,
@@ -794,6 +998,35 @@ class ImportadorFaturasEmail
                 number_format($documento->amount, 2, ',', '.').' EUR',
                 $outros !== [] ? '  ('.count($outros).' outro(s) ficheiro(s) com total, anexados)' : '',
             ));
+        }
+
+        foreach ($resto as $candidato) {
+            $porAnexar[] = [
+                'anexo' => $candidato['anexo'],
+                'temp' => $candidato['temp'],
+                'leitura' => $candidato['leitura'],
+            ];
+        }
+
+        // Nenhum documento e so' ficheiros lidos que claramente NAO sao
+        // facturas (texto legivel, sem QR, sem ATCUD, sem total, sem a
+        // palavra factura/recibo): nao se cria nada, e a mensagem sai da
+        // caixa como qualquer outro email sem factura. Na duvida — um PDF
+        // digitalizado que o OCR nao leu, um XML, um CSV — fica por rever.
+        if ($documentos === [] && $porAnexar !== [] && $this->nenhumPareceFactura($porAnexar)) {
+            foreach ($porAnexar as $pendente) {
+                Storage::disk('local')->delete($pendente['temp']);
+            }
+
+            $contas['naoEFactura'] = true;
+            $relatar(sprintf(
+                '  #%d "%s" — os PDF foram lidos e nenhum e\' uma factura (%s).',
+                $uid,
+                Str::limit($mensagem->assunto(), 40),
+                implode(', ', array_map(fn (array $p) => $p['anexo']['nome'], $porAnexar)),
+            ));
+
+            return $contas;
         }
 
         // Nenhum ficheiro tinha total: nao se deita nada fora. Nasce um

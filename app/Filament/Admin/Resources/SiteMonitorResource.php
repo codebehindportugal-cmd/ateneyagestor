@@ -59,6 +59,10 @@ class SiteMonitorResource extends Resource
                 Forms\Components\Toggle::make('is_active')
                     ->label('Ativo')
                     ->default(true),
+                Forms\Components\Toggle::make('notify')
+                    ->label('Avisar no telemóvel (ntfy)')
+                    ->default(true)
+                    ->helperText('Desligar para clientes sem manutenção: o site continua a ser verificado, mas uma queda não envia aviso nem entra no resumo das 08:00.'),
             ]),
         ]);
     }
@@ -114,6 +118,8 @@ class SiteMonitorResource extends Resource
                     ->label('Última verificação')
                     ->since()
                     ->placeholder('Nunca'),
+                Tables\Columns\ToggleColumn::make('notify')
+                    ->label('Avisos'),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Ativo')
                     ->boolean()
@@ -128,7 +134,16 @@ class SiteMonitorResource extends Resource
                     ->relationship('server', 'name')
                     ->searchable()
                     ->preload(),
+                Tables\Filters\SelectFilter::make('client_id')
+                    ->label('Cliente')
+                    ->relationship('client', 'name')
+                    ->searchable()
+                    ->preload(),
                 Tables\Filters\TernaryFilter::make('is_active')->label('Ativo'),
+                Tables\Filters\TernaryFilter::make('notify')
+                    ->label('Avisos ntfy')
+                    ->trueLabel('Só com avisos')
+                    ->falseLabel('Só sem avisos'),
             ])
             ->actions([
                 Tables\Actions\Action::make('check_now')
@@ -157,6 +172,17 @@ class SiteMonitorResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\BulkAction::make('silenciar')
+                        ->label('Desligar avisos')
+                        ->icon('heroicon-o-bell-slash')
+                        ->color('gray')
+                        ->action(fn ($records) => SiteMonitor::whereKey($records->modelKeys())->update(['notify' => false]))
+                        ->deselectRecordsAfterCompletion(),
+                    Tables\Actions\BulkAction::make('avisar')
+                        ->label('Ligar avisos')
+                        ->icon('heroicon-o-bell')
+                        ->action(fn ($records) => SiteMonitor::whereKey($records->modelKeys())->update(['notify' => true]))
+                        ->deselectRecordsAfterCompletion(),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);

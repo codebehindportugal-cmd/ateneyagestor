@@ -54,3 +54,28 @@ deploy-status.html
 *.bak
 *.bak-*
 *.orig
+
+# ⚠️ 17/09/2026: o repositorio esteve PUBLICO com o .env de producao la dentro
+# (um "env" sem ponto e dois .env.bak), o token de um agente e os logs. Tudo o
+# que for configuracao local de uma maquina fica fora do git — o que conta e o
+# .example ao lado.
+/env
+/.env.*
+!/.env.example
+!/.env.production.example
+/index.html
+agents/backup_agent/agent.yaml
+agents/backup_agent/secrets.yaml
+agents/backup_agent/config.yaml
+agents/backup_agent/results.json
+agents/backup_agent/keys/
+agents/backup_agent/logs/
+agents/backup_agent/venv/
+__pycache__/
+*.pyc
+syncer/**/.vs/
+syncer/**/logs/
+syncer/**/*.sql
+syncer/**/venv/
+syncer/**/.env
+syncer/**/config.yaml

@@ -111,6 +111,11 @@ class CheckSiteMonitors extends Command
      */
     private function avisar(SiteMonitor $monitor, bool $estavaEmBaixo, bool $estaEmCima, ?string $erro): void
     {
+        // Cliente sem manutenção: continua a ser verificado, mas não toca.
+        if (! $monitor->notify) {
+            return;
+        }
+
         if ($estaEmCima === $estavaEmBaixo) {
             $nome = $monitor->name;
             $url  = $monitor->url;

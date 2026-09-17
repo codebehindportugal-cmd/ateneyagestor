@@ -27,8 +27,11 @@ class NtfyEstado extends Command
 
     public function handle(): int
     {
+        // Sites com os avisos desligados (clientes sem manutenção) ficam de
+        // fora: senão apareciam aqui todas as manhãs enquanto estivessem em baixo.
         $sites = SiteMonitor::query()
             ->where('is_active', true)
+            ->where('notify', true)
             ->where('status', MonitorStatus::Down)
             ->pluck('name');
 

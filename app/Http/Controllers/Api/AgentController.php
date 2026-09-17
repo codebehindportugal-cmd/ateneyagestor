@@ -44,6 +44,10 @@ class AgentController extends Controller
     {
         $agent = $this->authenticatedAgent($request);
 
+        // Pedir a configuracao e o primeiro passo de cada corrida: e sinal de
+        // vida, e o unico durante as horas que a corrida demora.
+        $agent->registarContacto();
+
         $servers = Server::query()
             ->with(['activeSites' => fn ($query) => $query->orderBy('name')])
             ->where('is_active', true)

@@ -11,7 +11,9 @@ set -euo pipefail
 
 INSTALL_DIR="${INSTALL_DIR:-/opt/backup-agent}"
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKUP_TIME="${BACKUP_TIME:-03:30}"
+# 05:00 e nao 03:30: o router de casa reinicia de madrugada e leva o DNS com
+# ele (ver espera-rede.sh). Em 12/09/2026 isto parou os backups duas semanas.
+BACKUP_TIME="${BACKUP_TIME:-05:00}"
 
 if [[ $EUID -ne 0 ]]; then
   echo "Corre como root (é um container dedicado)." >&2
@@ -25,10 +27,10 @@ apt-get install -y -qq python3 python3-venv python3-pip openssh-client gzip tar 
 
 echo "==> $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"/{keys,logs}
-for f in agent_sync.py backup.py wp_update.py wp_user.py requirements.txt agent.example.yaml secrets.example.yaml README.md; do
+for f in agent_sync.py backup.py wp_update.py wp_user.py espera-rede.sh requirements.txt agent.example.yaml secrets.example.yaml README.md; do
   [[ -f "$SRC_DIR/$f" ]] && install -m 0644 "$SRC_DIR/$f" "$INSTALL_DIR/$f"
 done
-chmod 0755 "$INSTALL_DIR/agent_sync.py" "$INSTALL_DIR/backup.py" "$INSTALL_DIR/wp_update.py" "$INSTALL_DIR/wp_user.py"
+chmod 0755 "$INSTALL_DIR/agent_sync.py" "$INSTALL_DIR/backup.py" "$INSTALL_DIR/wp_update.py" "$INSTALL_DIR/wp_user.py" "$INSTALL_DIR/espera-rede.sh"
 chmod 0700 "$INSTALL_DIR/keys"
 
 echo "==> Ambiente Python"
@@ -86,6 +88,7 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 WorkingDirectory=$INSTALL_DIR
+ExecStartPre=$INSTALL_DIR/espera-rede.sh
 ExecStart=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/agent_sync.py
 StandardOutput=append:$INSTALL_DIR/logs/agent.log
 StandardError=append:$INSTALL_DIR/logs/agent.log

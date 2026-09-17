@@ -18,6 +18,7 @@ class SiteMonitor extends Model
         'name',
         'url',
         'is_active',
+        'notify',
         'status',
         'last_http_code',
         'last_response_ms',
@@ -31,6 +32,7 @@ class SiteMonitor extends Model
         return [
             'status'          => MonitorStatus::class,
             'is_active'       => 'boolean',
+            'notify'          => 'boolean',
             'last_checked_at' => 'datetime',
             'went_down_at'    => 'datetime',
         ];

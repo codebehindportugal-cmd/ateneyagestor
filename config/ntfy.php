@@ -35,4 +35,15 @@ return [
         'agentes'       => (bool) env('NTFY_AVISA_AGENTES', true),
     ],
 
+    /*
+    | Minutos sem contacto ate um agente de backups ser dado como parado.
+    |
+    | O agente de casa fala com o painel ao arrancar a corrida, no fim dela, e
+    | — com o actualizador de WordPress instalado — de 30 em 30 segundos. Duas
+    | horas chegam para apanhar um container morto sem tocar por uma rede que
+    | pisca. Os agentes de produtividade (PCs) ficam com as 3 horas de sempre:
+    | um PC desligado a noite nao e uma avaria.
+    */
+    'agente_offline_minutos' => (int) env('NTFY_AGENTE_OFFLINE_MINUTOS', 120),
+
 ];

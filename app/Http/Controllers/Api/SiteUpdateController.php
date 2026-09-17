@@ -41,6 +41,10 @@ class SiteUpdateController extends Controller
     {
         $agent = $this->authenticatedAgent($request);
 
+        // O actualizador sonda de 30 em 30 s: e o sinal de vida mais fiavel
+        // que o agente de casa tem. Ver Agent::registarContacto().
+        $agent->registarContacto();
+
         $update = DB::transaction(function () use ($agent) {
             $candidato = SiteUpdate::query()
                 ->where('status', 'queued')

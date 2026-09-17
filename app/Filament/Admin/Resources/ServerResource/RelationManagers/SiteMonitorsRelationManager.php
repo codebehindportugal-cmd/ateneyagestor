@@ -34,6 +34,10 @@ class SiteMonitorsRelationManager extends RelationManager
             Forms\Components\Toggle::make('is_active')
                 ->label('Ativo')
                 ->default(true),
+            Forms\Components\Toggle::make('notify')
+                ->label('Avisar no telemóvel (ntfy)')
+                ->default(true)
+                ->helperText('Desligar para clientes sem manutenção.'),
         ]);
     }
 
@@ -67,6 +71,8 @@ class SiteMonitorsRelationManager extends RelationManager
                     ->label('Última verificação')
                     ->since()
                     ->placeholder('Nunca'),
+                Tables\Columns\ToggleColumn::make('notify')
+                    ->label('Avisos'),
             ])
             ->actions([
                 Tables\Actions\Action::make('check_now')

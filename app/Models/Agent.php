@@ -184,6 +184,30 @@ class Agent extends Model
         return $this->hasMany(ProductivityEvent::class);
     }
 
+    /**
+     * Qualquer pedido do agente conta como sinal de vida — nao so o heartbeat.
+     *
+     * Ate 17/09/2026 so o heartbeat do FIM da corrida contava. Uma corrida de
+     * backups demora das 05:00 ate ao inicio da tarde (a Loja Amster sozinha
+     * leva ~8 h), por isso o agente passava metade do dia "offline" com o
+     * trabalho a decorrer, e o resumo das 08:00 dizia "agente parado" todas as
+     * manhas. Um alarme que toca todos os dias deixa de ser lido.
+     *
+     * O actualizador de WordPress sonda de 30 em 30 segundos com o mesmo
+     * token: sem o limite de 5 minutos isto era uma escrita na base de dados
+     * a cada sondagem.
+     */
+    public function registarContacto(): void
+    {
+        $recente = $this->status === 'online'
+            && $this->last_seen_at !== null
+            && $this->last_seen_at->gt(now()->subMinutes(5));
+
+        if (! $recente) {
+            $this->markOnline();
+        }
+    }
+
     public function markOnline(): void
     {
         // Só interessa a transição: um agente que reporta de 15 em 15 minutos

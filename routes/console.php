@@ -22,9 +22,21 @@ $safeCron = static function (string $key, string $default): string {
 // lista de erros nenhuma. Ate 02/09/2026 isto so mudava o estado na base de
 // dados: o agente de casa esteve quatro dias em baixo, o resumo diario dizia
 // "tudo de pe" todas as manhas, e ninguem soube. Agora avisa.
+//
+// 17/09/2026: o limite era 3 h para todos, e so o heartbeat do FIM da corrida
+// contava como contacto. Resultado: o agente de casa ficava "offline" todas as
+// tardes e o resumo das 08:00 dizia "agente parado" com a corrida a decorrer.
+// Agora qualquer pedido conta (Agent::registarContacto) e o limite dos agentes
+// de backups vem de config('ntfy.agente_offline_minutos').
 Schedule::call(function () {
-    Agent::where('last_seen_at', '<', now()->subHours(3))
-        ->where('status', 'online')
+    $limiteBackups = now()->subMinutes(max(15, (int) config('ntfy.agente_offline_minutos', 120)));
+
+    Agent::where('status', 'online')
+        ->where(function ($q) use ($limiteBackups) {
+            $q->where(fn ($q) => $q->where('agent_type', 'productivity')->where('last_seen_at', '<', now()->subHours(3)))
+              ->orWhere(fn ($q) => $q->where(fn ($q) => $q->whereNull('agent_type')->orWhere('agent_type', '!=', 'productivity'))
+                                     ->where('last_seen_at', '<', $limiteBackups));
+        })
         ->get()
         ->each(function (Agent $agente) {
             $agente->forceFill(['status' => 'offline'])->save();

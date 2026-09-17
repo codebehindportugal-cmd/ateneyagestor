@@ -10,17 +10,18 @@ use Illuminate\Support\Facades\Log;
 class ImportarFaturasEmail extends Command
 {
     protected $signature = 'faturas:importar-email
-        {--dias= : Quantos dias para tras procurar (por omissao, o do config)}
+        {--dias= : Quantos dias para tras procurar (por omissao, desde o dia 1 do mes anterior)}
         {--limite= : Quantas mensagens processar nesta corrida}
-        {--todas : Volta a analisar tambem as mensagens que o importador ja tratou}
+        {--todas : Volta a analisar tambem as mensagens ja vistas sem factura}
         {--listar : So mostra o que esta na caixa e o que aconteceria a cada mensagem (nao importa nada)}
+        {--procurar= : Procura um texto (ex.: numero da factura) em TODAS as pastas e diz porque nao entrou}
         {--teste : So testa a ligacao e sai}';
 
     protected $description = 'Traz as facturas que chegaram a faturacao@ateneya.com e cria os documentos de contabilidade';
 
     public function handle(ImportadorFaturasEmail $importador): int
     {
-        if ($this->option('listar')) {
+        if ($this->option('listar') || $this->option('procurar') !== null) {
             return $this->listar($importador);
         }
 
@@ -70,12 +71,13 @@ class ImportarFaturasEmail extends Command
 
         $this->newLine();
         $this->info(sprintf(
-            '%d mensagem(ns) analisadas · %d documento(s) criados · %d ficheiro(s) anexados · %d duplicado(s) · %d sem anexo de factura.',
+            '%d mensagem(ns) analisadas · %d documento(s) criados · %d ficheiro(s) anexados · %d duplicado(s) · %d sem anexo de factura · %d retirada(s) da caixa.',
             $contas['mensagens'],
             $contas['documentos'],
             $contas['anexos'],
             $contas['duplicados'],
             $contas['semAnexo'],
+            $contas['apagadas'],
         ));
 
         if ($contas['porRever'] > 0) {
@@ -109,9 +111,12 @@ class ImportarFaturasEmail extends Command
     private function listar(ImportadorFaturasEmail $importador): int
     {
         try {
+            $texto = $this->option('procurar');
+
             $linhas = $importador->listar(
                 dias: $this->option('dias') !== null ? (int) $this->option('dias') : null,
                 limite: $this->option('limite') !== null ? (int) $this->option('limite') : null,
+                texto: $texto !== null && trim($texto) !== '' ? trim($texto) : null,
             );
         } catch (\Throwable $e) {
             $this->error($e->getMessage());
@@ -120,20 +125,23 @@ class ImportarFaturasEmail extends Command
         }
 
         if ($linhas === []) {
-            $this->warn('Nenhuma mensagem na caixa dentro da janela de dias.');
+            $this->warn($this->option('procurar') !== null
+                ? 'Nenhuma pasta tem uma mensagem com esse texto. Ou o email nunca chegou a esta caixa, ou o numero so aparece dentro do PDF (o servidor nao procura dentro dos anexos).'
+                : 'Nenhuma mensagem na caixa dentro da janela.');
 
             return self::SUCCESS;
         }
 
         $this->table(
-            ['UID', 'Data', 'De', 'Assunto', 'Lida', 'Anexos', 'Estado'],
+            ['Pasta', 'UID', 'Data', 'De', 'Assunto', 'Lida', 'Anexos', 'Estado'],
             array_map(fn (array $l) => [
+                $l['pasta'],
                 $l['uid'],
                 $l['data'],
                 \Illuminate\Support\Str::limit($l['de'], 30),
                 \Illuminate\Support\Str::limit($l['assunto'], 40),
                 $l['lida'] ? 'sim' : 'nao',
-                \Illuminate\Support\Str::limit(implode(', ', $l['anexos']) ?: '-', 40),
+                \Illuminate\Support\Str::limit(implode(', ', $l['anexos']) ?: '-', $this->option('procurar') !== null ? 200 : 50),
                 $l['estado'],
             ], $linhas),
         );

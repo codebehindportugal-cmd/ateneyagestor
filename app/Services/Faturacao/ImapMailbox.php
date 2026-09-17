@@ -156,29 +156,56 @@ class ImapMailbox
     /** @return list<string> */
     public function pastas(): array
     {
+        return array_values(array_unique(array_map(
+            fn (array $p) => $p['nome'],
+            $this->pastasComAtributos(),
+        )));
+    }
+
+    /**
+     * As pastas com os atributos que o servidor lhes da' — `\Trash`, `\Junk`,
+     * `\Noselect`... (RFC 6154). E' por eles que se descobre qual e' o lixo e
+     * qual e' o spam sem adivinhar o nome, que muda de servidor para servidor.
+     *
+     * @return list<array{nome: string, atributos: list<string>}>
+     */
+    public function pastasComAtributos(): array
+    {
         $blocos = $this->comando('LIST "" "*"');
-        $nomes = [];
+        $pastas = [];
 
         foreach ($blocos as $bloco) {
-            if (! str_starts_with($bloco['texto'], '* LIST')) {
+            $texto = trim($bloco['texto']);
+
+            if (! str_starts_with($texto, '* LIST')) {
                 continue;
             }
+
+            $atributos = [];
+
+            if (preg_match('/^\*\s+LIST\s+\(([^)]*)\)/i', $texto, $m)) {
+                $atributos = array_values(array_filter(
+                    array_map(fn (string $a) => strtolower(trim($a)), preg_split('/\s+/', $m[1]) ?: []),
+                ));
+            }
+
+            $nome = null;
 
             if ($bloco['literais'] !== []) {
-                $nomes[] = $bloco['literais'][0];
-
-                continue;
+                $nome = $bloco['literais'][0];
+            } elseif (preg_match('/"((?:[^"\\\\]|\\\\.)*)"\s*$/', $texto, $m)) {
+                // * LIST (\HasNoChildren) "." "INBOX.Importadas"
+                $nome = stripcslashes($m[1]);
+            } elseif (preg_match('/\s(\S+)\s*$/', $texto, $m)) {
+                $nome = $m[1];
             }
 
-            // * LIST (\HasNoChildren) "." "INBOX.Importadas"
-            if (preg_match('/"([^"]*)"\s*$/', trim($bloco['texto']), $m)) {
-                $nomes[] = $m[1];
-            } elseif (preg_match('/\s(\S+)\s*$/', trim($bloco['texto']), $m)) {
-                $nomes[] = $m[1];
+            if ($nome !== null && $nome !== '') {
+                $pastas[] = ['nome' => $nome, 'atributos' => $atributos];
             }
         }
 
-        return array_values(array_unique($nomes));
+        return $pastas;
     }
 
     /**
@@ -259,6 +286,12 @@ class ImapMailbox
         return $this->procurar(($incluirLidas ? '' : 'UNSEEN ').'SINCE '.self::dataImap($desde));
     }
 
+    /** Mensagens com este texto no assunto, cabecalhos ou corpo. */
+    public function procurarTexto(string $texto): array
+    {
+        return $this->procurar('TEXT '.$this->citar($texto));
+    }
+
     /** Mensagens ja lidas que chegaram antes do dia indicado (exclusive). */
     public function procurarLidasAntes(\DateTimeInterface $antes): array
     {
@@ -310,8 +343,19 @@ class ImapMailbox
         }
 
         $this->comando("UID COPY {$uid} ".$this->citar($pasta));
+        $this->apagar($uid);
+    }
+
+    /**
+     * Apaga de vez. Com UIDPLUS so' limpa esta mensagem; sem ele o EXPUNGE
+     * limpa tambem o que alguem tenha marcado como apagado na mesma pasta —
+     * que e' o que o proprio cliente de email faria a seguir.
+     */
+    public function apagar(int $uid): void
+    {
         $this->comando("UID STORE {$uid} +FLAGS (".'\Deleted'.')');
-        $this->comando('EXPUNGE');
+
+        $this->comando($this->suporta('UIDPLUS') ? "UID EXPUNGE {$uid}" : 'EXPUNGE');
     }
 
     public function suporta(string $capacidade): bool

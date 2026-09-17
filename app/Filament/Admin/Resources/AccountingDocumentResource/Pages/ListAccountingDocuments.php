@@ -108,7 +108,7 @@ class ListAccountingDocuments extends ListRecords
                 ->visible(fn () => auth()->user()?->isAdmin() === true)
                 ->requiresConfirmation()
                 ->modalHeading('Ir buscar facturas ao email')
-                ->modalDescription('Le a caixa '.config('faturas_email.username').' e cria um documento por cada anexo PDF ou imagem que ainda nao tenha entrado.')
+                ->modalDescription('Le a caixa '.config('faturas_email.username').' (entrada e spam, desde o dia 1 do mes anterior), cria um documento por cada factura em PDF ou imagem e tira da caixa os emails que ficaram registados.')
                 ->modalSubmitActionLabel('Importar agora')
                 // Limite baixo de proposito: isto corre dentro do pedido web e
                 // o OCR de um PDF leva segundos. O resto fica para o agendador.
@@ -127,11 +127,12 @@ class ListAccountingDocuments extends ListRecords
                     }
 
                     $corpo = sprintf(
-                        '%d mensagem(ns) analisadas · %d documento(s) criados · %d ja existiam · %d sem anexo de factura.',
+                        '%d mensagem(ns) analisadas · %d documento(s) criados · %d ja existiam · %d sem anexo de factura · %d retirada(s) da caixa.',
                         $contas['mensagens'],
                         $contas['documentos'],
                         $contas['duplicados'],
                         $contas['semAnexo'],
+                        $contas['apagadas'],
                     );
 
                     if ($contas['erros'] !== []) {

@@ -35,17 +35,35 @@ return [
 
     'folder' => env('FATURAS_EMAIL_FOLDER', 'INBOX'),
 
+    // Varias pastas separadas por virgula ("INBOX,INBOX.Fornecedores").
+    // Vazio = so' a de cima.
+    'folders' => env('FATURAS_EMAIL_FOLDERS'),
+
+    // Ler tambem o spam (descoberto pelo atributo \Junk ou pelo nome). O que
+    // de la' vier entra sempre POR REVER.
+    'include_junk' => filter_var(env('FATURAS_EMAIL_INCLUDE_JUNK', true), FILTER_VALIDATE_BOOLEAN),
+
     /*
-    | Para onde vai a mensagem depois de importada. Vazio = fica na entrada,
-    | apenas marcada como lida. Desde 17/09/2026 o "lido" ja nao decide nada:
-    | o importador olha para todas as mensagens da janela e lembra-se das que
-    | ja tratou, por isso ler um email no telemovel nao o esconde.
+    | O que acontece a mensagem depois de TODOS os seus ficheiros estarem no
+    | painel (17/09/2026: a caixa passou a ser uma fila — o que la' fica e' o
+    | que falta):
+    |   lixo   — vai para o lixo do email (recuperavel). Por omissao.
+    |   apagar — apagada de vez.
+    |   mover  — vai para FATURAS_EMAIL_PROCESSED_FOLDER.
+    |   manter — fica, marcada como lida.
+    | As mensagens sem factura (newsletters, avisos) ficam sempre.
     */
+    'after_import' => env('FATURAS_EMAIL_AFTER_IMPORT', 'lixo'),
+
+    // Vazio = descobre-se sozinha (atributo \Trash, ou Trash/Lixo/...).
+    'trash_folder' => env('FATURAS_EMAIL_TRASH_FOLDER'),
+
+    // So' usada com after_import=mover.
     'processed_folder' => env('FATURAS_EMAIL_PROCESSED_FOLDER'),
 
-    // Quantos dias para tras procurar. Trava a primeira corrida numa caixa
-    // com anos de historico.
-    'days' => (int) env('FATURAS_EMAIL_DAYS', 30),
+    // Por omissao le-se desde o dia 1 do mes anterior (o mes todo mais a
+    // virada do mes). Um numero de dias maior do que isso alarga a janela.
+    'days' => env('FATURAS_EMAIL_DAYS') !== null ? (int) env('FATURAS_EMAIL_DAYS') : null,
 
     // Mensagens processadas por corrida.
     'max_messages' => (int) env('FATURAS_EMAIL_MAX_MESSAGES', 40),

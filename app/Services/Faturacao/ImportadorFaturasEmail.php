@@ -18,15 +18,13 @@ use Illuminate\Support\Str;
  * newsletters, respostas, avisos de cobranca sem documento — fica na caixa e
  * nao chega ao contabilista.
  *
- * Nada aqui apaga mensagens. Depois de importada, a mensagem e' marcada como
- * lida e, se houver pasta configurada, arrumada la'. O original fica sempre no
- * email, que e' onde ele tem valor legal.
+ * Desde 17/09/2026 a caixa e' uma fila: depois de TODOS os ficheiros de uma
+ * mensagem estarem guardados no painel, a mensagem vai para o lixo do email
+ * (FATURAS_EMAIL_AFTER_IMPORT: lixo | apagar | mover | manter). O que fica na
+ * entrada e' o que ainda nao entrou, ou o que nao traz factura.
  */
 class ImportadorFaturasEmail
 {
-    /** Dia em que o importador deixou de depender do "lido" do email. */
-    private const INICIO_DA_LISTA = '2026-09-17 00:00:00';
-
     public function __construct(
         private readonly PaperInvoiceExtractor $extractor,
     ) {
@@ -70,7 +68,7 @@ class ImportadorFaturasEmail
 
     /**
      * @param  callable(string):void|null  $relatar  recebe cada passo, para o comando o escrever
-     * @return array{mensagens: int, documentos: int, porRever: int, anexos: int, duplicados: int, semAnexo: int, erros: list<string>}
+     * @return array{mensagens: int, documentos: int, porRever: int, anexos: int, duplicados: int, semAnexo: int, apagadas: int, erros: list<string>}
      */
     public function correr(
         ?int $dias = null,
@@ -88,6 +86,7 @@ class ImportadorFaturasEmail
             'anexos' => 0,
             'duplicados' => 0,
             'semAnexo' => 0,
+            'apagadas' => 0,
             'erros' => [],
         ];
 
@@ -95,69 +94,102 @@ class ImportadorFaturasEmail
         $caixa->ligar();
 
         try {
-            $caixa->escolherPasta((string) $config['folder']);
-
-            $destino = trim((string) ($config['processed_folder'] ?? ''));
-
-            if ($destino !== '') {
-                $caixa->criarPasta($destino);
-                // O CREATE muda a pasta seleccionada nalguns servidores.
-                $caixa->escolherPasta((string) $config['folder']);
-            }
-
-            $desde = Carbon::now()->subDays(max(1, $dias ?? (int) $config['days']));
-
-            // ⚠️ 17/09/2026 (2.a correccao): a pesquisa era `UNSEEN SINCE`.
-            // Mas a caixa e' lida por pessoas — basta alguem abrir o email da
-            // factura no telemovel para ele ficar lido e o importador nunca
-            // mais o ver. E' o mais provavel para as facturas de 07/09 em
-            // diante: enquanto o limite as deixava para tras (ver abaixo),
-            // alguem as abriu, e quando o limite deixou de ser problema ja
-            // estavam lidas.
-            //
-            // Agora procura-se TUDO desde a data, lido ou nao, e quem decide o
-            // que ja foi tratado e' o proprio importador: uma lista de UIDs ja
-            // vistos (sem anexo, ou ja importados). O "lido" do email volta a
-            // ser so' das pessoas. Os duplicados continuam travados pelo hash
-            // do ficheiro e pelo numero+NIF da factura.
-            //
-            // (1.a correccao, mesmo dia: como a pesquisa vem por ordem de UID e
-            // o limite corta as primeiras, cada corrida analisava SEMPRE as
-            // mesmas 40 newsletters e nunca chegava as facturas.)
-            //
-            // `--todas` ignora a lista e volta a olhar para tudo.
-            $encontrados = $caixa->procurarDesde($desde, incluirLidas: true);
-
-            $chaveVistas = $this->chaveVistas($config, $caixa->uidValidity());
-            $vistas = $this->uidsVistos($caixa, $chaveVistas, $config);
-            // Esquecer as que ja nao aparecem (movidas, apagadas, fora da
-            // janela): a lista nao cresce para sempre.
-            $vistas = array_intersect_key($vistas, array_flip($encontrados));
-
-            $uids = $incluirLidas
-                ? $encontrados
-                : array_values(array_filter($encontrados, fn (int $uid) => ! isset($vistas[$uid])));
-
-            $maximo = max(1, $limite ?? (int) $config['max_messages']);
-            $saltadas = count($encontrados) - count($uids);
-            $restam = max(0, count($uids) - $maximo);
-            $uids = array_slice($uids, 0, $maximo);
+            // 17/09/2026 (3.a correccao): a caixa passa a ser uma fila. Le-se
+            // o mes todo, em todas as pastas onde uma factura pode cair (a
+            // entrada e o spam), e a mensagem sai da caixa assim que a factura
+            // ficou guardada no painel. O que la' fica e' so' o que ainda nao
+            // entrou — ve-se de relance o que falta, em vez de o adivinhar.
+            $pastas = $this->pastasAVer($caixa, $config);
+            $depois = $this->oQueFazerDepois($caixa, $config, $relatar);
+            $desde = $this->desde($dias, $config);
+            $restante = max(1, $limite ?? (int) $config['max_messages']);
 
             $relatar(sprintf(
-                '%d mensagem(ns) na caixa desde %s · %d ja tratadas · %d a analisar agora%s.',
-                count($encontrados),
+                'Desde %s · pastas: %s · depois de importar: %s.',
                 $desde->format('d/m/Y'),
-                $saltadas,
-                count($uids),
-                $restam > 0 ? " · {$restam} ficam para a proxima corrida" : '',
+                implode(', ', array_map(fn (array $p) => $p['nome'].($p['spam'] ? ' (spam)' : ''), $pastas)),
+                $depois['descricao'],
             ));
 
+            foreach ($pastas as $pasta) {
+                if ($restante <= 0) {
+                    break;
+                }
+
+                $restante -= $this->correrPasta($caixa, $config, $pasta, $desde, $restante, $incluirLidas, $depois, $contas, $relatar);
+            }
+        } finally {
+            $caixa->fechar();
+            $this->pastaEhSpam = false;
+        }
+
+        return $contas;
+    }
+
+    /** Enquanto se le uma pasta de spam, o que nascer fica por rever. */
+    private bool $pastaEhSpam = false;
+
+    /**
+     * @param  array{nome: string, spam: bool}  $pasta
+     * @param  array{modo: string, pasta: ?string, descricao: string}  $depois
+     * @return int quantas mensagens foram analisadas (contam para o limite)
+     */
+    private function correrPasta(
+        ImapMailbox $caixa,
+        array $config,
+        array $pasta,
+        Carbon $desde,
+        int $maximo,
+        bool $incluirLidas,
+        array $depois,
+        array &$contas,
+        callable $relatar,
+    ): int {
+        try {
+            $caixa->escolherPasta($pasta['nome']);
+        } catch (\Throwable $e) {
+            $contas['erros'][] = "Pasta {$pasta['nome']}: ".$e->getMessage();
+            $relatar("  ERRO a abrir a pasta {$pasta['nome']}: ".$e->getMessage());
+
+            return 0;
+        }
+
+        $this->pastaEhSpam = $pasta['spam'];
+
+        // Procura-se tudo desde a data, lido ou nao: a caixa e' lida por
+        // pessoas, e um email aberto no telemovel nao pode ficar invisivel.
+        // Quem decide o que ja foi tratado e' a lista de UIDs vistos (as
+        // mensagens sem anexo, que ficam na caixa) — as importadas saem da
+        // caixa e deixam de aparecer. `--todas` ignora a lista.
+        $encontrados = $caixa->procurarDesde($desde, incluirLidas: true);
+
+        $chaveVistas = $this->chaveVistas($config, $caixa->uidValidity(), $pasta['nome']);
+        $vistas = $this->uidsVistos($caixa, $chaveVistas, $config, $pasta['nome']);
+        $vistas = array_intersect_key($vistas, array_flip($encontrados));
+
+        $uids = $incluirLidas
+            ? $encontrados
+            : array_values(array_filter($encontrados, fn (int $uid) => ! isset($vistas[$uid])));
+
+        $saltadas = count($encontrados) - count($uids);
+        $restam = max(0, count($uids) - $maximo);
+        $uids = array_slice($uids, 0, $maximo);
+
+        $relatar(sprintf(
+            '[%s] %d mensagem(ns) · %d ja vistas sem factura · %d a analisar agora%s.',
+            $pasta['nome'],
+            count($encontrados),
+            $saltadas,
+            count($uids),
+            $restam > 0 ? " · {$restam} ficam para a proxima corrida" : '',
+        ));
+
+        try {
             foreach ($uids as $uid) {
                 $contas['mensagens']++;
 
                 try {
-                    $bruto = $caixa->mensagemEmBruto($uid);
-                    $mensagem = MimeMessage::deBruto($bruto);
+                    $mensagem = MimeMessage::deBruto($caixa->mensagemEmBruto($uid));
 
                     $anexos = $mensagem->anexosDeFatura(
                         minimoImagemBytes: max(0, (int) $config['min_image_kb']) * 1024,
@@ -168,7 +200,7 @@ class ImportadorFaturasEmail
                         $vistas[$uid] = true;
                         $this->guardarVistos($chaveVistas, $vistas);
                         $contas['semAnexo']++;
-                        $relatar(sprintf('  #%d "%s" — sem anexo de factura, deixada na caixa.', $uid, Str::limit($mensagem->assunto(), 50)));
+                        $relatar(sprintf('  #%d "%s" — sem anexo de factura, fica na caixa.', $uid, Str::limit($mensagem->assunto(), 50)));
 
                         continue;
                     }
@@ -180,111 +212,248 @@ class ImportadorFaturasEmail
                     $contas['duplicados'] += $resultado['duplicados'];
                     $contas['anexos'] += $resultado['anexos'];
 
+                    if (! $resultado['guardada']) {
+                        // Algum ficheiro nao ficou no painel: a mensagem fica
+                        // onde esta e volta a ser tentada na proxima corrida
+                        // (o que ja entrou nao se duplica — trava o hash).
+                        $erro = sprintf('Mensagem #%d (%s): nem todos os ficheiros ficaram no painel — fica na caixa.', $uid, Str::limit($mensagem->assunto(), 40));
+                        $contas['erros'][] = $erro;
+                        $relatar('  AVISO '.$erro);
+
+                        continue;
+                    }
+
                     // Guardado logo, mensagem a mensagem: o botao do painel
                     // corre dentro do pedido web, e se o PHP o cortar a meio
-                    // (tempo maximo) o `finally` nao chega a correr.
+                    // o `finally` nao chega a correr.
                     $vistas[$uid] = true;
                     $this->guardarVistos($chaveVistas, $vistas);
 
-                    // Uma mensagem cujos anexos ja estavam todos importados
-                    // tambem se arruma.
-                    $caixa->marcarLida($uid);
-
-                    if ($destino !== '') {
-                        $caixa->mover($uid, $destino);
+                    if ($this->arrumar($caixa, $uid, $pasta['nome'], $depois, $relatar)) {
+                        $contas['apagadas']++;
+                        unset($vistas[$uid]);
                     }
                 } catch (\Throwable $e) {
-                    $erro = sprintf('Mensagem #%d: %s', $uid, $e->getMessage());
+                    $erro = sprintf('Mensagem #%d em %s: %s', $uid, $pasta['nome'], $e->getMessage());
                     $contas['erros'][] = $erro;
                     $relatar('  ERRO '.$erro);
                     Log::warning('faturas:importar-email — '.$erro, ['excepcao' => $e]);
                 }
             }
         } finally {
-            $caixa->fechar();
+            $this->guardarVistos($chaveVistas, $vistas);
+        }
 
-            if (isset($chaveVistas, $vistas)) {
-                $this->guardarVistos($chaveVistas, $vistas);
+        return count($uids);
+    }
+
+    /**
+     * A factura ja esta no painel — agora a mensagem sai da caixa.
+     *
+     * So' se chega aqui depois de TODOS os ficheiros da mensagem estarem
+     * guardados (como documento ou como anexo dele). O PDF fica no painel e
+     * no NAS; o email vai para o lixo, de onde ainda se recupera.
+     *
+     * @param  array{modo: string, pasta: ?string, descricao: string}  $depois
+     * @return bool se a mensagem saiu da pasta
+     */
+    private function arrumar(ImapMailbox $caixa, int $uid, string $pastaActual, array $depois, callable $relatar): bool
+    {
+        switch ($depois['modo']) {
+            case 'apagar':
+                $caixa->apagar($uid);
+                $relatar("  #{$uid} apagada da caixa.");
+
+                return true;
+
+            case 'lixo':
+            case 'mover':
+                if ($depois['pasta'] === null || $depois['pasta'] === $pastaActual) {
+                    $caixa->marcarLida($uid);
+
+                    return false;
+                }
+
+                $caixa->marcarLida($uid);
+                $caixa->mover($uid, $depois['pasta']);
+                $relatar("  #{$uid} -> {$depois['pasta']}");
+
+                return true;
+
+            default: // manter
+                $caixa->marcarLida($uid);
+
+                return false;
+        }
+    }
+
+    /**
+     * @return array{modo: string, pasta: ?string, descricao: string}
+     */
+    private function oQueFazerDepois(ImapMailbox $caixa, array $config, callable $relatar): array
+    {
+        $modo = strtolower(trim((string) ($config['after_import'] ?? 'lixo')));
+
+        if ($modo === 'apagar') {
+            return ['modo' => 'apagar', 'pasta' => null, 'descricao' => 'apagar de vez'];
+        }
+
+        if ($modo === 'mover') {
+            $destino = trim((string) ($config['processed_folder'] ?? ''));
+
+            if ($destino === '') {
+                $relatar('AVISO: FATURAS_EMAIL_AFTER_IMPORT=mover mas falta FATURAS_EMAIL_PROCESSED_FOLDER — as mensagens ficam na caixa.');
+
+                return ['modo' => 'manter', 'pasta' => null, 'descricao' => 'deixar na caixa (marcada como lida)'];
+            }
+
+            $caixa->criarPasta($destino);
+
+            return ['modo' => 'mover', 'pasta' => $destino, 'descricao' => "mover para {$destino}"];
+        }
+
+        if ($modo === 'manter') {
+            return ['modo' => 'manter', 'pasta' => null, 'descricao' => 'deixar na caixa (marcada como lida)'];
+        }
+
+        $lixo = trim((string) ($config['trash_folder'] ?? '')) ?: $this->pastaEspecial($caixa, 'lixo');
+
+        if ($lixo === null) {
+            // Sem lixo conhecido nao se apaga de vez sem ninguem ter pedido:
+            // e' preferivel uma caixa cheia a uma factura perdida.
+            $relatar('AVISO: nao encontrei a pasta do lixo. Define FATURAS_EMAIL_TRASH_FOLDER (ou FATURAS_EMAIL_AFTER_IMPORT=apagar). Por agora as mensagens ficam na caixa.');
+
+            return ['modo' => 'manter', 'pasta' => null, 'descricao' => 'deixar na caixa (sem pasta do lixo)'];
+        }
+
+        return ['modo' => 'lixo', 'pasta' => $lixo, 'descricao' => "mover para o lixo ({$lixo})"];
+    }
+
+    /**
+     * A entrada, mais o spam (a nao ser que se desligue). Uma factura que o
+     * servidor ache suspeita vai parar ao spam e ninguem a ve la'.
+     *
+     * @return list<array{nome: string, spam: bool}>
+     */
+    private function pastasAVer(ImapMailbox $caixa, array $config): array
+    {
+        $nomes = array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) ($config['folders'] ?? '') ?: (string) $config['folder']),
+        )));
+
+        $pastas = array_map(fn (string $n) => ['nome' => $n, 'spam' => false], $nomes ?: ['INBOX']);
+
+        if ((bool) ($config['include_junk'] ?? true)) {
+            $spam = $this->pastaEspecial($caixa, 'spam');
+
+            if ($spam !== null && ! in_array($spam, $nomes, true)) {
+                $pastas[] = ['nome' => $spam, 'spam' => true];
             }
         }
 
-        return $contas;
+        return $pastas;
+    }
+
+    /** @var list<array{nome: string, atributos: list<string>}>|null */
+    private ?array $cachePastas = null;
+
+    /** O nome da pasta do lixo ou do spam, pelos atributos ou, na falta deles, pelo nome. */
+    private function pastaEspecial(ImapMailbox $caixa, string $qual): ?string
+    {
+        $this->cachePastas ??= $caixa->pastasComAtributos();
+
+        [$atributo, $padrao] = $qual === 'lixo'
+            ? ['\\trash', '/^(inbox[.\/])?(trash|lixo|lixeira|reciclagem|deleted items|deleted messages|itens eliminados|itens exclu.dos)$/i']
+            : ['\\junk', '/^(inbox[.\/])?(junk|spam|junk e-?mail|lixo eletr.*|correio (eletr.*)?n.o solicitado)$/i'];
+
+        foreach ($this->cachePastas as $pasta) {
+            if (in_array($atributo, $pasta['atributos'], true) && ! in_array('\\noselect', $pasta['atributos'], true)) {
+                return $pasta['nome'];
+            }
+        }
+
+        foreach ($this->cachePastas as $pasta) {
+            if (preg_match($padrao, $pasta['nome']) && ! in_array('\\noselect', $pasta['atributos'], true)) {
+                return $pasta['nome'];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Desde o dia 1 do mes anterior: cobre o mes todo e a virada do mes (a
+     * factura de dia 31 que so' se ve no dia 2). Um `--dias` maior alarga.
+     */
+    private function desde(?int $dias, array $config): Carbon
+    {
+        $inicioDoMes = Carbon::now()->startOfMonth()->subMonthNoOverflow();
+        $dias ??= isset($config['days']) && $config['days'] !== null ? (int) $config['days'] : null;
+
+        if ($dias === null || $dias <= 0) {
+            return $inicioDoMes;
+        }
+
+        $porDias = Carbon::now()->subDays($dias);
+
+        return $porDias->lessThan($inicioDoMes) ? $porDias : $inicioDoMes;
     }
 
     /**
      * So' olha, nao mexe: diz, mensagem a mensagem, o que o importador faria
-     * e porque. E' a resposta a "porque e' que esta factura nao entrou?".
+     * e porque. Com `$texto`, procura em TODAS as pastas (lixo incluido) e em
+     * qualquer data — e' a resposta a "onde esta a factura X?".
      *
-     * @return list<array{uid: int, data: string, de: string, assunto: string, lida: bool, tratada: bool, anexos: list<string>, estado: string}>
+     * @return list<array{pasta: string, uid: int, data: string, de: string, assunto: string, lida: bool, anexos: list<string>, estado: string}>
      */
-    public function listar(?int $dias = null, ?int $limite = null): array
+    public function listar(?int $dias = null, ?int $limite = null, ?string $texto = null): array
     {
         $config = $this->config();
         $caixa = new ImapMailbox($config);
         $caixa->ligar();
 
         try {
-            $pasta = (string) $config['folder'];
-            $caixa->escolherPasta($pasta, soLeitura: true);
+            $desde = $this->desde($dias, $config);
+            $maximo = max(1, $limite ?? 100);
 
-            $desde = Carbon::now()->subDays(max(1, $dias ?? (int) $config['days']));
-            $todas = $caixa->procurarDesde($desde, incluirLidas: true);
-            $porLer = array_flip($caixa->procurarDesde($desde, incluirLidas: false));
-
-            $vistas = $this->uidsVistos($caixa, $this->chaveVistas($config, $caixa->uidValidity()), $config);
-
-            // As mais recentes primeiro: e' quase sempre por essas que se pergunta.
-            $todas = array_slice(array_reverse($todas), 0, max(1, $limite ?? 100));
+            $pastas = $texto !== null
+                ? array_map(
+                    fn (array $p) => ['nome' => $p['nome'], 'spam' => in_array('\\junk', $p['atributos'], true), 'lixo' => in_array('\\trash', $p['atributos'], true)],
+                    array_filter($caixa->pastasComAtributos(), fn (array $p) => ! in_array('\\noselect', $p['atributos'], true)),
+                )
+                : $this->pastasAVer($caixa, $config);
 
             $linhas = [];
 
-            foreach ($todas as $uid) {
+            foreach ($pastas as $pasta) {
                 try {
-                    $mensagem = MimeMessage::deBruto($caixa->mensagemEmBruto($uid));
-                    $anexos = $mensagem->anexosDeFatura(
-                        minimoImagemBytes: max(0, (int) $config['min_image_kb']) * 1024,
-                        maximoBytes: max(1, (int) $config['max_attachment_mb']) * 1024 * 1024,
-                    );
+                    $caixa->escolherPasta($pasta['nome'], soLeitura: true);
+                } catch (\Throwable $e) {
+                    continue;
+                }
 
-                    $importados = 0;
+                if ($texto !== null) {
+                    $uids = $caixa->procurarTexto($texto);
+                    $porLer = array_flip($caixa->procurar('UNSEEN'));
+                } else {
+                    $uids = $caixa->procurarDesde($desde, incluirLidas: true);
+                    $porLer = array_flip($caixa->procurarDesde($desde, incluirLidas: false));
+                }
 
-                    foreach ($anexos as $anexo) {
-                        if ($this->documentoPorHash($anexo['conteudo']) !== null) {
-                            $importados++;
-                        }
+                $vistas = $this->uidsVistos($caixa, $this->chaveVistas($config, $caixa->uidValidity(), $pasta['nome']), $config, $pasta['nome']);
+
+                // As mais recentes primeiro: e' quase sempre por essas que se pergunta.
+                foreach (array_slice(array_reverse($uids), 0, $maximo) as $uid) {
+                    $linha = ['pasta' => $pasta['nome']] + $this->avaliar($caixa, $uid, $config, isset($vistas[$uid]), ! isset($porLer[$uid]), $desde, $texto !== null);
+
+                    if (! empty($pasta['lixo'])) {
+                        $linha['estado'] = str_starts_with($linha['estado'], 'ja esta no painel')
+                            ? 'no LIXO — ja esta no painel (tudo certo)'
+                            : 'no LIXO — '.$linha['estado'].' (o importador nao le o lixo)';
                     }
 
-                    $tratada = isset($vistas[$uid]);
-
-                    $estado = match (true) {
-                        $anexos === [] => 'sem anexo PDF/imagem — nao entra',
-                        $importados > 0 && ($tratada || $importados === count($anexos)) => 'ja importada',
-                        $importados > 0 => 'em parte importada — o resto entra na proxima corrida',
-                        $tratada => 'dada como tratada, sem documento no painel (apagado?)',
-                        default => 'POR IMPORTAR — entra na proxima corrida',
-                    };
-
-                    $linhas[] = [
-                        'uid' => $uid,
-                        'data' => $mensagem->data()?->format('d/m/Y H:i') ?? '?',
-                        'de' => $mensagem->de(),
-                        'assunto' => $mensagem->assunto(),
-                        'lida' => ! isset($porLer[$uid]),
-                        'tratada' => $tratada,
-                        'anexos' => array_map(fn (array $a) => $a['nome'], $anexos),
-                        'estado' => $estado,
-                    ];
-                } catch (\Throwable $e) {
-                    $linhas[] = [
-                        'uid' => $uid,
-                        'data' => '?',
-                        'de' => '?',
-                        'assunto' => '?',
-                        'lida' => ! isset($porLer[$uid]),
-                        'tratada' => isset($vistas[$uid]),
-                        'anexos' => [],
-                        'estado' => 'ERRO a ler: '.$e->getMessage(),
-                    ];
+                    $linhas[] = $linha;
                 }
             }
 
@@ -294,65 +463,86 @@ class ImportadorFaturasEmail
         }
     }
 
-    /**
-     * Uma lista por caixa, pasta e UIDVALIDITY: mudar de conta nao herda os
-     * UIDs da outra, e um servidor que renumere a caixa nao faz saltar
-     * mensagens novas que calhem com numeros antigos.
-     */
-    private function chaveVistas(array $config, string $uidValidity): string
+    /** @return array{uid: int, data: string, de: string, assunto: string, lida: bool, anexos: list<string>, estado: string} */
+    private function avaliar(ImapMailbox $caixa, int $uid, array $config, bool $vista, bool $lida, Carbon $desde, bool $foraDaJanelaConta): array
     {
-        return 'faturas_email.vistas.'.md5(strtolower((string) $config['username']).'|'.$config['folder'].'|'.$uidValidity);
-    }
-
-    /** A lista da 1.a correccao (so' as sem anexo), antes de haver UIDVALIDITY. */
-    private function chaveSemAnexoAntiga(array $config): string
-    {
-        return 'faturas_email.sem_anexo.'.md5(strtolower((string) $config['username']).'|'.$config['folder']);
-    }
-
-    /** @return array<int, true> */
-    private function uidsVistos(ImapMailbox $caixa, string $chave, array $config): array
-    {
-        $valor = Setting::get($chave);
-
-        if ($valor !== null) {
-            $lista = json_decode((string) $valor, true);
-
-            return is_array($lista)
-                ? array_fill_keys(array_map('intval', $lista), true)
-                : [];
+        try {
+            $mensagem = MimeMessage::deBruto($caixa->mensagemEmBruto($uid));
+        } catch (\Throwable $e) {
+            return ['uid' => $uid, 'data' => '?', 'de' => '?', 'assunto' => '?', 'lida' => $lida, 'anexos' => [], 'estado' => 'ERRO a ler: '.$e->getMessage()];
         }
 
-        // Primeira corrida com esta chave. Sem semente, todas as mensagens
-        // lidas dos ultimos dias voltavam a ser analisadas — incluindo as que
-        // o importador antigo ja tinha tratado e cujo documento alguem apagou
-        // de proposito (os extractos bancarios de 08/09, por exemplo), que
-        // voltariam a nascer.
-        //
-        // A semente:
-        //  - as que a versao anterior ja sabia que nao tinham anexo;
-        //  - as lidas que chegaram ANTES do dia do ultimo documento vindo do
-        //    email. O importador antigo ia por ordem de UID, por isso tudo o
-        //    que estava antes dessa factura ja tinha passado por ele. As lidas
-        //    desse dia em diante — as que ficaram presas — voltam a ser vistas.
-        $lista = json_decode((string) Setting::get($this->chaveSemAnexoAntiga($config), '[]'), true);
-        $vistas = is_array($lista) ? array_fill_keys(array_map('intval', $lista), true) : [];
+        // Todas as partes, para se ver tambem o que foi posto de lado e porque.
+        $partes = array_values(array_filter(
+            $mensagem->todasAsPartes(),
+            fn (array $p) => $p['nome'] !== null || ! str_starts_with($p['mime'], 'text/'),
+        ));
 
-        // So' conta o que o importador antigo trouxe: o que entrou a partir de
-        // 17/09 ja pode ser uma factura atrasada, e usa-la como marco
-        // esconderia as que ficaram presas antes dela.
-        $ultima = AccountingDocument::query()
-            ->where('origem', 'email')
-            ->where('created_at', '<', self::INICIO_DA_LISTA)
-            ->max('email_recebido_em');
+        $anexos = $mensagem->anexosDeFatura(
+            minimoImagemBytes: max(0, (int) $config['min_image_kb']) * 1024,
+            maximoBytes: max(1, (int) $config['max_attachment_mb']) * 1024 * 1024,
+        );
 
-        if ($ultima !== null) {
-            foreach ($caixa->procurarLidasAntes(Carbon::parse($ultima)) as $uid) {
-                $vistas[$uid] = true;
+        $importados = 0;
+
+        foreach ($anexos as $anexo) {
+            if ($this->documentoPorHash($anexo['conteudo']) !== null) {
+                $importados++;
             }
         }
 
-        return $vistas;
+        $data = $mensagem->data();
+
+        $estado = match (true) {
+            $anexos === [] && $partes === [] => 'sem anexos — fica na caixa (se for factura, veio por link e nao entra)',
+            $anexos === [] => 'anexos ignorados (nao sao PDF/imagem/dados)',
+            $importados > 0 && ($vista || $importados === count($anexos)) => 'ja esta no painel — sai da caixa na proxima corrida',
+            $importados > 0 => 'em parte importada — o resto entra na proxima corrida',
+            $foraDaJanelaConta && $data !== null && $data < $desde => 'POR IMPORTAR, mas fora da janela ('.$desde->format('d/m/Y').') — usa --dias',
+            default => 'POR IMPORTAR — entra na proxima corrida',
+        };
+
+        return [
+            'uid' => $uid,
+            'data' => $data?->format('d/m/Y H:i') ?? '?',
+            'de' => $mensagem->de(),
+            'assunto' => $mensagem->assunto(),
+            'lida' => $lida,
+            'anexos' => array_map(
+                fn (array $p) => ($p['nome'] ?? '(sem nome)').' ['.$p['mime'].', '.round(strlen($p['conteudo']) / 1024).' KB]',
+                $partes,
+            ),
+            'estado' => $estado,
+        ];
+    }
+    /**
+     * As mensagens SEM factura que ja se viram, por caixa, pasta e
+     * UIDVALIDITY. As que tinham factura saem da caixa e nao precisam de
+     * lista. (A chave `vistas.` de 17/09 de manha misturava as duas coisas e
+     * escondia facturas ja importadas que agora tem de sair da caixa — por
+     * isso nao se aproveita.)
+     */
+    private function chaveVistas(array $config, string $uidValidity, string $pasta): string
+    {
+        return 'faturas_email.sem_factura.'.md5(strtolower((string) $config['username']).'|'.$pasta.'|'.$uidValidity);
+    }
+
+    /** @return array<int, true> */
+    private function uidsVistos(ImapMailbox $caixa, string $chave, array $config, string $pasta): array
+    {
+        $valor = Setting::get($chave);
+
+        // Primeira vez: a lista da 1.a correccao so' tinha mensagens sem
+        // anexo da entrada, por isso serve de semente.
+        if ($valor === null && $pasta === (string) $config['folder']) {
+            $valor = Setting::get('faturas_email.sem_anexo.'.md5(strtolower((string) $config['username']).'|'.$config['folder']));
+        }
+
+        $lista = json_decode((string) ($valor ?? '[]'), true);
+
+        return is_array($lista)
+            ? array_fill_keys(array_map('intval', $lista), true)
+            : [];
     }
 
     /** @param  array<int, true>  $vistas */
@@ -414,11 +604,12 @@ class ImportadorFaturasEmail
      * quem decide e' o total, nao a contagem de ficheiros.
      *
      * @param  list<array{nome: string, mime: string, conteudo: string, extensao: string, legivel: bool}>  $anexos
-     * @return array{documentos: int, porRever: int, duplicados: int, anexos: int}
+     * @return array{documentos: int, porRever: int, duplicados: int, anexos: int, guardada: bool}
      */
     private function processarMensagem(MimeMessage $mensagem, array $anexos, int $uid, callable $relatar): array
     {
-        $contas = ['documentos' => 0, 'porRever' => 0, 'duplicados' => 0, 'anexos' => 0];
+        $contas = ['documentos' => 0, 'porRever' => 0, 'duplicados' => 0, 'anexos' => 0, 'guardada' => false];
+        $falhas = 0;
         $recebidoEm = $mensagem->data() ? Carbon::instance($mensagem->data()) : Carbon::now();
 
         /** @var list<AccountingDocument> $documentos */
@@ -582,6 +773,10 @@ class ImportadorFaturasEmail
             $documentos[] = $documento;
             $contas['documentos']++;
 
+            if ($documento->estado === 'por_rever') {
+                $contas['porRever']++;
+            }
+
             foreach ($candidatos as $candidato) {
                 $porAnexar[] = [
                     'anexo' => $candidato['anexo'],
@@ -675,6 +870,7 @@ class ImportadorFaturasEmail
                     // O ficheiro temporario NAO se apaga: e' a unica copia que
                     // resta, e dizer onde esta e' melhor do que a perder por
                     // arrumacao.
+                    $falhas++;
                     Log::warning("faturas:importar-email — anexo {$pendente['anexo']['nome']}: ".$e->getMessage());
                     $relatar(sprintf(
                         '  #%d %s — nao consegui anexar: %s (o ficheiro ficou em storage/app/%s)',
@@ -686,6 +882,11 @@ class ImportadorFaturasEmail
                 }
             }
         }
+
+        // So' se da' a mensagem por arrumada quando tudo o que trazia esta no
+        // painel: o email e' apagado a seguir, e um ficheiro que falhou nao
+        // pode desaparecer com ele.
+        $contas['guardada'] = $documentos !== [] && $falhas === 0;
 
         return $contas;
     }
@@ -748,7 +949,9 @@ class ImportadorFaturasEmail
             'tipo' => $this->tipoDeDocumento($factura['type'] ?? null),
             // A finalidade e' uma decisao de quem gere, nao se le da factura.
             'title' => 'outro',
-            'estado' => 'pendente',
+            // Do spam nunca vai direto ao contabilista: uma "factura" em PDF e'
+            // o isco mais comum de phishing.
+            'estado' => $this->pastaEhSpam ? 'por_rever' : 'pendente',
             'invoice_number' => $factura['number'] ?: null,
             'supplier_nif' => $nif ?: null,
             'atcud' => $factura['atcud'] ?: null,
@@ -953,6 +1156,10 @@ class ImportadorFaturasEmail
     private function notas(MimeMessage $mensagem, array $leitura, array $outrosTotais = []): string
     {
         $blocos = [];
+
+        if ($this->pastaEhSpam) {
+            $blocos[] = 'ATENCAO: este email estava na pasta de SPAM. Confirma que o fornecedor e a factura sao verdadeiros antes de a aprovar.';
+        }
 
         // Quem confere tem de saber que havia mais ficheiros com valor, e
         // quais. Se um deles for mesmo uma segunda factura, e' aqui que se ve.

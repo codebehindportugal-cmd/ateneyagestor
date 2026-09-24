@@ -532,11 +532,13 @@ class CatalogoVelocidade
             label: 'WP-CLI instalado',
             severidade: 'info',
             porque: 'As verificações e correcções de cada site WordPress usam o WP-CLI.',
-            comando: 'command -v wp >/dev/null 2>&1 && wp --allow-root --version 2>/dev/null || echo SEM-WPCLI',
+            // Nas máquinas com Plesk não há "php" no PATH (só /opt/plesk/php/X/bin/php):
+            // o WP-CLI corre sempre pelo PHP que existir.
+            comando: 'PHPBIN=$(command -v php 2>/dev/null || ls -1 /opt/plesk/php/*/bin/php 2>/dev/null | sort -V | tail -1); command -v wp >/dev/null 2>&1 && "$PHPBIN" "$(command -v wp)" --allow-root --version 2>/dev/null || echo SEM-WPCLI',
             avaliar: fn (string $s): array => str_contains($s, 'SEM-WPCLI') || trim($s) === ''
                 ? ['estado' => 'falha', 'detalhe' => 'Sem WP-CLI: as verificações por site não conseguem correr.']
                 : ['estado' => 'ok', 'detalhe' => trim($s)],
-            correcao: 'curl -fsSL -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && chmod 755 /usr/local/bin/wp && wp --allow-root --version',
+            correcao: 'PHPBIN=$(command -v php 2>/dev/null || ls -1 /opt/plesk/php/*/bin/php 2>/dev/null | sort -V | tail -1); [ -n "$PHPBIN" ] || { echo "Não encontrei nenhum PHP na máquina"; exit 1; }; curl -fsSL -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && chmod 755 /usr/local/bin/wp && "$PHPBIN" /usr/local/bin/wp --allow-root --version',
         );
 
         $porChave = [];
@@ -734,8 +736,7 @@ class CatalogoVelocidade
                 };
             },
             correcao: self::script($site, <<<'SH'
-            WPBIN=$(command -v wp)
-            (crontab -u "$U" -l 2>/dev/null | grep -v -- "--path=$P"; echo "*/5 * * * * $WPBIN --path=$P cron event run --due-now --quiet >/dev/null 2>&1") | crontab -u "$U" - || exit 1
+            (crontab -u "$U" -l 2>/dev/null | grep -v -- "--path=$P"; echo "*/5 * * * * $PHPBIN_ $WPBIN_ --path=$P cron event run --due-now --quiet >/dev/null 2>&1") | crontab -u "$U" - || exit 1
             WP config set DISABLE_WP_CRON true --raw --type=constant
             echo "cron do sistema de 5 em 5 min para $P (utilizador $U)"
             SH),
@@ -826,7 +827,8 @@ class CatalogoVelocidade
             command -v wp >/dev/null 2>&1 || { echo 'SEM-WPCLI'; exit 0; }
             U=$(stat -c %U "$P")
             WPBIN_=$(command -v wp)
-            WP() { runuser -u "$U" -- env HOME=/tmp "$WPBIN_" --path="$P" --allow-root "$@" 2>/dev/null; }
+            PHPBIN_=$(command -v php 2>/dev/null || ls -1 /opt/plesk/php/*/bin/php 2>/dev/null | sort -V | tail -1)
+            WP() { runuser -u "$U" -- env HOME=/tmp "$PHPBIN_" "$WPBIN_" --path="$P" --allow-root "$@" 2>/dev/null; }
             SH;
         }
 

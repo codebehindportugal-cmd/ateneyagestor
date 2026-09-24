@@ -421,7 +421,7 @@ class CatalogoVelocidade
                         : ['estado' => 'aviso', 'detalhe' => 'nginx ' . ($v['versao'] ?? '?') . ' sem HTTP/2 (' . ($v['listen_ssl'] ?? 0) . ' listen 443)'];
                 }
                 if (str_contains($s, 'mpm_prefork')) {
-                    return ['estado' => 'aviso', 'detalhe' => "Apache em prefork (por causa do mod_php): o HTTP/2 não funciona assim. Corrige primeiro «Versão e modo do PHP» (passa para PHP-FPM e liga o HTTP/2).\n" . trim($s)];
+                    return ['estado' => 'aviso', 'detalhe' => "Apache em prefork: o HTTP/2 não funciona assim. Se ainda houver mod_php, corre primeiro «Versão e modo do PHP»; se não, «Corrigir» aqui troca para mpm_event e liga o HTTP/2.\n" . trim($s)];
                 }
                 if (str_contains($s, 'http2_module') && stripos($s, 'h2') !== false) {
                     return ['estado' => 'ok', 'detalhe' => trim($s)];
@@ -431,7 +431,24 @@ class CatalogoVelocidade
             },
             correcao: <<<'SH'
             if command -v apache2ctl >/dev/null 2>&1; then
-              if apache2ctl -M 2>/dev/null | grep -q mpm_prefork; then echo 'Apache em prefork: passa primeiro para PHP-FPM + mpm_event.'; exit 1; fi
+              if apache2ctl -M 2>/dev/null | grep -q mpm_prefork; then
+                if ls /etc/apache2/mods-enabled/php*.load >/dev/null 2>&1; then echo 'Apache em prefork por causa do mod_php: corre primeiro «Versão e modo do PHP».'; exit 1; fi
+                # Prefork sem mod_php (o PHP já vai por FPM): basta trocar para mpm_event,
+                # medindo os sites antes e depois e voltando atrás se algum falhar.
+                DOMS=$(grep -RhoiE '^[[:space:]]*Server(Name|Alias)[[:space:]]+[^ ]+' /etc/apache2/sites-enabled/ 2>/dev/null </dev/null | awk '{print $2}' | grep -vE '^(\*|localhost|www\.)' | sort -u | head -40)
+                [ -n "$DOMS" ] || { echo 'Não encontrei nenhum ServerName nos vhosts: não mexo.'; exit 1; }
+                codigo() { curl -sk -o /dev/null -w '%{http_code}' --max-time 25 --resolve "$1:443:127.0.0.1" "https://$1/" </dev/null; }
+                declare -A ANTES; for d in $DOMS; do ANTES[$d]=$(codigo "$d"); done
+                echo "antes: $(for d in $DOMS; do printf '%s=%s ' "$d" "${ANTES[$d]}"; done)"
+                a2dismod -q mpm_prefork && a2enmod -q mpm_event
+                if ! apache2ctl configtest 2>&1 | grep -q 'Syntax OK' || ! systemctl restart apache2; then
+                  a2dismod -q mpm_event; a2enmod -q mpm_prefork; systemctl restart apache2; echo 'mpm_event não arrancou: reposto o prefork'; exit 1
+                fi
+                sleep 2; mal=""
+                for d in $DOMS; do a=${ANTES[$d]}; n=$(codigo "$d"); case "$a" in 2*|3*) case "$n" in 2*|3*) ;; *) mal="$mal $d($a->$n)";; esac;; esac; done
+                if [ -n "$mal" ]; then a2dismod -q mpm_event; a2enmod -q mpm_prefork; systemctl restart apache2; echo "Sites que deixaram de responder:$mal — reposto o prefork"; exit 1; fi
+                echo 'Apache passou de prefork para mpm_event'
+              fi
               a2enmod -q http2
               printf '# Escrito pelo painel gestao.ateneya.com (Velocidade)\nProtocols h2 http/1.1\n' > /etc/apache2/conf-available/zz-ateneya-http2.conf
               a2enconf -q zz-ateneya-http2

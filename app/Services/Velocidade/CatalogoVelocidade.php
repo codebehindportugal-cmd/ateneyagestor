@@ -657,10 +657,19 @@ class CatalogoVelocidade
             severidade: 'critica',
             porque: 'Medido dentro do servidor, sem rede pelo meio: é o tempo que o PHP/WordPress demora a gerar a página. Com cache de página deve ficar abaixo de 0,3 s.',
             comando: self::script($site, <<<'SH'
+            # Pedido como o de um browser (User-Agent e Accept: text/html): com o
+            # curl "cru" algumas caches não entram e a medição saía pior que a real.
+            UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
+            R="--resolve {{DOM}}:443:127.0.0.1 --resolve www.{{DOM}}:443:127.0.0.1"
             for i in 1 2 3 4; do
-              curl -sk -L -o /dev/null --max-time 30 --resolve {{DOM}}:443:127.0.0.1 --resolve www.{{DOM}}:443:127.0.0.1 -w '%{time_starttransfer} %{http_code}\n' https://{{DOM}}/
+              curl -sk -L -o /dev/null --max-time 30 $R -A "$UA" -H 'Accept: text/html' -w '%{time_starttransfer} %{http_code}\n' https://{{DOM}}/ </dev/null
             done
-            curl -sk -L -D - -o /dev/null --max-time 30 --resolve {{DOM}}:443:127.0.0.1 --resolve www.{{DOM}}:443:127.0.0.1 https://{{DOM}}/ | grep -iE '^(x-cache|x-.*cache|cache-control|age|server-timing):' | head -5
+            curl -sk -L -D /tmp/ttfb_h.$$ -o /tmp/ttfb_b.$$ --max-time 30 $R -A "$UA" -H 'Accept: text/html' https://{{DOM}}/ </dev/null
+            grep -iE '^(x-cache|x-.*cache|cache-control|age|server-timing):' /tmp/ttfb_h.$$ | head -5
+            if grep -q 'Cache Enabler by KeyCDN' /tmp/ttfb_b.$$ 2>/dev/null; then echo 'página servida da cache (Cache Enabler)'
+            elif grep -qiE 'litespeed|wp-rocket|w3 total cache|wp super cache|breeze' /tmp/ttfb_b.$$ 2>/dev/null; then echo 'página com marca de outro plugin de cache'
+            else echo 'página gerada agora pelo WordPress (não veio da cache)'; fi
+            rm -f /tmp/ttfb_h.$$ /tmp/ttfb_b.$$
             SH, precisaWp: false),
             avaliar: function (string $s): array {
                 $tempos = [];

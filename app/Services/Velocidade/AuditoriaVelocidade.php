@@ -79,7 +79,7 @@ class AuditoriaVelocidade
             throw new \RuntimeException('Esta verificação não tem correcção automática.');
         }
 
-        $resposta = $this->ssh->run($server, "export DEBIAN_FRONTEND=noninteractive LC_ALL=C\n{\n" . $verificacao->correcao . "\n} 2>&1", timeout: 600);
+        $resposta = $this->ssh->run($server, "exec </dev/null\nexport DEBIAN_FRONTEND=noninteractive LC_ALL=C\n{\n" . $verificacao->correcao . "\n} 2>&1", timeout: 600);
 
         $novo = $verificacao->avaliar((string) $this->ssh->run($server, $verificacao->comando, timeout: 180)['output']);
 
@@ -96,7 +96,8 @@ class AuditoriaVelocidade
      */
     private function recolher(Server $server, array $verificacoes): array
     {
-        $partes = ['export DEBIAN_FRONTEND=noninteractive', 'export LC_ALL=C'];
+        // stdin fechado: nenhum comando pode ficar pendurado à espera de input.
+        $partes = ['exec </dev/null', 'export DEBIAN_FRONTEND=noninteractive', 'export LC_ALL=C'];
 
         foreach ($verificacoes as $chave => $verificacao) {
             $partes[] = 'echo "' . self::MARCA . $chave . '"';

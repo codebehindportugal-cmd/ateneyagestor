@@ -653,10 +653,12 @@ class CatalogoVelocidade
             # O PHP-FPM do site pode correr com outro utilizador que não o dono dos
             # ficheiros: nesse caso não consegue gravar as páginas na cache. Descobre-se
             # o pool pelo socket do vhost do nginx e dá-se escrita só nas pastas da cache.
-            CONF=$(grep -rlE "server_name[^;]*[[:space:]]{{DOM}}([[:space:];]|$)" /etc/nginx/sites-enabled/ 2>/dev/null | head -1)
-            SOCK=$(grep -oE 'unix:[^; ]+' "$CONF" 2>/dev/null | head -1 | cut -d: -f2)
-            POOL=$( [ -n "$SOCK" ] && grep -rlE "^[[:space:]]*listen[[:space:]]*=[[:space:]]*$SOCK[[:space:]]*$" /etc/php/*/fpm/pool.d/ 2>/dev/null | head -1)
-            FPMU=$(awk -F= '/^[[:space:]]*user[[:space:]]*=/{gsub(/[[:space:]]/,"",$2);print $2}' "$POOL" 2>/dev/null | head -1)
+            # -R segue os links de sites-enabled; cada passo só corre se o anterior
+            # encontrou alguma coisa (um grep/awk sem ficheiro fica a ler o stdin).
+            CONF=$(grep -RlE "server_name[^;]*[[:space:]]{{DOM}}([[:space:];]|$)" /etc/nginx/sites-enabled/ /etc/apache2/sites-enabled/ 2>/dev/null </dev/null | head -1)
+            SOCK=$( [ -n "$CONF" ] && grep -oE 'unix:[^; ]+' "$CONF" 2>/dev/null </dev/null | head -1 | cut -d: -f2)
+            POOL=$( [ -n "$SOCK" ] && grep -RlE "^[[:space:]]*listen[[:space:]]*=[[:space:]]*$SOCK[[:space:]]*$" /etc/php/*/fpm/pool.d/ 2>/dev/null </dev/null | head -1)
+            FPMU=$( [ -n "$POOL" ] && awk -F= '/^[[:space:]]*user[[:space:]]*=/{gsub(/[[:space:]]/,"",$2);print $2}' "$POOL" 2>/dev/null </dev/null | head -1)
             FPMU=${FPMU:-www-data}
             echo "dono dos ficheiros=$U · PHP corre como=$FPMU · vhost=$CONF · pool=$POOL"
             for d in cache settings; do mkdir -p "$P/wp-content/$d"; chown "$U" "$P/wp-content/$d"; done

@@ -259,14 +259,60 @@ class CatalogoVelocidade
             label: 'Compressão (gzip/brotli)',
             severidade: 'importante',
             porque: 'HTML, CSS e JS comprimidos ficam 70–80% mais pequenos: a página chega mais depressa, sobretudo em rede móvel.',
-            comando: "apache2ctl -M 2>/dev/null | grep -oE '(deflate|brotli)_module' | sort -u | tr '\\n' ' ' ; echo",
-            avaliar: fn (string $s): array => trim($s) === ''
-                ? ['estado' => 'falha', 'detalhe' => 'Nem mod_deflate nem mod_brotli estão ligados.']
-                : ['estado' => 'ok', 'detalhe' => trim($s)],
+            comando: <<<'SH'
+            if command -v apache2ctl >/dev/null 2>&1; then
+              echo 'web=apache'
+              apache2ctl -M 2>/dev/null | grep -oE '(deflate|brotli)_module' | sort -u
+            elif command -v nginx >/dev/null 2>&1; then
+              echo 'web=nginx'
+              nginx -T 2>/dev/null | grep -vE '^[[:space:]]*#' | grep -oE '^[[:space:]]*(gzip|gzip_types|brotli)[[:space:]][^;]*' | sed 's/^[[:space:]]*//' | sort -u | head -6
+            else
+              echo 'web=desconhecido'
+            fi
+            SH,
+            avaliar: function (string $s): array {
+                $det = trim(preg_replace('/^web=.*$/m', '', $s));
+                if (str_contains($s, 'web=apache')) {
+                    return $det === ''
+                        ? ['estado' => 'falha', 'detalhe' => 'Apache sem mod_deflate nem mod_brotli.']
+                        : ['estado' => 'ok', 'detalhe' => $det];
+                }
+                if (str_contains($s, 'web=nginx')) {
+                    $ligado = (bool) preg_match('/^gzip\s+on/m', $det) || str_contains($det, 'brotli on');
+                    $tipos = str_contains($det, 'text/css') && str_contains($det, 'javascript');
+
+                    return match (true) {
+                        ! $ligado => ['estado' => 'falha', 'detalhe' => "nginx sem gzip.\n{$det}"],
+                        ! $tipos  => ['estado' => 'falha', 'detalhe' => "nginx com gzip, mas só para HTML (falta gzip_types para CSS/JS).\n{$det}"],
+                        default   => ['estado' => 'ok', 'detalhe' => $det],
+                    };
+                }
+
+                return ['estado' => 'aviso', 'detalhe' => 'Não encontrei Apache nem nginx.'];
+            },
             correcao: <<<'SH'
-            a2enmod -q deflate
-            a2enmod -q brotli 2>/dev/null || echo 'brotli nao disponivel (fica o gzip)'
-            apache2ctl configtest && systemctl reload apache2 && apache2ctl -M 2>/dev/null | grep -E 'deflate|brotli'
+            if command -v apache2ctl >/dev/null 2>&1; then
+              a2enmod -q deflate
+              a2enmod -q brotli 2>/dev/null || echo 'brotli nao disponivel (fica o gzip)'
+              apache2ctl configtest && systemctl reload apache2 && apache2ctl -M 2>/dev/null | grep -E 'deflate|brotli'
+            elif command -v nginx >/dev/null 2>&1; then
+              F=/etc/nginx/conf.d/zz-ateneya-gzip.conf
+              rm -f "$F"
+              # Só se escreve o que ainda não está no contexto http (repetir uma directiva parte o nginx).
+              ACTUAL=$(cat /etc/nginx/nginx.conf /etc/nginx/conf.d/*.conf 2>/dev/null | grep -vE '^[[:space:]]*#')
+              {
+                echo '# Escrito pelo painel gestao.ateneya.com (Velocidade). Apagar e recarregar o nginx desfaz.'
+                for par in 'gzip on' 'gzip_vary on' 'gzip_proxied any' 'gzip_comp_level 5' 'gzip_min_length 256' \
+                  'gzip_types text/plain text/css text/xml text/javascript application/javascript application/x-javascript application/json application/xml application/rss+xml application/ld+json image/svg+xml font/ttf font/otf application/vnd.ms-fontobject'; do
+                  d=${par%% *}
+                  printf '%s\n' "$ACTUAL" | grep -qE "^[[:space:]]*$d[[:space:]]" || echo "$par;"
+                done
+              } > "$F"
+              cat "$F"
+              if nginx -t 2>&1; then systemctl reload nginx && echo 'gzip ligado para CSS/JS/JSON/SVG'; else rm -f "$F"; echo 'nginx -t falhou: desfeito'; exit 1; fi
+            else
+              echo 'Não encontrei Apache nem nginx.'; exit 1
+            fi
             SH,
             aplicavelComPlesk: false,
         );
@@ -278,10 +324,27 @@ class CatalogoVelocidade
             severidade: 'info',
             porque: 'Com HTTP/2 o browser pede CSS, JS e imagens todos pela mesma ligação, em paralelo.',
             comando: <<<'SH'
-            apache2ctl -M 2>/dev/null | grep -oE '(http2|mpm_[a-z]+)_module' | sort -u | tr '\n' ' '; echo
-            grep -rhiE '^[[:space:]]*Protocols' /etc/apache2/apache2.conf /etc/apache2/conf-enabled /etc/apache2/sites-enabled 2>/dev/null | sort -u | head -3
+            if command -v apache2ctl >/dev/null 2>&1; then
+              echo 'web=apache'
+              apache2ctl -M 2>/dev/null | grep -oE '(http2|mpm_[a-z]+)_module' | sort -u
+              grep -rhiE '^[[:space:]]*Protocols' /etc/apache2/apache2.conf /etc/apache2/conf-enabled /etc/apache2/sites-enabled 2>/dev/null | sort -u | head -3
+            elif command -v nginx >/dev/null 2>&1; then
+              echo 'web=nginx'
+              echo "versao=$(nginx -v 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+              echo "com_h2=$(nginx -T 2>/dev/null | grep -vE '^[[:space:]]*#' | grep -cE 'listen[^;]*443[^;]*http2|^[[:space:]]*http2[[:space:]]+on')"
+              echo "listen_ssl=$(nginx -T 2>/dev/null | grep -vE '^[[:space:]]*#' | grep -cE 'listen[^;]*443')"
+            else
+              echo 'web=desconhecido'
+            fi
             SH,
             avaliar: function (string $s): array {
+                if (str_contains($s, 'web=nginx')) {
+                    $v = self::chaves($s);
+
+                    return (int) ($v['com_h2'] ?? 0) > 0
+                        ? ['estado' => 'ok', 'detalhe' => "nginx {$v['versao']} com HTTP/2"]
+                        : ['estado' => 'aviso', 'detalhe' => 'nginx ' . ($v['versao'] ?? '?') . ' sem HTTP/2 (' . ($v['listen_ssl'] ?? 0) . ' listen 443)'];
+                }
                 if (str_contains($s, 'mpm_prefork')) {
                     return ['estado' => 'aviso', 'detalhe' => "Apache em prefork (por causa do mod_php): o HTTP/2 não funciona assim. Primeiro passar para PHP-FPM.\n" . trim($s)];
                 }
@@ -292,11 +355,33 @@ class CatalogoVelocidade
                 return ['estado' => 'aviso', 'detalhe' => trim($s) ?: 'sem HTTP/2'];
             },
             correcao: <<<'SH'
-            if apache2ctl -M 2>/dev/null | grep -q mpm_prefork; then echo 'Apache em prefork: passa primeiro para PHP-FPM + mpm_event.'; exit 1; fi
-            a2enmod -q http2
-            printf '# Escrito pelo painel gestao.ateneya.com (Velocidade)\nProtocols h2 http/1.1\n' > /etc/apache2/conf-available/zz-ateneya-http2.conf
-            a2enconf -q zz-ateneya-http2
-            if apache2ctl configtest; then systemctl reload apache2 && echo 'HTTP/2 ligado'; else a2disconf -q zz-ateneya-http2; echo 'configtest falhou: desfeito'; exit 1; fi
+            if command -v apache2ctl >/dev/null 2>&1; then
+              if apache2ctl -M 2>/dev/null | grep -q mpm_prefork; then echo 'Apache em prefork: passa primeiro para PHP-FPM + mpm_event.'; exit 1; fi
+              a2enmod -q http2
+              printf '# Escrito pelo painel gestao.ateneya.com (Velocidade)\nProtocols h2 http/1.1\n' > /etc/apache2/conf-available/zz-ateneya-http2.conf
+              a2enconf -q zz-ateneya-http2
+              if apache2ctl configtest; then systemctl reload apache2 && echo 'HTTP/2 ligado'; else a2disconf -q zz-ateneya-http2; echo 'configtest falhou: desfeito'; exit 1; fi
+            elif command -v nginx >/dev/null 2>&1; then
+              v=$(nginx -v 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+              if printf '1.25.1\n%s\n' "$v" | sort -V -C; then
+                # nginx 1.25.1+: uma linha no contexto http liga para todos os sites.
+                printf '# Escrito pelo painel gestao.ateneya.com (Velocidade)\nhttp2 on;\n' > /etc/nginx/conf.d/zz-ateneya-http2.conf
+                if nginx -t 2>&1; then systemctl reload nginx && echo "HTTP/2 ligado (nginx $v)"; else rm -f /etc/nginx/conf.d/zz-ateneya-http2.conf; echo 'nginx -t falhou: desfeito'; exit 1; fi
+              else
+                # nginx antigo: acrescenta http2 a cada "listen ... 443 ... ssl", com cópia antes.
+                B=/root/ateneya-backup-nginx-$(date +%Y%m%d%H%M%S); mkdir -p "$B"
+                for f in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf; do
+                  [ -f "$f" ] || continue
+                  grep -qE 'listen[^;]*443[^;]*ssl' "$f" || continue
+                  real=$(readlink -f "$f"); cp -a "$real" "$B/"
+                  sed -i -E '/http2/!s/(listen[^;]*443[^;]*ssl)([^;]*);/\1 http2\2;/' "$real"
+                  echo "alterado $real"
+                done
+                if nginx -t 2>&1; then systemctl reload nginx && echo "HTTP/2 ligado (nginx $v). Cópia em $B"; else cp -a "$B"/* /etc/nginx/sites-available/ 2>/dev/null; echo "nginx -t falhou. Cópia dos ficheiros em $B — confirma à mão"; exit 1; fi
+              fi
+            else
+              echo 'Não encontrei Apache nem nginx.'; exit 1
+            fi
             SH,
             aplicavelComPlesk: false,
         );
@@ -308,15 +393,36 @@ class CatalogoVelocidade
             severidade: 'importante',
             porque: 'Sem cabeçalhos de validade, o visitante volta a descarregar as mesmas imagens e ficheiros em cada página.',
             comando: <<<'SH'
-            apache2ctl -M 2>/dev/null | grep -oE '(expires|headers)_module' | sort -u | tr '\n' ' '; echo
-            [ -e /etc/apache2/conf-enabled/zz-ateneya-cache.conf ] && echo 'conf=sim' || echo 'conf=nao'
+            if command -v apache2ctl >/dev/null 2>&1; then
+              echo 'web=apache'
+              apache2ctl -M 2>/dev/null | grep -oE '(expires|headers)_module' | sort -u
+              [ -e /etc/apache2/conf-enabled/zz-ateneya-cache.conf ] && echo 'conf=sim' || echo 'conf=nao'
+            elif command -v nginx >/dev/null 2>&1; then
+              echo 'web=nginx'
+              [ -e /etc/nginx/conf.d/zz-ateneya-cache.conf ] && echo 'conf=sim' || echo 'conf=nao'
+              echo "expires_nos_sites=$(nginx -T 2>/dev/null | grep -vE '^[[:space:]]*#' | grep -cE '^[[:space:]]*expires[[:space:]]')"
+            else
+              echo 'web=desconhecido'
+            fi
             SH,
-            avaliar: fn (string $s): array => (str_contains($s, 'expires_module') && str_contains($s, 'conf=sim'))
-                ? ['estado' => 'ok', 'detalhe' => trim($s)]
-                : ['estado' => 'falha', 'detalhe' => trim($s)],
+            avaliar: function (string $s): array {
+                if (str_contains($s, 'conf=sim')) {
+                    return ['estado' => 'ok', 'detalhe' => 'regras de validade para imagens, fontes, CSS e JS'];
+                }
+                if (str_contains($s, 'web=nginx')) {
+                    $n = (int) (self::chaves($s)['expires_nos_sites'] ?? 0);
+
+                    return $n > 0
+                        ? ['estado' => 'aviso', 'detalhe' => "Há {$n} regra(s) expires em alguns sites, mas não uma geral."]
+                        : ['estado' => 'falha', 'detalhe' => 'nginx sem cabeçalhos de validade para ficheiros estáticos.'];
+                }
+
+                return ['estado' => 'falha', 'detalhe' => trim($s)];
+            },
             correcao: <<<'SH'
-            a2enmod -q expires headers
-            cat > /etc/apache2/conf-available/zz-ateneya-cache.conf <<'CONF'
+            if command -v apache2ctl >/dev/null 2>&1; then
+              a2enmod -q expires headers
+              cat > /etc/apache2/conf-available/zz-ateneya-cache.conf <<'CONF'
             # Escrito pelo painel gestao.ateneya.com (Velocidade). a2disconf zz-ateneya-cache para desligar.
             <IfModule mod_expires.c>
                 ExpiresActive On
@@ -335,8 +441,29 @@ class CatalogoVelocidade
                 ExpiresByType video/mp4 "access plus 1 month"
             </IfModule>
             CONF
-            a2enconf -q zz-ateneya-cache
-            if apache2ctl configtest; then systemctl reload apache2 && echo 'cache do browser ligada'; else a2disconf -q zz-ateneya-cache; echo 'configtest falhou: desfeito'; exit 1; fi
+              a2enconf -q zz-ateneya-cache
+              if apache2ctl configtest; then systemctl reload apache2 && echo 'cache do browser ligada'; else a2disconf -q zz-ateneya-cache; echo 'configtest falhou: desfeito'; exit 1; fi
+            elif command -v nginx >/dev/null 2>&1; then
+              F=/etc/nginx/conf.d/zz-ateneya-cache.conf
+              cat > "$F" <<'CONF'
+            # Escrito pelo painel gestao.ateneya.com (Velocidade). Apagar e recarregar o nginx desfaz.
+            # Validade por tipo de conteúdo; o HTML (páginas) fica como estava.
+            map $sent_http_content_type $ateneya_expires {
+                default                    off;
+                ~^image/                   1y;
+                ~^font/                    1y;
+                application/font-woff2     1y;
+                application/vnd.ms-fontobject 1y;
+                ~^text/css                 30d;
+                ~javascript                30d;
+                video/mp4                  30d;
+            }
+            expires $ateneya_expires;
+            CONF
+              if nginx -t 2>&1; then systemctl reload nginx && echo 'cache do browser ligada'; else rm -f "$F"; echo 'nginx -t falhou: desfeito'; exit 1; fi
+            else
+              echo 'Não encontrei Apache nem nginx.'; exit 1
+            fi
             SH,
             perigo: 'CSS/JS ficam em cache 1 mês no browser. O WordPress põe ?ver= nos ficheiros, por isso uma actualização de tema/plugin continua a chegar logo.',
             aplicavelComPlesk: false,

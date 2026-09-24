@@ -11,6 +11,18 @@ class SpeedAudit extends HardeningAudit
 {
     protected $table = 'speed_audits';
 
+    /** Há alguma correcção a correr na fila? (a página vai-se refrescando) */
+    public function temCorreccoesACorrer(): bool
+    {
+        foreach ($this->resultados ?? [] as $r) {
+            if (! empty($r['a_correr'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** Resultados arrumados por grupo: "Máquina" primeiro, depois cada site. */
     public function porGrupo(): array
     {

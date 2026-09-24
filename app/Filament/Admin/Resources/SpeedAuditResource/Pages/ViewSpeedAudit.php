@@ -3,7 +3,7 @@
 namespace App\Filament\Admin\Resources\SpeedAuditResource\Pages;
 
 use App\Filament\Admin\Resources\SpeedAuditResource;
-use App\Services\Velocidade\AuditoriaVelocidade;
+use App\Jobs\CorrigirVelocidade;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
@@ -73,30 +73,19 @@ class ViewSpeedAudit extends ViewRecord
             })
             ->modalSubmitActionLabel('Correr no servidor')
             ->action(function (array $arguments) {
-                @set_time_limit(0);
+                $chave = $arguments['chave'];
+                $linha = $this->record->resultado($chave) ?? [];
 
-                try {
-                    $resposta = app(AuditoriaVelocidade::class)->corrigir($this->record->server, $arguments['chave']);
-                } catch (\Throwable $e) {
-                    Notification::make()->title('A correcção falhou')->body($e->getMessage())->danger()->persistent()->send();
-
-                    return;
-                }
-
-                $this->record->substituirResultado($arguments['chave'], $resposta['resultado']);
+                // Marca a linha como "a corrigir" e manda para a fila; a página
+                // actualiza-se sozinha e mostra a saída quando acabar.
+                $this->record->substituirResultado($chave, ['a_correr' => true] + $linha);
+                CorrigirVelocidade::dispatch($this->record->fresh(), $chave);
                 $this->record->refresh();
 
-                $estado = $resposta['resultado']['estado'];
-
                 Notification::make()
-                    ->title(match ($estado) {
-                        'ok'    => 'Corrigido',
-                        'aviso' => 'Correu — ficou melhor mas com aviso',
-                        default => 'Correu, mas continua a falhar',
-                    })
-                    ->body(str($resposta['saida'])->limit(600)->toString())
-                    ->color($estado === 'ok' ? 'success' : 'warning')
-                    ->persistent()
+                    ->title('A corrigir em segundo plano')
+                    ->body('A linha actualiza sozinha quando acabar, com a saída completa do servidor.')
+                    ->info()
                     ->send();
             });
     }

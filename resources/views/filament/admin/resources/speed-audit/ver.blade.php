@@ -15,7 +15,7 @@
 @endphp
 
 <x-filament-panels::page>
-    <div @if ($record->estado === 'pendente') wire:poll.5s="refrescar" @endif>
+    <div @if ($record->estado === 'pendente' || $record->temCorreccoesACorrer()) wire:poll.5s="refrescar" @endif>
 
     <x-filament::section>
         <x-slot name="heading">{{ $record->server?->name }} — {{ $record->server?->host }}</x-slot>
@@ -83,10 +83,19 @@
                                 @elseif (filled($r['detalhe']))
                                     <p class="text-sm text-gray-500" style="margin-top: .35rem;">{{ \Illuminate\Support\Str::limit($r['detalhe'], 160) }}</p>
                                 @endif
+
+                                @if (filled($r['saida'] ?? null))
+                                    <details style="margin-top: .5rem;">
+                                        <summary class="text-sm text-gray-600" style="cursor: pointer;">Saída da última correcção ({{ $r['corrigido_em'] ?? '' }}{{ isset($r['saida_codigo']) ? ', código '.$r['saida_codigo'] : '' }})</summary>
+                                        <pre style="white-space: pre-wrap; word-break: break-all; font-size: .72rem; background: rgb(248 250 252); padding: .5rem .6rem; border-radius: .375rem; margin-top: .35rem; max-height: 20rem; overflow: auto;">{{ $r['saida'] }}</pre>
+                                    </details>
+                                @endif
                             </div>
 
                             <div>
-                                @if (filled($r['correcao'] ?? null) && $r['estado'] !== 'ok')
+                                @if (! empty($r['a_correr']))
+                                    <span class="text-sm" style="color: rgb(180 83 9);">A corrigir…</span>
+                                @elseif (filled($r['correcao'] ?? null) && $r['estado'] !== 'ok')
                                     {{ ($this->corrigirAction)(['chave' => $r['chave']]) }}
                                 @elseif (blank($r['correcao'] ?? null) && $r['estado'] === 'falha')
                                     <span class="text-sm text-gray-500">à mão</span>

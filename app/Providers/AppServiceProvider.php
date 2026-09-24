@@ -39,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
         \App\Models\SiteMonitorCheck::class,
         \App\Models\SiteProvision::class,
         \App\Models\SiteUpdate::class,
+        \App\Models\SpeedAudit::class,
         \App\Models\SupplierInvoice::class,
         \App\Models\SupplierInvoiceItem::class,
         \App\Models\SyncProject::class,

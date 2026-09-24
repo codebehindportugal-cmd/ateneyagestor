@@ -18,7 +18,7 @@ use App\Models\Server;
 class CatalogoEndurecimento
 {
     /** Ficheiro onde vivem as nossas regras de Apache, para não sujar as do sistema. */
-    private const CONF_APACHE = '/etc/apache2/conf-available/endurecimento.conf';
+    private const CONF_APACHE = '/etc/apache2/conf-available/zz-endurecimento.conf';
 
     /** @return array<string, Verificacao> */
     public static function para(Server $server): array
@@ -183,7 +183,7 @@ class CatalogoEndurecimento
                 label: 'Apache a anunciar versão',
                 severidade: 'info',
                 porque: 'Dizer a versão exacta do Apache e do SO é dar o trabalho de casa feito a quem procura alvos.',
-                comando: "grep -rhiE '^[[:space:]]*(ServerTokens|ServerSignature)' /etc/apache2/apache2.conf /etc/apache2/conf-enabled/ 2>/dev/null | sort -u || echo 'sem definicao'",
+                comando: "cat /etc/apache2/apache2.conf /etc/apache2/conf-enabled/*.conf 2>/dev/null | grep -iE '^[[:space:]]*(ServerTokens|ServerSignature)' | awk '{k=tolower(\$1); m[k]=tolower(\$2)} END {for (k in m) print k\" \"m[k]}' | sort || echo 'sem definicao'",
                 avaliar: function (string $s): array {
                     $v = strtolower($s);
                     $ok = str_contains($v, 'servertokens prod') && str_contains($v, 'serversignature off');
@@ -201,7 +201,7 @@ class CatalogoEndurecimento
                 label: 'Listagem de pastas ligada',
                 severidade: 'importante',
                 porque: 'Com Indexes ligado, quem entre numa pasta sem index.php vê a lista dos ficheiros todos.',
-                comando: "grep -rhE '^[[:space:]]*Options[^#]*[[:space:]]Indexes' /etc/apache2/apache2.conf /etc/apache2/conf-enabled/ /etc/apache2/sites-enabled/ 2>/dev/null | grep -v -- '-Indexes' | head -5 || echo nenhum",
+                comando: "grep -RhE '^[[:space:]]*Options[^#]*[[:space:]]Indexes' /etc/apache2/apache2.conf /etc/apache2/conf-enabled/ /etc/apache2/sites-enabled/ 2>/dev/null | grep -v -- '-Indexes' | head -5 || echo nenhum",
                 avaliar: function (string $s): array {
                     $s = trim($s);
 
@@ -384,7 +384,7 @@ class CatalogoEndurecimento
             Options -Indexes +FollowSymLinks
         </Directory>
         FIM
-        a2enconf endurecimento >/dev/null 2>&1; apache2ctl configtest && systemctl reload apache2 && echo feito
+        a2disconf endurecimento 2>/dev/null; a2enconf zz-endurecimento >/dev/null 2>&1; apache2ctl configtest && systemctl reload apache2 && echo feito
         SHELL;
     }
 }

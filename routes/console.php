@@ -75,7 +75,8 @@ Schedule::call(function () {
 if (Setting::bool('cron.site_monitor.enabled', true)) {
     Schedule::command('monitor:sites')
         ->cron($safeCron('cron.site_monitor.cron', '*/5 * * * *'))
-        ->name('monitor:sites');
+        ->name('monitor:sites')
+        ->withoutOverlapping(15); // com vários timeouts uma volta pode passar dos 5 min
 }
 
 if (Setting::bool('cron.server_check.enabled', true)) {

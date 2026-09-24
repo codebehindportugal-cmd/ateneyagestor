@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources\SiteMonitorResource\RelationManagers;
 
+use App\Filament\Admin\Resources\SiteMonitorResource;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -44,8 +45,14 @@ class ChecksRelationManager extends RelationManager
                     }),
                 Tables\Columns\TextColumn::make('response_ms')
                     ->label('Tempo')
+                    ->placeholder('sem resposta')
+                    ->formatStateUsing(fn ($state) => $state !== null ? SiteMonitorResource::ms((int) $state) : 'sem resposta')
+                    ->color(fn ($state) => $state !== null ? SiteMonitorResource::corTempo((int) $state) : 'danger')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('ttfb_ms')
+                    ->label('TTFB')
                     ->placeholder('—')
-                    ->formatStateUsing(fn (?int $state) => $state ? "{$state} ms" : '—'),
+                    ->formatStateUsing(fn ($state) => $state !== null ? SiteMonitorResource::ms((int) $state) : '—'),
                 Tables\Columns\TextColumn::make('error')
                     ->label('Erro')
                     ->placeholder('—')

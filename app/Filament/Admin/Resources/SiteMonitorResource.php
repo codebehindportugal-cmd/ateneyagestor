@@ -11,6 +11,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Artisan;
 
 class SiteMonitorResource extends Resource
@@ -70,6 +71,7 @@ class SiteMonitorResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => self::comEstatisticas24h($query))
             ->defaultSort('client.name')
             ->poll('30s')
             ->columns([
@@ -101,14 +103,37 @@ class SiteMonitorResource extends Resource
                     }),
                 Tables\Columns\TextColumn::make('last_response_ms')
                     ->label('Tempo')
+                    ->tooltip('Tempo total da última verificação (inclui redirects). Por baixo: TTFB, o tempo até o servidor começar a responder.')
+                    ->sortable()
                     ->placeholder('—')
-                    ->formatStateUsing(fn (?int $state) => $state ? "{$state} ms" : '—')
-                    ->color(fn (?int $state) => match (true) {
-                        $state === null   => 'gray',
-                        $state < 500      => 'success',
-                        $state < 2000     => 'warning',
-                        default           => 'danger',
+                    ->getStateUsing(fn (SiteMonitor $r) => $r->last_response_ms ?? ($r->last_error ? 'sem resposta' : null))
+                    ->formatStateUsing(fn ($state) => is_numeric($state) ? self::ms((int) $state) : $state)
+                    ->description(fn (SiteMonitor $r) => $r->last_ttfb_ms !== null ? 'TTFB ' . self::ms($r->last_ttfb_ms) : null)
+                    ->color(fn ($state) => is_numeric($state) ? self::corTempo((int) $state) : 'danger'),
+                Tables\Columns\TextColumn::make('media_24h')
+                    ->label('Média 24h')
+                    ->tooltip('Média das verificações com resposta nas últimas 24 h. Uma medição isolada varia muito (cache fria, backups); é por esta que se vê se um site é lento.')
+                    ->sortable()
+                    ->placeholder('—')
+                    ->formatStateUsing(fn ($state) => $state !== null ? self::ms((int) round($state)) : '—')
+                    ->description(fn (SiteMonitor $r) => $r->ttfb_24h !== null ? 'TTFB ' . self::ms((int) round($r->ttfb_24h)) : null)
+                    ->color(fn ($state) => $state !== null ? self::corTempo((int) round($state)) : 'gray'),
+                Tables\Columns\TextColumn::make('uptime_24h')
+                    ->label('Uptime 24h')
+                    ->placeholder('—')
+                    ->getStateUsing(fn (SiteMonitor $r) => $r->checks_24h ? round(100 * $r->up_24h / $r->checks_24h, 1) : null)
+                    ->formatStateUsing(fn ($state) => $state !== null ? "{$state}%" : '—')
+                    ->color(fn ($state) => match (true) {
+                        $state === null => 'gray',
+                        $state >= 99.5  => 'success',
+                        $state >= 95    => 'warning',
+                        default         => 'danger',
                     }),
+                Tables\Columns\TextColumn::make('last_final_url')
+                    ->label('Redirecciona para')
+                    ->placeholder('—')
+                    ->limit(40)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('last_error')
                     ->label('Erro')
                     ->placeholder('—')
@@ -151,7 +176,7 @@ class SiteMonitorResource extends Resource
                     ->icon('heroicon-o-arrow-path')
                     ->color('gray')
                     ->action(function (SiteMonitor $record) {
-                        Artisan::call('monitor:sites', ['--id' => $record->id]);
+                        Artisan::call('monitor:sites', ['--id' => $record->id, '--sem-repetir' => true]);
                         $record->refresh();
                         Notification::make()
                             ->title('Verificação concluída: ' . $record->status->getLabel())
@@ -166,8 +191,14 @@ class SiteMonitorResource extends Resource
                     ->label('Verificar todos')
                     ->icon('heroicon-o-arrow-path')
                     ->action(function () {
-                        Artisan::call('monitor:sites');
-                        Notification::make()->title('Verificação concluída')->success()->send();
+                        // Com 30 sites e alguns timeouts isto passa do limite
+                        // de tempo de um pedido web: vai para a fila.
+                        Artisan::queue('monitor:sites');
+                        Notification::make()
+                            ->title('Verificação a correr em segundo plano')
+                            ->body('A lista actualiza sozinha dentro de 1–2 minutos.')
+                            ->success()
+                            ->send();
                     }),
             ])
             ->bulkActions([
@@ -186,6 +217,35 @@ class SiteMonitorResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /** Médias e uptime das últimas 24 h, calculados na mesma query da lista. */
+    public static function comEstatisticas24h(Builder $query): Builder
+    {
+        $desde = now()->subDay();
+
+        return $query
+            ->withAvg(['checks as media_24h' => fn ($q) => $q->where('checked_at', '>=', $desde)->where('status', 'up')], 'response_ms')
+            ->withAvg(['checks as ttfb_24h' => fn ($q) => $q->where('checked_at', '>=', $desde)->where('status', 'up')], 'ttfb_ms')
+            ->withCount([
+                'checks as checks_24h' => fn ($q) => $q->where('checked_at', '>=', $desde),
+                'checks as up_24h'     => fn ($q) => $q->where('checked_at', '>=', $desde)->where('status', 'up'),
+            ]);
+    }
+
+    public static function ms(int $ms): string
+    {
+        return $ms >= 1000 ? number_format($ms / 1000, 1, ',', '') . ' s' : "{$ms} ms";
+    }
+
+    /** < 0,8 s rápido · < 2 s aceitável · acima disso lento. */
+    public static function corTempo(int $ms): string
+    {
+        return match (true) {
+            $ms < 800  => 'success',
+            $ms < 2000 => 'warning',
+            default    => 'danger',
+        };
     }
 
     public static function getRelations(): array

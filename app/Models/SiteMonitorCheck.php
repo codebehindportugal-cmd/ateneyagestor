@@ -14,6 +14,7 @@ class SiteMonitorCheck extends Model
         'status',
         'http_code',
         'response_ms',
+        'ttfb_ms',
         'error',
         'checked_at',
     ];

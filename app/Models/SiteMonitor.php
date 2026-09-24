@@ -22,6 +22,8 @@ class SiteMonitor extends Model
         'status',
         'last_http_code',
         'last_response_ms',
+        'last_ttfb_ms',
+        'last_final_url',
         'last_error',
         'last_checked_at',
         'went_down_at',

@@ -66,7 +66,8 @@ class SiteMonitorsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('last_response_ms')
                     ->label('Tempo')
                     ->placeholder('—')
-                    ->formatStateUsing(fn (?int $state) => $state ? "{$state} ms" : '—'),
+                    ->formatStateUsing(fn ($state) => $state !== null ? \App\Filament\Admin\Resources\SiteMonitorResource::ms((int) $state) : '—')
+                    ->color(fn ($state) => $state !== null ? \App\Filament\Admin\Resources\SiteMonitorResource::corTempo((int) $state) : 'gray'),
                 Tables\Columns\TextColumn::make('last_checked_at')
                     ->label('Última verificação')
                     ->since()
@@ -80,7 +81,7 @@ class SiteMonitorsRelationManager extends RelationManager
                     ->icon('heroicon-o-arrow-path')
                     ->color('gray')
                     ->action(function (SiteMonitor $record) {
-                        Artisan::call('monitor:sites', ['--id' => $record->id]);
+                        Artisan::call('monitor:sites', ['--id' => $record->id, '--sem-repetir' => true]);
                         $record->refresh();
                         Notification::make()
                             ->title('Verificação: ' . $record->status->getLabel())

@@ -31,7 +31,19 @@ class SiteStatusWidget extends BaseWidget
             ->map(fn ($m) => $m->name)
             ->join(', ');
 
+        // Lento = média das respostas das últimas 24 h acima de 2 s.
+        $lentos = \App\Filament\Admin\Resources\SiteMonitorResource::comEstatisticas24h(
+            SiteMonitor::query()->where('is_active', true)
+        )->get()->filter(fn ($m) => $m->media_24h !== null && $m->media_24h >= 2000);
+
         return [
+            Stat::make('Sites lentos (média 24h > 2 s)', $lentos->count())
+                ->description($lentos->isNotEmpty()
+                    ? $lentos->map(fn ($m) => $m->name . ' ' . number_format($m->media_24h / 1000, 1, ',', '') . ' s')->join(', ')
+                    : 'Todos abaixo de 2 s')
+                ->icon('heroicon-o-clock')
+                ->color($lentos->isNotEmpty() ? 'warning' : 'success'),
+
             Stat::make('Sites online', $up . ' / ' . $total)
                 ->icon('heroicon-o-signal')
                 ->color($down > 0 ? 'danger' : 'success'),

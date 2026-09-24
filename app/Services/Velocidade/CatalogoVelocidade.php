@@ -809,8 +809,12 @@ class CatalogoVelocidade
               sleep 1
             done
             n=$(find "$P/wp-content/cache/cache-enabler" -type f 2>/dev/null | wc -l)
-            if [ "$n" -gt 0 ]; then echo "Cache Enabler activo em {{DOM}}: $n ficheiro(s) em cache"; else
-              echo "ATENÇÃO: Cache Enabler activo mas não gravou nenhuma página. Diagnóstico:"
+            # O que conta é a página inicial vir da cache (há plugins que a excluem
+            # mesmo quando outras páginas ficam guardadas).
+            inicio=$(curl -sk --max-time 30 --resolve {{DOM}}:443:127.0.0.1 -A "$UA" -H 'Accept: text/html' https://{{DOM}}/ </dev/null | grep -c 'Cache Enabler by KeyCDN')
+            [ "$inicio" -gt 0 ] || inicio=$(curl -sk --max-time 30 -A "$UA" -H 'Accept: text/html' https://{{DOM}}/ </dev/null | grep -c 'Cache Enabler by KeyCDN')
+            if [ "$n" -gt 0 ] && [ "$inicio" -gt 0 ]; then echo "Cache Enabler activo em {{DOM}}: $n ficheiro(s) em cache, página inicial servida da cache"; else
+              echo "ATENÇÃO: página inicial não vem da cache ($n ficheiro(s) guardados). Diagnóstico:"
               echo "--- ficheiro de definições:"; ls -la "$P/wp-content/settings/cache-enabler/" 2>&1 | tail -n +2 | head -5
               echo "--- excluídos:"; WP option get cache_enabler --format=json | grep -oE '"excluded_[a-z_]+":"[^"]*"'
               echo "--- resposta da homepage (GET):"

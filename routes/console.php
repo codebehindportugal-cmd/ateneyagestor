@@ -130,6 +130,17 @@ try {
     // DB not ready yet, for example during first deploy before migrations run.
 }
 
+// Rede de segurança para a fila (24/09/2026). As auditorias e correcções de
+// velocidade, e o "Verificar todos" dos monitores, vão para a fila. Se o
+// worker do systemd (laravel-queue) estiver parado, ficavam presas para sempre
+// em "a correr". Este worker arranca de minuto a minuto, esvazia a fila e sai;
+// com o do systemd vivo, os dois simplesmente dividem o trabalho.
+Schedule::command('queue:work --stop-when-empty --timeout=900 --tries=1 --sleep=1')
+    ->everyMinute()
+    ->name('queue:work-rede-seguranca')
+    ->withoutOverlapping(30)
+    ->runInBackground();
+
 // Materializa as rotinas (tarefas e pagamentos recorrentes) em datas concretas.
 // De madrugada e com 120 dias de janela: o calendario tem sempre uns meses para
 // a frente sem depender de alguem se lembrar de correr o comando.

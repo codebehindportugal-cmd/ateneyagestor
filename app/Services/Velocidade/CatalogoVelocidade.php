@@ -674,7 +674,14 @@ class CatalogoVelocidade
             # Aquece: dois pedidos à homepage e confirma que a página ficou gravada.
             curl -sk -o /dev/null --max-time 30 https://{{DOM}}/; sleep 1; curl -sk -o /dev/null --max-time 30 https://{{DOM}}/
             n=$(find "$P/wp-content/cache/cache-enabler" -type f 2>/dev/null | wc -l)
-            if [ "$n" -gt 0 ]; then echo "Cache Enabler activo em {{DOM}}: $n ficheiro(s) em cache"; else echo "ATENÇÃO: Cache Enabler activo mas não gravou nenhuma página. Definições:"; WP option get cache_enabler --format=json | head -c 400; echo; exit 1; fi
+            if [ "$n" -gt 0 ]; then echo "Cache Enabler activo em {{DOM}}: $n ficheiro(s) em cache"; else
+              echo "ATENÇÃO: Cache Enabler activo mas não gravou nenhuma página. Diagnóstico:"
+              echo "--- ficheiro de definições:"; ls -la "$P/wp-content/settings/cache-enabler/" 2>&1 | tail -n +2 | head -5
+              echo "--- excluídos:"; WP option get cache_enabler --format=json | grep -oE '"excluded_[a-z_]+":"[^"]*"'
+              echo "--- cabeçalhos da homepage:"; curl -skI --max-time 30 https://{{DOM}}/ | grep -iE '^(HTTP|location|set-cookie|cache-control|x-cache|link):' | cut -c1-160
+              echo "--- quem define DONOTCACHEPAGE:"; grep -rlE "DONOTCACHEPAGE" "$P/wp-content/plugins" "$P/wp-content/themes" "$P/wp-content/mu-plugins" 2>/dev/null | sed "s|$P/wp-content/||" | cut -d/ -f1-2 | sort -u | head -10
+              exit 1
+            fi
             SH),
             perigo: 'Instala e activa o plugin Cache Enabler (gratuito, KeyCDN). Os visitantes passam a ver a página guardada; guardar um artigo/página no WordPress limpa a cache sozinho. Utilizadores com sessão iniciada não são afectados. Em lojas WooCommerce o carrinho e o checkout nunca são guardados, mas testa uma compra depois.',
         );

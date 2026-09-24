@@ -504,10 +504,21 @@ class CatalogoVelocidade
             [ "$alvo" -gt "$max" ] && alvo=$max
             [ "$alvo" -lt 268435456 ] && alvo=268435456
             mb=$(( (alvo / 134217728 + 1) * 128 ))
-            printf '# Escrito pelo painel gestao.ateneya.com (Velocidade). Apagar repõe o valor por omissão.\n[mysqld]\ninnodb_buffer_pool_size = %sM\n' "$mb" > /etc/mysql/conf.d/zz-ateneya-velocidade.cnf
-            echo "innodb_buffer_pool_size = ${mb}M"
+            # O ficheiro vai para a ÚLTIMA pasta incluída pelo my.cnf: em Ubuntu o
+            # mysql.conf.d/mysqld.cnf é lido depois do conf.d e ganhava.
+            DIR=$(grep -hE '^[[:space:]]*!includedir' /etc/mysql/my.cnf /etc/mysql/mariadb.cnf 2>/dev/null </dev/null | tail -1 | awk '{print $2}')
+            [ -d "$DIR" ] || DIR=/etc/mysql/conf.d
+            for f in /etc/mysql/conf.d/zz-ateneya-velocidade.cnf /etc/mysql/mysql.conf.d/zz-ateneya-velocidade.cnf /etc/mysql/mariadb.conf.d/zz-ateneya-velocidade.cnf; do [ "$f" != "$DIR/zz-ateneya-velocidade.cnf" ] && rm -f "$f"; done
+            printf '# Escrito pelo painel gestao.ateneya.com (Velocidade). Apagar repõe o valor por omissão.\n[mysqld]\ninnodb_buffer_pool_size = %sM\n' "$mb" > "$DIR/zz-ateneya-velocidade.cnf"
+            echo "innodb_buffer_pool_size = ${mb}M em $DIR/zz-ateneya-velocidade.cnf"
             if systemctl list-units --type=service --no-legend | grep -q '^ *mariadb'; then systemctl restart mariadb; else systemctl restart mysql; fi
-            mysql -NBe 'SELECT @@innodb_buffer_pool_size/1048576'
+            agora=$(mysql -NBe 'SELECT ROUND(@@innodb_buffer_pool_size/1048576)')
+            echo "valor em uso: ${agora} MB"
+            if [ "$agora" -lt "$mb" ]; then
+              echo "ATENÇÃO: outro ficheiro sobrepõe-se. Definições encontradas:"
+              grep -rn 'innodb_buffer_pool_size' /etc/mysql/ 2>/dev/null </dev/null
+              exit 1
+            fi
             SH,
             perigo: 'Reinicia o MySQL/MariaDB: todos os sites desta máquina ficam 5–20 s sem base de dados. Fazer fora de horas. O valor é no máximo 35% da RAM.',
             aplicavelComPlesk: false,
@@ -745,6 +756,8 @@ class CatalogoVelocidade
                 }
                 $o[] = 'SCRIPT_NAME=' . ($_SERVER['SCRIPT_NAME'] ?? '') . ' metodo=' . ($_SERVER['REQUEST_METHOD'] ?? '') . ' codigo=' . http_response_code();
                 $o[] = 'is_front_page=' . (int) is_front_page() . ' is_404=' . (int) is_404() . ' logado=' . (int) is_user_logged_in();
+                $pll = get_option('polylang');
+                if (is_array($pll)) { $o[] = 'polylang: detectar idioma do browser=' . (int) ($pll['browser'] ?? 0) . ' redirect_lang=' . (int) ($pll['redirect_lang'] ?? 0) . ' hide_default=' . (int) ($pll['hide_default'] ?? 0); }
                 @file_put_contents(WP_CONTENT_DIR . '/ateneya-diag.txt', implode("\n", $o));
             }, PHP_INT_MAX);
             PHPDIAG

@@ -688,7 +688,12 @@ class CatalogoVelocidade
             UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
             # O DNS pode apontar para um proxy à frente desta máquina: aquece
             # directamente no nginx local, que é onde está este WordPress.
-            for i in 1 2; do curl -sk -o /dev/null --max-time 30 --resolve {{DOM}}:443:127.0.0.1 -A "$UA" -H 'Accept: text/html' https://{{DOM}}/ </dev/null; sleep 1; done
+            # (em Plesk o vhost só escuta no IP público, por isso tenta-se também pelo DNS)
+            for i in 1 2; do
+              curl -sk -o /dev/null --max-time 30 --resolve {{DOM}}:443:127.0.0.1 -A "$UA" -H 'Accept: text/html' https://{{DOM}}/ </dev/null
+              curl -sk -o /dev/null --max-time 30 -A "$UA" -H 'Accept: text/html' https://{{DOM}}/ </dev/null
+              sleep 1
+            done
             n=$(find "$P/wp-content/cache/cache-enabler" -type f 2>/dev/null | wc -l)
             if [ "$n" -gt 0 ]; then echo "Cache Enabler activo em {{DOM}}: $n ficheiro(s) em cache"; else
               echo "ATENÇÃO: Cache Enabler activo mas não gravou nenhuma página. Diagnóstico:"
@@ -713,6 +718,42 @@ class CatalogoVelocidade
               echo "--- SCRIPT_NAME no vhost:"; [ -n "$CONF" ] && grep -nE 'SCRIPT_NAME|fastcgi_split|try_files' "$CONF" </dev/null | head -5
               rm -f /tmp/ce_h /tmp/ce_b
               echo "--- quem define DONOTCACHEPAGE:"; grep -rlE "DONOTCACHEPAGE" "$P/wp-content/plugins" "$P/wp-content/themes" "$P/wp-content/mu-plugins" 2>/dev/null | sed "s|$P/wp-content/||" | cut -d/ -f1-2 | sort -u | head -10
+              # Diagnóstico por dentro do WordPress: um mu-plugin temporário que só
+              # actua com o cabeçalho X-Ateneya-Diag, regista o estado e é apagado a seguir.
+              MU="$P/wp-content/mu-plugins"; mkdir -p "$MU"; chown "$U" "$MU" 2>/dev/null
+              cat > "$MU/zz-ateneya-diag.php" <<'PHPDIAG'
+            <?php
+            if (empty($_SERVER['HTTP_X_ATENEYA_DIAG'])) return;
+            $GLOBALS['ateneya_diag'] = [];
+            $f = function ($onde) {
+                $GLOBALS['ateneya_diag'][] = $onde . ': DONOTCACHEPAGE=' . (defined('DONOTCACHEPAGE') ? var_export(DONOTCACHEPAGE, true) : 'nao')
+                    . ' ob=' . implode(',', ob_list_handlers());
+            };
+            foreach (['plugins_loaded', 'init', 'wp', 'template_redirect', 'wp_head', 'wp_footer'] as $h) {
+                add_action($h, function () use ($f, $h) { $f($h); }, PHP_INT_MAX);
+            }
+            add_action('wp_footer', function () {
+                $o = &$GLOBALS['ateneya_diag'];
+                $o[] = 'WP_CACHE=' . (defined('WP_CACHE') ? var_export(WP_CACHE, true) : 'nao definido');
+                $o[] = 'motor=' . (class_exists('Cache_Enabler_Engine') ? 'carregado' : 'NAO carregado');
+                if (class_exists('Cache_Enabler_Engine')) {
+                    $r = new ReflectionClass('Cache_Enabler_Engine');
+                    foreach (['started', 'settings'] as $p) {
+                        if ($r->hasProperty($p)) { $pp = $r->getProperty($p); $pp->setAccessible(true); $v = $pp->getValue();
+                            $o[] = $p . '=' . (is_array($v) ? 'array(' . count($v) . ')' : var_export($v, true)); }
+                    }
+                }
+                $o[] = 'SCRIPT_NAME=' . ($_SERVER['SCRIPT_NAME'] ?? '') . ' metodo=' . ($_SERVER['REQUEST_METHOD'] ?? '') . ' codigo=' . http_response_code();
+                $o[] = 'is_front_page=' . (int) is_front_page() . ' is_404=' . (int) is_404() . ' logado=' . (int) is_user_logged_in();
+                @file_put_contents(WP_CONTENT_DIR . '/ateneya-diag.txt', implode("\n", $o));
+            }, PHP_INT_MAX);
+            PHPDIAG
+              chmod 644 "$MU/zz-ateneya-diag.php"; rm -f "$P/wp-content/ateneya-diag.txt"
+              curl -sk -o /dev/null --max-time 30 --resolve {{DOM}}:443:127.0.0.1 -A "$UA" -H 'Accept: text/html' -H 'X-Ateneya-Diag: 1' https://{{DOM}}/ </dev/null
+              [ -s "$P/wp-content/ateneya-diag.txt" ] || curl -sk -o /dev/null --max-time 30 -A "$UA" -H 'Accept: text/html' -H 'X-Ateneya-Diag: 1' https://{{DOM}}/ </dev/null
+              echo "--- por dentro do WordPress (homepage):"
+              cat "$P/wp-content/ateneya-diag.txt" 2>/dev/null || echo "(o pedido não chegou a este WordPress)"
+              rm -f "$MU/zz-ateneya-diag.php" "$P/wp-content/ateneya-diag.txt"
               exit 1
             fi
             SH),

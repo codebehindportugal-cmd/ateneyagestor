@@ -116,6 +116,15 @@ done
 [ "$REINICIADOS" -eq 0 ] && echo "    (nenhum pool de PHP-FPM encontrado — confirma a mao)"
 systemctl reload apache2 2>/dev/null || true
 
+# 8. Reiniciar o worker da fila
+#
+# O laravel-queue fica com o codigo carregado em memoria: sem isto, os jobs
+# (auditorias, correccoes) continuavam a correr a versao anterior ate o
+# worker se reiniciar sozinho (de hora a hora).
+echo "==> A reiniciar o worker da fila..."
+php artisan queue:restart || true
+systemctl restart laravel-queue 2>/dev/null && echo "    laravel-queue" || echo "    (servico laravel-queue nao encontrado)"
+
 echo ""
 echo "==> Agora: $(git log --oneline -1)"
 echo "==> Espaço na partição:"

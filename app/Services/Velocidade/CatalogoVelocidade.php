@@ -145,10 +145,10 @@ class CatalogoVelocidade
                     return ['estado' => 'falha', 'detalhe' => "O Apache corre o PHP como módulo (mod_php + prefork): mais lento e sem HTTP/2. «Corrigir» passa para PHP-FPM e volta atrás sozinho se algum site deixar de responder.\n{$texto}"];
                 }
                 if ($versoes && min($versoes) < 801) {
-                    return ['estado' => 'falha', 'detalhe' => "Há PHP abaixo de 8.1 (sem actualizações de segurança). Actualizar à mão, depois de testar os plugins.\n{$texto}"];
+                    return ['estado' => 'falha', 'semCorrecao' => true, 'detalhe' => "Há PHP abaixo de 8.1 (sem actualizações de segurança). Actualizar à mão, depois de testar os plugins.\n{$texto}"];
                 }
                 if ($versoes && min($versoes) < 802) {
-                    return ['estado' => 'aviso', 'detalhe' => "PHP 8.2 ou 8.3 dá mais uns 5–10%.\n{$texto}"];
+                    return ['estado' => 'aviso', 'semCorrecao' => true, 'detalhe' => "Já corre em PHP-FPM. Subir para PHP 8.2 ou 8.3 dá mais uns 5–10%, mas é à mão (testar os plugins primeiro).\n{$texto}"];
                 }
 
                 return ['estado' => 'ok', 'detalhe' => $texto];
@@ -402,7 +402,7 @@ class CatalogoVelocidade
             if command -v apache2ctl >/dev/null 2>&1; then
               echo 'web=apache'
               apache2ctl -M 2>/dev/null | grep -oE '(http2|mpm_[a-z]+)_module' | sort -u
-              grep -rhiE '^[[:space:]]*Protocols' /etc/apache2/apache2.conf /etc/apache2/conf-enabled /etc/apache2/sites-enabled 2>/dev/null | sort -u | head -3
+              grep -RhiE '^[[:space:]]*Protocols' /etc/apache2/apache2.conf /etc/apache2/conf-enabled /etc/apache2/sites-enabled 2>/dev/null </dev/null | sort -u | head -3
             elif command -v nginx >/dev/null 2>&1; then
               echo 'web=nginx'
               echo "versao=$(nginx -v 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
@@ -593,7 +593,7 @@ class CatalogoVelocidade
             echo "valor em uso: ${agora} MB"
             if [ "$agora" -lt "$mb" ]; then
               echo "ATENÇÃO: outro ficheiro sobrepõe-se. Definições encontradas:"
-              grep -rn 'innodb_buffer_pool_size' /etc/mysql/ 2>/dev/null </dev/null
+              grep -Rn 'innodb_buffer_pool_size' /etc/mysql/ 2>/dev/null </dev/null
               exit 1
             fi
             SH,

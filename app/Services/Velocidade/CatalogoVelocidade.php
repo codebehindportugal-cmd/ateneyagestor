@@ -686,7 +686,9 @@ class CatalogoVelocidade
             fi
             # Aquece: dois pedidos à homepage e confirma que a página ficou gravada.
             UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
-            for i in 1 2; do curl -sk -o /dev/null --max-time 30 -A "$UA" -H 'Accept: text/html' https://{{DOM}}/ </dev/null; sleep 1; done
+            # O DNS pode apontar para um proxy à frente desta máquina: aquece
+            # directamente no nginx local, que é onde está este WordPress.
+            for i in 1 2; do curl -sk -o /dev/null --max-time 30 --resolve {{DOM}}:443:127.0.0.1 -A "$UA" -H 'Accept: text/html' https://{{DOM}}/ </dev/null; sleep 1; done
             n=$(find "$P/wp-content/cache/cache-enabler" -type f 2>/dev/null | wc -l)
             if [ "$n" -gt 0 ]; then echo "Cache Enabler activo em {{DOM}}: $n ficheiro(s) em cache"; else
               echo "ATENÇÃO: Cache Enabler activo mas não gravou nenhuma página. Diagnóstico:"
@@ -696,6 +698,17 @@ class CatalogoVelocidade
               curl -sk -D /tmp/ce_h -o /tmp/ce_b --max-time 30 -A "$UA" -H 'Accept: text/html' https://{{DOM}}/ </dev/null
               grep -iE '^(HTTP/|server:|location:|cache-control:|x-cache|cf-cache-status:|x-powered-by:)' /tmp/ce_h | cut -c1-120
               echo "tamanho=$(wc -c </tmp/ce_b) · tem </html>=$(grep -ci '</html>' /tmp/ce_b) · comentário Cache Enabler=$(grep -ci 'Cache Enabler' /tmp/ce_b) · nº cabeçalhos set-c=$(grep -ci '^set-cookie' /tmp/ce_h)"
+              echo "--- pedido directo ao nginx local:"
+              curl -sk -D /tmp/ce_h -o /tmp/ce_b --max-time 30 --resolve {{DOM}}:443:127.0.0.1 -A "$UA" -H 'Accept: text/html' https://{{DOM}}/ </dev/null
+              grep -iE '^(HTTP/|server:|x-powered-by:)' /tmp/ce_h | cut -c1-120
+              echo "tamanho=$(wc -c </tmp/ce_b) · comentário Cache Enabler=$(grep -ci 'Cache Enabler' /tmp/ce_b)"
+              echo "--- PHP instalados: $(ls /etc/php 2>/dev/null | tr '\n' ' ') · sockets: $(ls /run/php 2>/dev/null | tr '\n' ' ')"
+              echo "--- socket do vhost: $SOCK"
+              LOG=$( [ -n "$CONF" ] && grep -oE 'access_log[[:space:]]+[^ ;]+' "$CONF" </dev/null | awk '{print $2}' | head -1)
+              LOG=${LOG:-/var/log/nginx/access.log}
+              echo "--- quem chega ao nginx deste site ($LOG), últimas 500 linhas, por IP:"
+              [ -f "$LOG" ] && tail -n 500 "$LOG" </dev/null | awk '{print $1}' | sort | uniq -c | sort -rn | head -6
+              echo "última entrada: $( [ -f "$LOG" ] && tail -n 1 "$LOG" </dev/null | awk '{print $4}')"
               echo "--- IP a que o servidor chega: $(getent hosts {{DOM}} | awk '{print $1}' | head -1) · IPs locais: $(hostname -I | cut -c1-60)"
               echo "--- SCRIPT_NAME no vhost:"; [ -n "$CONF" ] && grep -nE 'SCRIPT_NAME|fastcgi_split|try_files' "$CONF" </dev/null | head -5
               rm -f /tmp/ce_h /tmp/ce_b

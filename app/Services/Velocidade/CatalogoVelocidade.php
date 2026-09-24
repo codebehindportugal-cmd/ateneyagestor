@@ -162,11 +162,13 @@ class CatalogoVelocidade
             echo "mod_php $V encontrado"
             if apache2ctl -M 2>/dev/null | grep -q mpm_itk; then echo 'mpm_itk activo (cada site com o seu utilizador): não mexo, é à mão.'; exit 1; fi
             # Directivas de mod_php nos vhosts: sem mod_php dão erro de arranque.
-            VH=$(grep -rlE '^[[:space:]]*php_(admin_)?(value|flag)' /etc/apache2/sites-enabled/ /etc/apache2/conf-enabled/ 2>/dev/null </dev/null)
+            VH=$(grep -RlE '^[[:space:]]*php_(admin_)?(value|flag)' /etc/apache2/sites-enabled/ /etc/apache2/conf-enabled/ 2>/dev/null </dev/null)
             if [ -n "$VH" ]; then echo "Há php_value/php_admin_value nos vhosts — passar à mão para o pool do FPM:"; echo "$VH"; exit 1; fi
 
             # Sites e o que respondem agora (para comparar no fim).
-            DOMS=$(grep -rhoiE '^[[:space:]]*Server(Name|Alias)[[:space:]]+[^ ]+' /etc/apache2/sites-enabled/ 2>/dev/null </dev/null | awk '{print $2}' | grep -vE '^(\*|localhost|www\.)' | sort -u | head -40)
+            # -R: os ficheiros de sites-enabled são links (grep -r não os segue).
+            DOMS=$(grep -RhoiE '^[[:space:]]*Server(Name|Alias)[[:space:]]+[^ ]+' /etc/apache2/sites-enabled/ 2>/dev/null </dev/null | awk '{print $2}' | grep -vE '^(\*|localhost|www\.)' | sort -u | head -40)
+            [ -n "$DOMS" ] || { echo 'Não encontrei nenhum ServerName nos vhosts: sem sites para comparar antes/depois, não mexo.'; exit 1; }
             codigo() { curl -sk -o /dev/null -w '%{http_code}' --max-time 25 --resolve "$1:443:127.0.0.1" "https://$1/" </dev/null; }
             declare -A ANTES
             for d in $DOMS; do ANTES[$d]=$(codigo "$d"); done

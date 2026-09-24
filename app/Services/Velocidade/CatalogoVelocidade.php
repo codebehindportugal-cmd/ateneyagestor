@@ -651,7 +651,20 @@ class CatalogoVelocidade
             WP plugin is-installed cache-enabler || WP plugin install cache-enabler || exit 1
             WP plugin activate cache-enabler
             WP config set WP_CACHE true --raw --type=constant
-            [ -f "$P/wp-content/advanced-cache.php" ] && echo 'advanced-cache.php presente' || echo 'ATENÇÃO: sem advanced-cache.php'
+            # Um advanced-cache.php deixado por outro plugin de cache (antigo) faz o
+            # Cache Enabler parecer activo sem gravar nada: ele não o substitui.
+            AC="$P/wp-content/advanced-cache.php"
+            if [ -f "$AC" ] && ! grep -qi 'cache-enabler\|cache_enabler' "$AC" </dev/null; then
+              mv "$AC" "$AC.antigo-$(date +%Y%m%d%H%M)"
+              echo "advanced-cache.php era de outro plugin — guardado como $(basename "$AC").antigo-*"
+              WP plugin deactivate cache-enabler; WP plugin activate cache-enabler
+            fi
+            [ -f "$AC" ] || { WP plugin deactivate cache-enabler; WP plugin activate cache-enabler; }
+            [ -f "$AC" ] && echo "advanced-cache.php presente ($(grep -qi 'cache-enabler\|cache_enabler' "$AC" </dev/null && echo 'do Cache Enabler' || echo 'DE OUTRO PLUGIN'))" || echo 'ATENÇÃO: sem advanced-cache.php'
+            # WP_CACHE tem de vir antes do require do wp-settings.php
+            LC=$(grep -nE "define\(\s*['\"]WP_CACHE" "$P/wp-config.php" </dev/null | head -1 | cut -d: -f1)
+            LS=$(grep -nE "require.*wp-settings\.php" "$P/wp-config.php" </dev/null | head -1 | cut -d: -f1)
+            echo "wp-config: WP_CACHE na linha ${LC:-?}, wp-settings.php na linha ${LS:-?}"
             # O PHP-FPM do site pode correr com outro utilizador que não o dono dos
             # ficheiros: nesse caso não consegue gravar as páginas na cache. Descobre-se
             # o pool pelo socket do vhost do nginx e dá-se escrita só nas pastas da cache.
@@ -672,13 +685,20 @@ class CatalogoVelocidade
               echo "escrita para o grupo $G em wp-content/cache e wp-content/settings"
             fi
             # Aquece: dois pedidos à homepage e confirma que a página ficou gravada.
-            curl -sk -o /dev/null --max-time 30 https://{{DOM}}/; sleep 1; curl -sk -o /dev/null --max-time 30 https://{{DOM}}/
+            UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
+            for i in 1 2; do curl -sk -o /dev/null --max-time 30 -A "$UA" -H 'Accept: text/html' https://{{DOM}}/ </dev/null; sleep 1; done
             n=$(find "$P/wp-content/cache/cache-enabler" -type f 2>/dev/null | wc -l)
             if [ "$n" -gt 0 ]; then echo "Cache Enabler activo em {{DOM}}: $n ficheiro(s) em cache"; else
               echo "ATENÇÃO: Cache Enabler activo mas não gravou nenhuma página. Diagnóstico:"
               echo "--- ficheiro de definições:"; ls -la "$P/wp-content/settings/cache-enabler/" 2>&1 | tail -n +2 | head -5
               echo "--- excluídos:"; WP option get cache_enabler --format=json | grep -oE '"excluded_[a-z_]+":"[^"]*"'
-              echo "--- cabeçalhos da homepage:"; curl -skI --max-time 30 https://{{DOM}}/ | grep -iE '^(HTTP|location|set-cookie|cache-control|x-cache|link):' | cut -c1-160
+              echo "--- resposta da homepage (GET):"
+              curl -sk -D /tmp/ce_h -o /tmp/ce_b --max-time 30 -A "$UA" -H 'Accept: text/html' https://{{DOM}}/ </dev/null
+              grep -iE '^(HTTP/|server:|location:|cache-control:|x-cache|cf-cache-status:|x-powered-by:)' /tmp/ce_h | cut -c1-120
+              echo "tamanho=$(wc -c </tmp/ce_b) · tem </html>=$(grep -ci '</html>' /tmp/ce_b) · comentário Cache Enabler=$(grep -ci 'Cache Enabler' /tmp/ce_b) · nº cabeçalhos set-c=$(grep -ci '^set-cookie' /tmp/ce_h)"
+              echo "--- IP a que o servidor chega: $(getent hosts {{DOM}} | awk '{print $1}' | head -1) · IPs locais: $(hostname -I | cut -c1-60)"
+              echo "--- SCRIPT_NAME no vhost:"; [ -n "$CONF" ] && grep -nE 'SCRIPT_NAME|fastcgi_split|try_files' "$CONF" </dev/null | head -5
+              rm -f /tmp/ce_h /tmp/ce_b
               echo "--- quem define DONOTCACHEPAGE:"; grep -rlE "DONOTCACHEPAGE" "$P/wp-content/plugins" "$P/wp-content/themes" "$P/wp-content/mu-plugins" 2>/dev/null | sed "s|$P/wp-content/||" | cut -d/ -f1-2 | sort -u | head -10
               exit 1
             fi

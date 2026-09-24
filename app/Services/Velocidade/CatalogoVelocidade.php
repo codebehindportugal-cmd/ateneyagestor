@@ -615,6 +615,7 @@ class CatalogoVelocidade
             echo "activos=$(WP plugin list --status=active --field=name | tr '\n' ' ')"
             echo "wp_cache=$(WP config get WP_CACHE 2>/dev/null || echo nao-definido)"
             [ -f "$P/wp-content/advanced-cache.php" ] && echo 'advanced_cache=sim' || echo 'advanced_cache=nao'
+            echo "paginas_em_cache=$(find "$P/wp-content/cache" -type f \( -name '*.html' -o -name '*.gz' -o -name '*.br' \) 2>/dev/null | wc -l)"
             SH),
             avaliar: function (string $s): array {
                 if ($r = self::semWp($s)) {
@@ -628,8 +629,13 @@ class CatalogoVelocidade
                 if ($cache) {
                     $ligado = ($v['advanced_cache'] ?? '') === 'sim' || in_array('litespeed-cache', $cache, true) || in_array('w3-total-cache', $cache, true);
 
+                    $paginas = (int) ($v['paginas_em_cache'] ?? -1);
+                    if ($ligado && $paginas === 0 && ! in_array('litespeed-cache', $cache, true)) {
+                        return ['estado' => 'falha', 'detalhe' => 'Plugin de cache activo (' . implode(', ', $cache) . ') mas sem nenhuma página guardada — o PHP não consegue escrever em wp-content/cache? "Corrigir" trata das permissões.' . $woo];
+                    }
+
                     return $ligado
-                        ? ['estado' => 'ok', 'detalhe' => 'plugin: ' . implode(', ', $cache) . $woo]
+                        ? ['estado' => 'ok', 'detalhe' => 'plugin: ' . implode(', ', $cache) . ($paginas > 0 ? " · {$paginas} página(s) em cache" : '') . $woo]
                         : ['estado' => 'aviso', 'detalhe' => 'Plugin de cache activo (' . implode(', ', $cache) . ') mas sem advanced-cache.php: confirma nas definições do plugin se a cache está mesmo ligada.' . $woo];
                 }
 
@@ -640,10 +646,31 @@ class CatalogoVelocidade
             for p in wp-super-cache w3-total-cache wp-fastest-cache litespeed-cache wp-rocket breeze sg-cachepress comet-cache; do
               case "$activos" in *" $p "*) echo "Já há outro plugin de cache activo ($p): não instalo um segundo."; exit 1;; esac
             done
-            WP plugin install cache-enabler --activate || exit 1
+            WP plugin is-installed cache-enabler || WP plugin install cache-enabler || exit 1
+            WP plugin activate cache-enabler
             WP config set WP_CACHE true --raw --type=constant
-            [ -f "$P/wp-content/advanced-cache.php" ] && echo 'advanced-cache.php presente' || echo 'ATENÇÃO: sem advanced-cache.php (wp-content sem escrita para o dono do site?)'
-            echo "Cache Enabler activo em {{DOM}}"
+            [ -f "$P/wp-content/advanced-cache.php" ] && echo 'advanced-cache.php presente' || echo 'ATENÇÃO: sem advanced-cache.php'
+            # O PHP-FPM do site pode correr com outro utilizador que não o dono dos
+            # ficheiros: nesse caso não consegue gravar as páginas na cache. Descobre-se
+            # o pool pelo socket do vhost do nginx e dá-se escrita só nas pastas da cache.
+            CONF=$(grep -rlE "server_name[^;]*[[:space:]]{{DOM}}([[:space:];]|$)" /etc/nginx/sites-enabled/ 2>/dev/null | head -1)
+            SOCK=$(grep -oE 'unix:[^; ]+' "$CONF" 2>/dev/null | head -1 | cut -d: -f2)
+            POOL=$( [ -n "$SOCK" ] && grep -rlE "^[[:space:]]*listen[[:space:]]*=[[:space:]]*$SOCK[[:space:]]*$" /etc/php/*/fpm/pool.d/ 2>/dev/null | head -1)
+            FPMU=$(awk -F= '/^[[:space:]]*user[[:space:]]*=/{gsub(/[[:space:]]/,"",$2);print $2}' "$POOL" 2>/dev/null | head -1)
+            FPMU=${FPMU:-www-data}
+            echo "dono dos ficheiros=$U · PHP corre como=$FPMU · vhost=$CONF · pool=$POOL"
+            for d in cache settings; do mkdir -p "$P/wp-content/$d"; chown "$U" "$P/wp-content/$d"; done
+            if [ "$FPMU" != "$U" ]; then
+              G=$(id -gn "$FPMU")
+              chgrp -R "$G" "$P/wp-content/cache" "$P/wp-content/settings"
+              chmod -R g+rwX "$P/wp-content/cache" "$P/wp-content/settings"
+              find "$P/wp-content/cache" "$P/wp-content/settings" -type d -exec chmod g+s {} +
+              echo "escrita para o grupo $G em wp-content/cache e wp-content/settings"
+            fi
+            # Aquece: dois pedidos à homepage e confirma que a página ficou gravada.
+            curl -sk -o /dev/null --max-time 30 https://{{DOM}}/; sleep 1; curl -sk -o /dev/null --max-time 30 https://{{DOM}}/
+            n=$(find "$P/wp-content/cache/cache-enabler" -type f 2>/dev/null | wc -l)
+            if [ "$n" -gt 0 ]; then echo "Cache Enabler activo em {{DOM}}: $n ficheiro(s) em cache"; else echo "ATENÇÃO: Cache Enabler activo mas não gravou nenhuma página. Definições:"; WP option get cache_enabler --format=json | head -c 400; echo; exit 1; fi
             SH),
             perigo: 'Instala e activa o plugin Cache Enabler (gratuito, KeyCDN). Os visitantes passam a ver a página guardada; guardar um artigo/página no WordPress limpa a cache sozinho. Utilizadores com sessão iniciada não são afectados. Em lojas WooCommerce o carrinho e o checkout nunca são guardados, mas testa uma compra depois.',
         );

@@ -142,7 +142,7 @@ class CatalogoVelocidade
                 $texto = trim($s) ?: 'não deu para ler';
 
                 if ($modPhp) {
-                    return ['estado' => 'falha', 'detalhe' => "O Apache corre o PHP como módulo (mod_php + prefork): mais lento e sem HTTP/2. Passar para PHP-FPM é trabalho à mão, site a site.\n{$texto}"];
+                    return ['estado' => 'falha', 'detalhe' => "O Apache corre o PHP como módulo (mod_php + prefork): mais lento e sem HTTP/2. «Corrigir» passa para PHP-FPM e volta atrás sozinho se algum site deixar de responder.\n{$texto}"];
                 }
                 if ($versoes && min($versoes) < 801) {
                     return ['estado' => 'falha', 'detalhe' => "Há PHP abaixo de 8.1 (sem actualizações de segurança). Actualizar à mão, depois de testar os plugins.\n{$texto}"];
@@ -153,6 +153,79 @@ class CatalogoVelocidade
 
                 return ['estado' => 'ok', 'detalhe' => $texto];
             },
+            correcao: <<<'SH'
+            # mod_php + prefork -> PHP-FPM + mpm_event + HTTP/2, com volta atrás automática.
+            command -v apache2ctl >/dev/null 2>&1 || { echo 'Sem Apache.'; exit 1; }
+            MODLOAD=$(ls /etc/apache2/mods-enabled/php*.load 2>/dev/null | head -1)
+            [ -n "$MODLOAD" ] || { echo 'O Apache já não usa mod_php: nada a fazer aqui.'; exit 0; }
+            V=$(basename "$MODLOAD" .load | sed 's/^php//')
+            echo "mod_php $V encontrado"
+            if apache2ctl -M 2>/dev/null | grep -q mpm_itk; then echo 'mpm_itk activo (cada site com o seu utilizador): não mexo, é à mão.'; exit 1; fi
+            # Directivas de mod_php nos vhosts: sem mod_php dão erro de arranque.
+            VH=$(grep -rlE '^[[:space:]]*php_(admin_)?(value|flag)' /etc/apache2/sites-enabled/ /etc/apache2/conf-enabled/ 2>/dev/null </dev/null)
+            if [ -n "$VH" ]; then echo "Há php_value/php_admin_value nos vhosts — passar à mão para o pool do FPM:"; echo "$VH"; exit 1; fi
+
+            # Sites e o que respondem agora (para comparar no fim).
+            DOMS=$(grep -rhoiE '^[[:space:]]*Server(Name|Alias)[[:space:]]+[^ ]+' /etc/apache2/sites-enabled/ 2>/dev/null </dev/null | awk '{print $2}' | grep -vE '^(\*|localhost|www\.)' | sort -u | head -40)
+            codigo() { curl -sk -o /dev/null -w '%{http_code}' --max-time 25 --resolve "$1:443:127.0.0.1" "https://$1/" </dev/null; }
+            declare -A ANTES
+            for d in $DOMS; do ANTES[$d]=$(codigo "$d"); done
+            echo "antes: $(for d in $DOMS; do printf '%s=%s ' "$d" "${ANTES[$d]}"; done)"
+
+            # .htaccess com php_value/php_flag: com FPM dão erro 500. Passam para .user.ini (mesma pasta).
+            B=/root/ateneya-backup-fpm-$(date +%Y%m%d%H%M%S); mkdir -p "$B"
+            grep -rlsE '^[[:space:]]*php_(value|flag)' /var/www --include=.htaccess 2>/dev/null </dev/null | while read -r h; do
+              mkdir -p "$B$(dirname "$h")"; cp -a "$h" "$B$h"
+              dir=$(dirname "$h")
+              grep -E '^[[:space:]]*php_(value|flag)' "$h" </dev/null | while read -r _ k v; do
+                v=${v//\"/}; case "$v" in on|On|ON) v=On;; off|Off|OFF) v=Off;; esac
+                grep -qE "^$k[[:space:]]*=" "$dir/.user.ini" 2>/dev/null </dev/null || echo "$k = $v" >> "$dir/.user.ini"
+              done
+              sed -i -E 's/^([[:space:]]*)(php_(value|flag).*)$/\1# \2  # (passado para .user.ini pelo painel)/' "$h"
+              chown --reference="$h" "$dir/.user.ini" 2>/dev/null
+              echo "convertido $h -> .user.ini"
+            done
+
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get install -y -q "php$V-fpm" >/dev/null || { echo "não deu para instalar php$V-fpm"; exit 1; }
+            # Mesmos limites que o mod_php tinha.
+            for k in memory_limit upload_max_filesize post_max_size max_execution_time max_input_time max_input_vars; do
+              val=$(grep -E "^[[:space:]]*$k[[:space:]]*=" "/etc/php/$V/apache2/php.ini" </dev/null | tail -1 | cut -d= -f2- | tr -d ' ')
+              [ -n "$val" ] && sed -i -E "s|^;?[[:space:]]*$k[[:space:]]*=.*|$k = $val|" "/etc/php/$V/fpm/php.ini"
+            done
+            # Mesmas extensões e o nosso OPcache.
+            for f in /etc/php/$V/apache2/conf.d/*.ini; do [ -e "/etc/php/$V/fpm/conf.d/$(basename "$f")" ] || cp -a "$f" "/etc/php/$V/fpm/conf.d/"; done
+            # Pool: o valor por omissão (5 processos) é curto para vários sites.
+            RAM=$(free -m | awk '/^Mem:/ {print $2}'); MC=$(( RAM / 90 )); [ $MC -lt 10 ] && MC=10; [ $MC -gt 60 ] && MC=60
+            POOL=/etc/php/$V/fpm/pool.d/www.conf
+            sed -i -E "s/^pm = .*/pm = dynamic/; s/^pm.max_children = .*/pm.max_children = $MC/; s/^pm.start_servers = .*/pm.start_servers = 4/; s/^pm.min_spare_servers = .*/pm.min_spare_servers = 2/; s/^pm.max_spare_servers = .*/pm.max_spare_servers = 8/; s/^;?pm.max_requests = .*/pm.max_requests = 500/" "$POOL"
+            systemctl enable -q "php$V-fpm"; systemctl restart "php$V-fpm" || { echo "php$V-fpm não arrancou"; exit 1; }
+
+            volta_atras() {
+              echo "A VOLTAR ATRÁS: $1"
+              a2disconf -q "php$V-fpm" zz-ateneya-http2 2>/dev/null; a2dismod -q http2 mpm_event 2>/dev/null
+              a2enmod -q mpm_prefork "php$V" 2>/dev/null
+              cp -a "$B/var/www/." /var/www/ 2>/dev/null
+              systemctl restart apache2; echo "reposto como estava (cópia dos .htaccess em $B)"; exit 1
+            }
+            a2dismod -q "php$V" mpm_prefork
+            a2enmod -q mpm_event proxy_fcgi setenvif http2
+            a2enconf -q "php$V-fpm"
+            printf '# Escrito pelo painel gestao.ateneya.com (Velocidade)\nProtocols h2 http/1.1\n' > /etc/apache2/conf-available/zz-ateneya-http2.conf
+            a2enconf -q zz-ateneya-http2
+            apache2ctl configtest 2>&1 | tail -2 | grep -q 'Syntax OK' || volta_atras 'configtest falhou'
+            systemctl restart apache2 || volta_atras 'o Apache não arrancou'
+            sleep 2
+            mal=""
+            for d in $DOMS; do
+              a=${ANTES[$d]}; n=$(codigo "$d")
+              case "$a" in 2*|3*) case "$n" in 2*|3*) ;; *) mal="$mal $d($a->$n)";; esac;; esac
+              printf '%s=%s ' "$d" "$n"
+            done; echo
+            [ -z "$mal" ] || volta_atras "sites que deixaram de responder:$mal"
+            echo "PHP $V via PHP-FPM (pool www, até $MC processos) + mpm_event + HTTP/2. Cópia dos .htaccess alterados em $B"
+            SH,
+            perigo: 'Troca o mod_php por PHP-FPM + mpm_event e liga o HTTP/2. Reinicia o Apache (uns segundos). Os php_value dos .htaccess passam para .user.ini. Mede todos os sites antes e depois: se algum deixar de responder, volta tudo atrás sozinho.',
             aplicavelComPlesk: false,
         );
 
@@ -346,7 +419,7 @@ class CatalogoVelocidade
                         : ['estado' => 'aviso', 'detalhe' => 'nginx ' . ($v['versao'] ?? '?') . ' sem HTTP/2 (' . ($v['listen_ssl'] ?? 0) . ' listen 443)'];
                 }
                 if (str_contains($s, 'mpm_prefork')) {
-                    return ['estado' => 'aviso', 'detalhe' => "Apache em prefork (por causa do mod_php): o HTTP/2 não funciona assim. Primeiro passar para PHP-FPM.\n" . trim($s)];
+                    return ['estado' => 'aviso', 'detalhe' => "Apache em prefork (por causa do mod_php): o HTTP/2 não funciona assim. Corrige primeiro «Versão e modo do PHP» (passa para PHP-FPM e liga o HTTP/2).\n" . trim($s)];
                 }
                 if (str_contains($s, 'http2_module') && stripos($s, 'h2') !== false) {
                     return ['estado' => 'ok', 'detalhe' => trim($s)];
@@ -476,13 +549,14 @@ class CatalogoVelocidade
             severidade: 'importante',
             porque: 'Se as bases de dados não cabem no buffer do MySQL, cada página vai ao disco buscar dados em vez de os ter em memória.',
             comando: <<<'SH'
-            mysql -NBe "SELECT CONCAT('buffer=', @@innodb_buffer_pool_size), CONCAT('dados=', COALESCE(SUM(data_length+index_length),0)) FROM information_schema.tables WHERE engine='InnoDB'" 2>/dev/null | tr '\t' '\n' || echo 'sem-acesso'
+            M() { if mysql -NBe 'SELECT 1' >/dev/null 2>&1 </dev/null; then mysql "$@"; elif [ -r /etc/mysql/debian.cnf ]; then mysql --defaults-file=/etc/mysql/debian.cnf "$@"; else mysql "$@"; fi; }
+            M -NBe "SELECT CONCAT('buffer=', @@innodb_buffer_pool_size), CONCAT('dados=', COALESCE(SUM(data_length+index_length),0)) FROM information_schema.tables WHERE engine='InnoDB'" 2>/dev/null | tr '\t' '\n' || echo 'sem-acesso'
             free -b | awk '/^Mem:/ {print "ram=" $2}'
             SH,
             avaliar: function (string $s): array {
                 $v = self::chaves($s);
                 if (! isset($v['buffer'])) {
-                    return ['estado' => 'aviso', 'detalhe' => 'Não deu para perguntar ao MySQL como root (sem acesso por socket?).'];
+                    return ['estado' => 'aviso', 'detalhe' => 'Não deu para entrar no MySQL (nem como root por socket, nem com /etc/mysql/debian.cnf). Pôr a password de root em /root/.my.cnf.'];
                 }
                 $buf = (int) $v['buffer'];
                 $dados = (int) ($v['dados'] ?? 0);
@@ -497,7 +571,8 @@ class CatalogoVelocidade
                 return ['estado' => 'ok', 'detalhe' => $det];
             },
             correcao: <<<'SH'
-            dados=$(mysql -NBe "SELECT COALESCE(SUM(data_length+index_length),0) FROM information_schema.tables WHERE engine='InnoDB'") || exit 1
+            M() { if mysql -NBe 'SELECT 1' >/dev/null 2>&1 </dev/null; then mysql "$@"; elif [ -r /etc/mysql/debian.cnf ]; then mysql --defaults-file=/etc/mysql/debian.cnf "$@"; else mysql "$@"; fi; }
+            dados=$(M -NBe "SELECT COALESCE(SUM(data_length+index_length),0) FROM information_schema.tables WHERE engine='InnoDB'") || exit 1
             ram=$(free -b | awk '/^Mem:/ {print $2}')
             alvo=$(( dados * 13 / 10 ))
             max=$(( ram * 35 / 100 ))
@@ -512,7 +587,7 @@ class CatalogoVelocidade
             printf '# Escrito pelo painel gestao.ateneya.com (Velocidade). Apagar repõe o valor por omissão.\n[mysqld]\ninnodb_buffer_pool_size = %sM\n' "$mb" > "$DIR/zz-ateneya-velocidade.cnf"
             echo "innodb_buffer_pool_size = ${mb}M em $DIR/zz-ateneya-velocidade.cnf"
             if systemctl list-units --type=service --no-legend | grep -q '^ *mariadb'; then systemctl restart mariadb; else systemctl restart mysql; fi
-            agora=$(mysql -NBe 'SELECT ROUND(@@innodb_buffer_pool_size/1048576)')
+            agora=$(M -NBe 'SELECT ROUND(@@innodb_buffer_pool_size/1048576)')
             echo "valor em uso: ${agora} MB"
             if [ "$agora" -lt "$mb" ]; then
               echo "ATENÇÃO: outro ficheiro sobrepõe-se. Definições encontradas:"

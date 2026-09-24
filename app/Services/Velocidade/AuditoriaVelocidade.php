@@ -100,7 +100,10 @@ class AuditoriaVelocidade
         $partes = ['exec </dev/null', 'export DEBIAN_FRONTEND=noninteractive', 'export LC_ALL=C'];
 
         foreach ($verificacoes as $chave => $verificacao) {
-            $partes[] = 'echo "' . self::MARCA . $chave . '"';
+            // Linha nova antes da marca: se o comando anterior não acabou com \n
+            // (ex.: "... | tr '\n' ' '"), a marca ficava colada ao fim da linha,
+            // não era reconhecida e a verificação seguinte aparecia vazia.
+            $partes[] = 'printf \'\n%s\n\' "' . self::MARCA . $chave . '"';
             $partes[] = '{ ' . $verificacao->comando . "\n} 2>/dev/null";
         }
 
@@ -116,8 +119,12 @@ class AuditoriaVelocidade
         $chave = null;
 
         foreach (preg_split('/\R/', $saida) ?: [] as $linha) {
-            if (str_starts_with($linha, self::MARCA)) {
-                $chave = trim(substr($linha, strlen(self::MARCA)));
+            $pos = strpos($linha, self::MARCA);
+            if ($pos !== false) {
+                if ($pos > 0 && $chave !== null) {
+                    $blocos[$chave][] = substr($linha, 0, $pos);
+                }
+                $chave = trim(substr($linha, $pos + strlen(self::MARCA)));
                 $blocos[$chave] = [];
 
                 continue;

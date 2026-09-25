@@ -240,6 +240,13 @@ class CatalogoVelocidade
             comando: <<<'SH'
             for d in /etc/php/*/fpm /etc/php/*/apache2; do
               [ -d "$d" ] || continue
+              # Só as versões em uso: PHP-FPM a correr, ou mod_php ligado no Apache.
+              # Versões antigas que ficaram instaladas depois de uma actualização não contam.
+              v=$(echo "$d" | cut -d/ -f4)
+              case "$d" in
+                */fpm) systemctl is-active --quiet "php$v-fpm" 2>/dev/null || continue ;;
+                */apache2) [ -e "/etc/apache2/mods-enabled/php$v.load" ] || continue ;;
+              esac
               if ls "$d"/conf.d/*opcache* >/dev/null 2>&1; then carregado=sim; else carregado=nao; fi
               vals=$(cat "$d"/php.ini "$d"/conf.d/*.ini 2>/dev/null | grep -E '^[[:space:]]*opcache\.(enable|memory_consumption|max_accelerated_files|interned_strings_buffer)[[:space:]]*=' | tr -d ' ' | awk -F= '{m[$1]=$2} END {for (k in m) printf "%s=%s ", k, m[k]}')
               echo "$d carregado=$carregado $vals"
@@ -302,7 +309,11 @@ class CatalogoVelocidade
             porque: 'Com Redis o WordPress guarda em memória o resultado das consultas à base de dados em vez de as repetir em cada página.',
             comando: <<<'SH'
             echo "servico=$(systemctl is-active redis-server 2>/dev/null || echo inactivo)"
-            for d in /etc/php/*/fpm; do [ -d "$d" ] || continue; if ls "$d"/conf.d/*redis* >/dev/null 2>&1; then echo "ext $d sim"; else echo "ext $d nao"; fi; done
+            for d in /etc/php/*/fpm; do
+              [ -d "$d" ] || continue
+              systemctl is-active --quiet "php$(echo "$d" | cut -d/ -f4)-fpm" 2>/dev/null || continue   # só versões em uso
+              if ls "$d"/conf.d/*redis* >/dev/null 2>&1; then echo "ext $d sim"; else echo "ext $d nao"; fi
+            done
             SH,
             avaliar: function (string $s): array {
                 $activo = str_contains($s, 'servico=active');

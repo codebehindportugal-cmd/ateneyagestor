@@ -354,7 +354,11 @@ class CatalogoEndurecimento
     private static function sshDefine(string $chave, string $valor): string
     {
         return implode(' ', [
-            'D=/etc/ssh/sshd_config.d/99-endurecimento.conf;',
+            // 00- e não 99-: o sshd fica com o PRIMEIRO valor que lê, e o
+            // 50-cloud-init.conf (PasswordAuthentication yes) ganhava ao 99-.
+            'D=/etc/ssh/sshd_config.d/00-endurecimento.conf;',
+            'V=/etc/ssh/sshd_config.d/99-endurecimento.conf;',
+            "[ -f \"\$V\" ] && sed -i '/^{$chave}/d' \"\$V\" && { [ -s \"\$V\" ] || rm -f \"\$V\"; };",
             'if grep -qE "^[[:space:]]*Include[[:space:]]+/etc/ssh/sshd_config.d/\*.conf" /etc/ssh/sshd_config; then',
             'mkdir -p /etc/ssh/sshd_config.d && touch "$D" &&',
             "sed -i '/^{$chave}/d' \"\$D\" && echo '{$chave} {$valor}' >> \"\$D\";",

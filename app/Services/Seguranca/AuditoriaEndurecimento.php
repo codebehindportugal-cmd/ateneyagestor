@@ -86,8 +86,38 @@ class AuditoriaEndurecimento
         return [
             'saida'     => trim((string) $resposta['output']),
             'exit_code' => $resposta['exit_code'],
-            'resultado' => $verificacao->paraArray($this->reverificar($server, $verificacao)),
+            'resultado' => $verificacao->paraArray($this->reverificarComPaciencia($server, $verificacao)),
         ];
+    }
+
+    /**
+     * Logo a seguir a um reload (sshd, apache, php-fpm) a primeira leitura
+     * pode apanhar o serviço a meio, ou a ligação SSH nova pode falhar.
+     * Tenta até três vezes, com uma pausa curta, antes de dar como falhada.
+     */
+    private function reverificarComPaciencia(Server $server, Verificacao $verificacao): array
+    {
+        $resultado = ['estado' => 'aviso', 'detalhe' => 'Não deu para voltar a verificar.'];
+
+        for ($tentativa = 1; $tentativa <= 3; $tentativa++) {
+            if ($tentativa > 1) {
+                sleep(3);
+            }
+
+            try {
+                $resultado = $this->reverificar($server, $verificacao);
+            } catch (\Throwable $e) {
+                $resultado = ['estado' => 'aviso', 'detalhe' => 'Não deu para voltar a verificar: '.$e->getMessage()];
+
+                continue;
+            }
+
+            if ($resultado['estado'] === 'ok') {
+                break;
+            }
+        }
+
+        return $resultado;
     }
 
     public function reverificar(Server $server, Verificacao $verificacao): array

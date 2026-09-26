@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Pages;
 
 use App\Models\Setting;
+use App\Support\TokenFaturas;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -40,6 +41,30 @@ class AccountingSettingsPage extends Page
     protected function getHeaderActions(): array
     {
         return [
+            // O token da API de faturas vive aqui porque e o outro acesso
+            // de fora a contabilidade. Mostra-se uma vez, na notificacao: a
+            // base de dados so guarda o hash.
+            Action::make('tokenFaturas')
+                ->label('Token da API de faturas')
+                ->icon('heroicon-o-command-line')
+                ->color('gray')
+                ->requiresConfirmation()
+                ->modalHeading('Gerar token da API de faturas')
+                ->modalDescription('O token só serve para registar faturas de fornecedor (/api/v1/faturas). Gerar um novo revoga o anterior — a skill do chat passa a precisar do novo. Copia-o já: não volta a ser mostrado.')
+                ->modalSubmitActionLabel('Gerar')
+                ->action(function () {
+                    ['token' => $token, 'revogados' => $revogados] = TokenFaturas::emitir(auth()->user());
+
+                    Notification::make()
+                        ->title('Token da API de faturas')
+                        ->body("<code>".e($token)."</code><br><br>"
+                            .($revogados > 0 ? 'O token anterior foi revogado. ' : '')
+                            .'Copia-o agora — não volta a ser mostrado.')
+                        ->success()
+                        ->persistent()
+                        ->send();
+                }),
+
             Action::make('generate')
                 ->label('Gerar novo token')
                 ->icon('heroicon-o-arrow-path')

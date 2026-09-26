@@ -3,9 +3,11 @@
 namespace App\Filament\Admin\Resources\HardeningAuditResource\Pages;
 
 use App\Filament\Admin\Resources\HardeningAuditResource;
+use App\Jobs\CorrerAuditoriaEndurecimento;
 use App\Models\Server;
 use Filament\Actions;
 use Filament\Forms;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 
 class ListHardeningAudits extends ListRecords
@@ -41,11 +43,20 @@ class ListHardeningAudits extends ListRecords
                 ->color('gray')
                 ->requiresConfirmation()
                 ->modalHeading('Auditar todos os servidores activos')
-                ->modalDescription('Continua a ser só leitura, mas são vários minutos. Se o browser desistir pelo caminho, corre antes: php artisan seguranca:auditar --todos')
+                ->modalDescription('Só leitura. Corre em segundo plano, uma máquina de cada vez — as auditorias vão aparecendo nesta lista à medida que acabam.')
+                ->modalSubmitActionLabel('Pôr na fila')
                 ->action(function () {
-                    foreach (Server::where('is_active', true)->orderBy('name')->get() as $servidor) {
-                        HardeningAuditResource::auditar($servidor);
+                    $servidores = Server::where('is_active', true)->orderBy('name')->get();
+
+                    foreach ($servidores as $servidor) {
+                        CorrerAuditoriaEndurecimento::dispatch($servidor);
                     }
+
+                    Notification::make()
+                        ->title($servidores->count().' servidores na fila')
+                        ->body('Actualiza a página daqui a uns minutos.')
+                        ->success()
+                        ->send();
                 }),
         ];
     }

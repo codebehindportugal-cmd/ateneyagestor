@@ -182,6 +182,70 @@ class FaturaController extends Controller
     }
 
     /**
+     * Os valores que o POST aceita, para quem le a fatura nao ter de os adivinhar.
+     *
+     * Categorias, finalidades, tipos e estados vivem no modelo e mudam com ele; as
+     * marcas vivem na base de dados. A skill do chat chama isto no inicio em vez
+     * de levar uma lista escrita que envelhece.
+     */
+    public function opcoes(Request $request): JsonResponse
+    {
+        $this->utilizadorAutenticado($request);
+
+        $porOmissao = config('faturas_email.default_brand_id');
+
+        return $this->ok([
+            'tipos' => AccountingDocument::tipos(),
+            'estados' => AccountingDocument::estados(),
+            'categorias' => AccountingDocument::categories(),
+            'finalidades' => AccountingDocument::finalidades(),
+            'taxas_iva' => StoreFaturaApiRequest::TAXAS_IVA,
+            'marcas' => Brand::query()
+                ->with('parent')
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Brand $marca) => [
+                    'id' => $marca->id,
+                    'nome' => $marca->name,
+                    'nome_completo' => $marca->full_name,
+                    'por_omissao' => is_numeric($porOmissao) && (int) $porOmissao === $marca->id,
+                ])
+                ->values(),
+            'lote_maximo' => StoreFaturasLoteApiRequest::MAXIMO,
+        ]);
+    }
+
+    /**
+     * Ja existe? — pelo numero da fatura, com NIF ou fornecedor a desempatar.
+     *
+     * O POST ja e idempotente, mas devolve o documento tal como esta e nao
+     * corrige nada. Perguntar antes deixa o chat dizer "esta ja entrou por
+     * email" sem ter de montar o corpo todo.
+     */
+    public function procurar(Request $request): JsonResponse
+    {
+        $this->utilizadorAutenticado($request);
+
+        $numero = trim((string) $request->query('numero_fatura', $request->query('numero', '')));
+
+        if ($numero === '') {
+            return $this->erro422(['numero_fatura' => ['Indique ?numero_fatura=...']]);
+        }
+
+        $existente = $this->jaRegistado([
+            'numero_fatura' => $numero,
+            'nif' => $request->query('nif'),
+            'fornecedor' => $request->query('fornecedor'),
+        ]);
+
+        return $this->ok([
+            'existe' => $existente !== null,
+            'documento' => $existente === null ? null : $this->formatar($existente)['documento'],
+        ]);
+    }
+
+    /**
      * A foto ou o PDF da fatura, para um documento que ja existe.
      *
      * Separado do store porque o corpo deste e o ficheiro e o do store e JSON:

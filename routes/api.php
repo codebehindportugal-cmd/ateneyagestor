@@ -94,6 +94,8 @@ Route::middleware('auth:sanctum')->post('/invoices/paper/extract', PaperInvoiceE
 |
 */
 Route::middleware(['auth:sanctum', 'abilities:faturas:write'])->prefix('v1')->group(function () {
+    Route::get('/faturas/opcoes', [FaturaController::class, 'opcoes']);
+    Route::get('/faturas/procurar', [FaturaController::class, 'procurar']);
     Route::post('/faturas', [FaturaController::class, 'store']);
     Route::post('/faturas/lote', [FaturaController::class, 'lote']);
     Route::post('/faturas/{documento}/ficheiro', [FaturaController::class, 'ficheiro']);

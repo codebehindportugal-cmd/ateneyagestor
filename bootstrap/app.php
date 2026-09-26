@@ -13,6 +13,15 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->statefulApi();
+
+        // O Laravel 11 nao regista sozinho os middlewares de abilities do
+        // Sanctum. Sem isto, qualquer rota com `abilities:...` (a API de
+        // faturas, /api/v1/faturas) rebenta com "Target class [abilities]
+        // does not exist" — 500 antes de chegar ao controlador.
+        $middleware->alias([
+            'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
+            'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

@@ -476,3 +476,38 @@ o carregou. E' o que interessa a quem olha para a lista tres meses depois.
 2. **Miniaturas na lista.** Uma `ImageColumn` por linha ia buscar cada ficheiro
    ao NAS por SSH — vinte fotos, vinte ligacoes so' para desenhar a pagina.
    Ficou um icone por tipo.
+
+## Resultados (vendas do Moloni − despesas)
+
+`Contabilidade > Resultados` (`ResultadosPage`, so' admin) mostra, mes a mes e
+sem IVA: vendas, despesas, resultado, IVA liquidado, IVA dedutivel e IVA a
+entregar, com filtro por ano e por marca.
+
+- **Vendas** vem do Moloni, **so' leitura**. O `moloni:sincronizar` traz as
+  faturas fechadas (`status=1`) do ano para a `moloni_documentos` — de 2 em 2
+  horas pelo agendador (`cron.moloni.cron`) e no botao **Sincronizar Moloni**.
+  Reescreve o ano: o que ja nao vem (anulado, voltou a rascunho) sai, mas so'
+  depois de a leitura chegar ao fim.
+- **Contam** FT, FR, FS e ND; **NC subtrai**. Recibos nao contam — pagam uma
+  fatura ja contada. A lista esta em `config('moloni.tipos_venda')`.
+- **Despesas** sao os `AccountingDocument` que nao estao `por_rever`: base =
+  `amount_cents - iva_cents`, nota de credito subtrai, recibo nao conta.
+- **Marca das vendas = serie do documento.** O mapa serie → marca fica em
+  `settings` (`moloni.series_marcas`) e edita-se no botao **Series e marcas**.
+  Nao se grava a marca em cada venda de proposito: mudar o mapa corrige o
+  passado sem sincronizar outra vez. Series sem marca contam em "Sem marca" e
+  a pagina avisa.
+- O `net_value` do Moloni e' o total com IVA. O `NormalizadorDocumento`
+  confirma contra `gross_value - descontos` e corrige se vier sem IVA, para o
+  IVA nunca contar duas vezes. Testes em `tests/Unit/ResultadosTest.php`.
+
+Credenciais no `.env` do servidor (`MOLONI_*`, ver `.env.example`), nunca na
+base de dados. O token (1 h) e o refresh (14 dias) ficam na cache.
+
+```bash
+php artisan moloni:sincronizar --teste          # liga, lista empresas e series
+php artisan moloni:sincronizar --ano=2025 --ano=2026   # primeira carga
+```
+
+E' uma vista de gestao, nao a contabilidade: sem salarios, amortizacoes nem
+despesas sem fatura, e assume que todo o IVA das despesas se deduz.

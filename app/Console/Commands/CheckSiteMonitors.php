@@ -149,13 +149,22 @@ class CheckSiteMonitors extends Command
             $code = $response->status();
             $up   = $code >= 200 && $code < 400;
 
+            // 28/09/2026: o WordPress esconde os fatais atras de uma pagina com
+            // HTTP 200 ("There has been a critical error..."), e o monitor dava
+            // o site como "Online". Sao as mesmas marcas que o actualizador ja
+            // usa para decidir que uma actualizacao partiu o site.
+            $marca = $up ? $this->marcaDeErro($response->body()) : null;
+            if ($marca) {
+                $up = false;
+            }
+
             return [
                 'up'        => $up,
                 'http_code' => $code,
                 'total_ms'  => (int) round($acumulado * 1000),
                 'ttfb_ms'   => $ttfb !== null ? (int) round($ttfb * 1000) : null,
                 'final_url' => ($finalUrl && rtrim($finalUrl, '/') !== rtrim($url, '/')) ? $finalUrl : null,
-                'error'     => $up ? null : "HTTP {$code}",
+                'error'     => $up ? null : ($marca ? "Erro na pagina com HTTP {$code}: {$marca}" : "HTTP {$code}"),
             ];
         } catch (\Throwable $e) {
             return [
@@ -167,6 +176,37 @@ class CheckSiteMonitors extends Command
                 'error'     => $this->explicarErro($e->getMessage()),
             ];
         }
+    }
+
+    /**
+     * Marcas de uma pagina de erro servida com 2xx. So frases que nao aparecem
+     * num site saudavel — nada de "error" solto, que qualquer loja tem num
+     * formulario.
+     */
+    private const MARCAS_DE_ERRO = [
+        'There has been a critical error on this website',
+        'Ocorreu um erro crítico neste site',
+        'Ocorreu um erro crítico no site',
+        'Error establishing a database connection',
+        'Erro ao estabelecer uma ligação à base de dados',
+        '<b>Fatal error</b>:',
+        '<b>Parse error</b>:',
+        'wp-die-message',
+    ];
+
+    private function marcaDeErro(string $html): ?string
+    {
+        // So o inicio: uma pagina de erro e curta, e uma loja com 2 MB de HTML
+        // nao precisa de ser percorrida inteira de 5 em 5 minutos.
+        $inicio = substr($html, 0, 200_000);
+
+        foreach (self::MARCAS_DE_ERRO as $marca) {
+            if (stripos($inicio, $marca) !== false) {
+                return strip_tags($marca) ?: $marca;
+            }
+        }
+
+        return null;
     }
 
     /** Transforma a mensagem crua do cURL em algo que se percebe no telemóvel. */

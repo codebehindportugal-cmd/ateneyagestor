@@ -193,3 +193,13 @@ Schedule::command('faturas:importar-email')
     ->withoutOverlapping(30)
     ->skip(fn () => ! config('faturas_email.enabled'))
     ->name('faturas:importar-email');
+
+// Vendas do Moloni para os Resultados (26/09/2026). So' leitura: traz as
+// faturas fechadas do ano para a moloni_documentos. De duas em duas horas
+// chega — os Resultados sao uma vista de gestao, nao de caixa ao minuto — e
+// ha o botao "Sincronizar Moloni" na pagina para quando se quer ja'.
+Schedule::command('moloni:sincronizar')
+    ->cron($safeCron('cron.moloni.cron', '20 */2 * * *'))
+    ->withoutOverlapping(30)
+    ->skip(fn () => ! config('moloni.enabled'))
+    ->name('moloni:sincronizar');

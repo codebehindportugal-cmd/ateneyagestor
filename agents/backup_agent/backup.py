@@ -574,15 +574,52 @@ def run_site(server: dict, site: dict, global_cfg: dict, dry_run: bool) -> dict:
     return result
 
 
-def site_due_today(site: dict, day_of_month: int) -> bool:
+# Um mensal cuja cópia mais recente tenha pelo menos isto é copiado na
+# primeira noite em que o agente correr, seja qual for o dia.
+MENSAL_ATRASADO_DIAS = 28
+
+_SEM_INFO = object()
+
+
+def dias_desde_ultimo_snapshot(site_dir: Path) -> float | None:
     """
-    Um site mensal só corre no dia 1. O cron do agente é diário — é aqui que
+    Idade, em dias, do snapshot mais recente de um site (pelo nome da pasta,
+    AAAA-MM-DD_HHMM, e não pelo mtime, que um rsync ou um restauro mudam).
+    None quando não há nenhum.
+    """
+    if not site_dir.is_dir():
+        return None
+    datas = []
+    for d in site_dir.iterdir():
+        if d.is_dir() and STAMP_RE.match(d.name):
+            try:
+                datas.append(datetime.strptime(d.name[:15], "%Y-%m-%d_%H%M"))
+            except ValueError:
+                continue
+    if not datas:
+        return None
+    return (datetime.now() - max(datas)).total_seconds() / 86400
+
+
+def site_due_today(site: dict, day_of_month: int, dias_desde_ultima=_SEM_INFO) -> bool:
+    """
+    Um site mensal corre no dia 1. O cron do agente é diário — é aqui que
     se decide o que fica para trás, e não no crontab, para a periodicidade
     viver no painel e não espalhada pela máquina.
+
+    28/09/2026: "só no dia 1" não tinha recuperação. A 01/09 o agente estava
+    parado e os mensais ficaram um mês inteiro sem cópia nova, à espera de
+    01/10. Agora, quando se sabe a idade da última cópia, um mensal também
+    corre se não tiver nenhuma ou se a última tiver MENSAL_ATRASADO_DIAS ou
+    mais. Sem essa informação mantém-se a regra antiga.
     """
     freq = str(site.get("frequency") or "daily").lower()
     if freq == "monthly":
-        return day_of_month == 1
+        if day_of_month == 1:
+            return True
+        if dias_desde_ultima is _SEM_INFO:
+            return False
+        return dias_desde_ultima is None or dias_desde_ultima >= MENSAL_ATRASADO_DIAS
     return True
 
 
@@ -814,15 +851,35 @@ def main() -> int:
     # seja qual for a periodicidade.
     if not args.only and not args.ignore_frequency:
         hoje = datetime.now().day
+        # Só se consulta o NAS quando ele está lá: com o disco desmontado
+        # todos os mensais pareciam "nunca copiados". Nesse caso fica a regra
+        # do dia 1, e o assert_backup_root mais abaixo trava a corrida.
+        raiz = global_cfg.get("backup_root")
+        nas_montado = bool(raiz) and Path(raiz).is_dir() and not args.dry_run
         saltados = 0
+        atrasados = 0
         for server in servers:
             todos = server.get("sites") or []
-            devidos = [site for site in todos if site_due_today(site, hoje)]
+            devidos = []
+            for site in todos:
+                if nas_montado:
+                    idade = dias_desde_ultimo_snapshot(Path(raiz) / server["name"] / site["name"])
+                    if site_due_today(site, hoje, idade):
+                        devidos.append(site)
+                        if hoje != 1 and str(site.get("frequency") or "").lower() == "monthly":
+                            atrasados += 1
+                            log.info("Frequência: %s é mensal e está atrasado (%s) — corre hoje.",
+                                     site["name"],
+                                     "sem cópia" if idade is None else f"última há {idade:.0f} dias")
+                elif site_due_today(site, hoje):
+                    devidos.append(site)
             saltados += len(todos) - len(devidos)
             server["sites"] = devidos
         servers = [s for s in servers if s.get("sites")]
         if saltados:
-            log.info("Frequência: %d site(s) mensais saltados (só correm no dia 1).", saltados)
+            log.info("Frequência: %d site(s) mensais saltados (em dia; o próximo é no dia 1).", saltados)
+        if atrasados:
+            log.info("Frequência: %d site(s) mensais atrasados recuperados hoje.", atrasados)
 
     total_sites = sum(len(s.get("sites") or []) for s in servers)
     if not servers or not total_sites:

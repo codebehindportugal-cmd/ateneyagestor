@@ -46,4 +46,10 @@ return [
     */
     'agente_offline_minutos' => (int) env('NTFY_AGENTE_OFFLINE_MINUTOS', 120),
 
+    /* Dias sem relatorio ate um sincronizador que ja reportou ser dado como calado. */
+    'sync_calado_dias' => (int) env('NTFY_SYNC_CALADO_DIAS', 3),
+
+    /* O resumo diario avisa dos certificados que expiram dentro de N dias (0 desliga). */
+    'certificados_dias_aviso' => (int) env('NTFY_CERTIFICADOS_DIAS', 14),
+
 ];

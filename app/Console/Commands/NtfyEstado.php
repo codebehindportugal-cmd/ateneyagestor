@@ -7,6 +7,7 @@ use App\Models\Agent;
 use App\Models\Server;
 use App\Models\SiteMonitor;
 use App\Models\SyncProject;
+use App\Support\Certificado;
 use App\Support\Ntfy;
 use Illuminate\Console\Command;
 
@@ -70,8 +71,50 @@ class NtfyEstado extends Command
             })
             ->values();
 
+        // 28/09/2026: um sincronizador que deixa de reportar ficava "OK" para
+        // sempre (Liberne - Primavera: ultimo relatorio a 24/07, dois meses
+        // depois ainda OK). So os que ja reportaram alguma vez: um que nunca
+        // correu e um sincronizador por instalar, nao uma avaria.
+        $syncsCalados = SyncProject::query()
+            ->where('is_active', true)
+            ->whereNotNull('last_run_at')
+            ->where('last_run_at', '<', now()->subDays((int) config('ntfy.sync_calado_dias', 3)))
+            ->get()
+            ->map(fn (SyncProject $p) => "{$p->name} (ultimo relatorio {$p->last_run_at->format('d/m')})");
+
+        // 28/09/2026: o monitor pede as paginas sem verificar o certificado,
+        // por isso um certificado expirado ou que nao e do dominio passava
+        // como "Online". Uma vez por dia chega: um certificado nao muda de 5
+        // em 5 minutos.
+        $certificados = collect();
+
+        if (config('ntfy.certificados_dias_aviso', 14) > 0) {
+            SiteMonitor::query()
+                ->where('is_active', true)
+                ->where('notify', true)
+                ->where('url', 'like', 'https://%')
+                ->get()
+                ->each(function (SiteMonitor $m) use ($certificados) {
+                    try {
+                        $c = Certificado::verificar($m->url);
+                    } catch (\Throwable) {
+                        return;
+                    }
+
+                    if (! $c) {
+                        return;
+                    }
+
+                    if ($c['problema']) {
+                        $certificados->push("{$m->name}: {$c['problema']}");
+                    } elseif ($c['dias'] !== null && $c['dias'] < (int) config('ntfy.certificados_dias_aviso', 14)) {
+                        $certificados->push("{$m->name}: expira em {$c['dias']} dia(s)");
+                    }
+                });
+        }
+
         $problemas = $sites->count() + $servidores->count() + $syncs->count()
-            + $backups->count() + $mudos->count();
+            + $backups->count() + $mudos->count() + $syncsCalados->count() + $certificados->count();
 
         $link = rtrim((string) config('app.url'), '/') . '/admin';
 
@@ -81,7 +124,7 @@ class NtfyEstado extends Command
             Ntfy::enviar(
                 'teste',
                 'Tudo de pe',
-                'Sites, servidores, sincronizacoes e backups sem problemas, e os agentes a dar sinal.',
+                'Sites, certificados, servidores, sincronizacoes e backups sem problemas, e os agentes a dar sinal.',
                 tags: 'white_check_mark',
                 link: $link,
             );
@@ -105,6 +148,14 @@ class NtfyEstado extends Command
 
         if ($backups->isNotEmpty()) {
             $linhas[] = 'Backups a falhar: ' . $backups->implode(', ');
+        }
+
+        if ($syncsCalados->isNotEmpty()) {
+            $linhas[] = 'Sincronizadores calados: ' . $syncsCalados->implode(', ');
+        }
+
+        if ($certificados->isNotEmpty()) {
+            $linhas[] = 'Certificados: ' . $certificados->implode('; ');
         }
 
         // Primeiro na mensagem: um agente calado e pior do que um backup

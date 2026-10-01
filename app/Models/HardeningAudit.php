@@ -70,6 +70,18 @@ class HardeningAudit extends Model
         ));
     }
 
+    /** Há alguma correcção na fila? Enquanto houver, a página vai-se refrescando. */
+    public function temCorreccoesACorrer(): bool
+    {
+        foreach ($this->resultados ?? [] as $r) {
+            if (! empty($r['a_correr'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function resultado(string $chave): ?array
     {
         foreach ($this->resultados ?? [] as $r) {

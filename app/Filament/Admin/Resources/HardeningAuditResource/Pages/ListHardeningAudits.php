@@ -27,14 +27,11 @@ class ListHardeningAudits extends ListRecords
                         ->required()
                         ->searchable(),
                 ])
-                ->modalDescription('Só lê — nada é alterado no servidor. Demora cerca de um minuto por máquina.')
+                ->modalDescription('Só lê — nada é alterado no servidor. Corre em segundo plano (cerca de um minuto); a página actualiza sozinha.')
                 ->modalSubmitActionLabel('Auditar')
                 ->action(function (array $data) {
                     $auditoria = HardeningAuditResource::auditar(Server::findOrFail($data['server_id']));
-
-                    if ($auditoria->estado !== 'erro') {
-                        $this->redirect(HardeningAuditResource::getUrl('view', ['record' => $auditoria]));
-                    }
+                    $this->redirect(HardeningAuditResource::getUrl('view', ['record' => $auditoria]));
                 }),
 
             Actions\Action::make('auditar_todos')

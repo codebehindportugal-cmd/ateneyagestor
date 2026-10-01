@@ -22,14 +22,25 @@ class AuditoriaEndurecimento
     {
     }
 
-    public function correr(Server $server, string $lancadaPor = 'painel'): HardeningAudit
+    /** Cria a linha "a correr" já, para a página ter para onde ir enquanto a fila trabalha. */
+    public static function nova(Server $server, string $lancadaPor = 'painel'): HardeningAudit
     {
-        $auditoria = HardeningAudit::create([
+        return HardeningAudit::create([
             'server_id'   => $server->id,
             'estado'      => 'pendente',
             'lancada_por' => $lancadaPor,
             'comecou_em'  => now(),
         ]);
+    }
+
+    public function correr(Server $server, string $lancadaPor = 'painel'): HardeningAudit
+    {
+        return $this->correrExistente(self::nova($server, $lancadaPor));
+    }
+
+    public function correrExistente(HardeningAudit $auditoria): HardeningAudit
+    {
+        $server = $auditoria->server;
 
         $verificacoes = CatalogoEndurecimento::para($server);
 
@@ -81,7 +92,9 @@ class AuditoriaEndurecimento
             throw new \RuntimeException('Esta verificação não tem correcção automática.');
         }
 
-        $resposta = $this->ssh->run($server, $verificacao->correcao, timeout: 300);
+        // Um apt-get upgrade numa máquina atrasada passa à vontade dos 5 minutos;
+        // isto corre na fila (CorrigirEndurecimento), que aguenta 15.
+        $resposta = $this->ssh->run($server, $verificacao->correcao, timeout: 840);
 
         return [
             'saida'     => trim((string) $resposta['output']),

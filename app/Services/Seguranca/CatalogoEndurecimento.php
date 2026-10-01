@@ -123,7 +123,9 @@ class CatalogoEndurecimento
                         ? ['estado' => 'ok', 'detalhe' => 'nenhuma pendente']
                         : ['estado' => 'aviso', 'detalhe' => "{$n} actualizações de segurança por instalar"];
                 },
-                correcao: 'apt-get update && apt-get -y upgrade && echo "--- por instalar depois:" && apt-get -s upgrade 2>/dev/null | grep -c "^Inst.*[Ss]ecurity"',
+                // Sem perguntas (um ficheiro de configuração alterado à mão ficava à espera
+                // de resposta) e a acabar primeiro um upgrade que tenha ficado a meio.
+                correcao: 'export DEBIAN_FRONTEND=noninteractive; dpkg --configure -a && apt-get -f install -y && apt-get update && apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade && echo "--- por instalar depois:" && apt-get -s upgrade 2>/dev/null | grep -c "^Inst.*[Ss]ecurity"',
                 perigo: 'Actualizar pode reiniciar serviços (Apache, PHP, MySQL). Há sites a cair durante alguns segundos.',
             ),
 
@@ -201,7 +203,9 @@ class CatalogoEndurecimento
                 label: 'Listagem de pastas ligada',
                 severidade: 'importante',
                 porque: 'Com Indexes ligado, quem entre numa pasta sem index.php vê a lista dos ficheiros todos.',
-                comando: "grep -RhE '^[[:space:]]*Options[^#]*[[:space:]]Indexes' /etc/apache2/apache2.conf /etc/apache2/conf-enabled/ /etc/apache2/sites-enabled/ 2>/dev/null | grep -v -- '-Indexes' | head -5 || echo nenhum",
+                // -H para se ver em que ficheiro está; "[[:space:]+]" apanha "Indexes" e
+                // "+Indexes" mas não "-Indexes".
+                comando: "grep -RHE '^[[:space:]]*Options[^#]*[[:space:]+]Indexes([[:space:]]|$)' /etc/apache2/apache2.conf /etc/apache2/conf-enabled/ /etc/apache2/sites-enabled/ 2>/dev/null | head -10 || echo nenhum",
                 avaliar: function (string $s): array {
                     $s = trim($s);
 
@@ -209,7 +213,8 @@ class CatalogoEndurecimento
                         ? ['estado' => 'ok', 'detalhe' => 'desligada']
                         : ['estado' => 'falha', 'detalhe' => $s];
                 },
-                correcao: self::confApache(),
+                correcao: self::listagemApache(),
+                perigo: 'Mexe nos vhosts (guarda cópia em /root/endurecimento-apache-*). Pastas que mostravam a lista de ficheiros passam a dar 403.',
                 aplicavelComPlesk: false,
             ),
 
@@ -218,7 +223,10 @@ class CatalogoEndurecimento
                 label: 'PHP em modo de produção',
                 severidade: 'importante',
                 porque: 'display_errors mostra caminhos e senhas em páginas de erro; expose_php anuncia a versão em cada resposta.',
-                comando: "for f in /etc/php/*/fpm/php.ini /etc/php/*/apache2/php.ini /opt/plesk/php/*/etc/php.ini; do [ -f \"\$f\" ] && grep -HE '^(expose_php|display_errors)[[:space:]]*=' \"\$f\"; done 2>/dev/null || echo 'sem php.ini'",
+                // 01/10/2026: era "for ...; done || echo 'sem php.ini'" — quando o último
+                // glob não existia (ex.: /opt/plesk/... numa máquina sem Plesk) o for
+                // acabava com código 1 e dava "sem php.ini" mesmo havendo php.ini.
+                comando: "n=0; for f in /etc/php/*/fpm/php.ini /etc/php/*/apache2/php.ini /opt/plesk/php/*/etc/php.ini; do [ -f \"\$f\" ] || continue; n=1; grep -HE '^(expose_php|display_errors)[[:space:]]*=' \"\$f\"; done 2>/dev/null; [ \$n = 1 ] || echo 'sem php.ini'",
                 avaliar: function (string $s): array {
                     $s = trim($s);
 
@@ -370,6 +378,39 @@ class CatalogoEndurecimento
             'sshd -t && (systemctl reload ssh 2>/dev/null || systemctl reload sshd) && sshd -T | grep -i',
             strtolower($chave),
         ]);
+    }
+
+    /**
+     * Desliga a listagem de pastas a sério.
+     *
+     * 01/10/2026: a correcção antiga só acrescentava o zz-endurecimento.conf com
+     * "Options -Indexes" para /var/www/. Isso não chega: o <Directory> de cada
+     * vhost é mais específico e ganha, e o apache2.conf do Ubuntu traz
+     * "Options Indexes FollowSymLinks" de origem — a verificação via-o e dava
+     * "continua a falhar". Agora tira-se o Indexes de cada ficheiro, com cópia
+     * antes, e se o configtest falhar repõe-se tudo.
+     */
+    private static function listagemApache(): string
+    {
+        $regras = self::confApache();
+
+        $limpar = <<<'SHELL'
+        B="/root/endurecimento-apache-$(date +%s)"; mkdir -p "$B"; MUDOU=""
+        for f in /etc/apache2/apache2.conf $(readlink -f /etc/apache2/sites-enabled/* /etc/apache2/conf-enabled/* 2>/dev/null | sort -u); do
+          [ -f "$f" ] || continue
+          grep -qE '^[[:space:]]*Options[^#]*[[:space:]+]Indexes([[:space:]]|$)' "$f" || continue
+          cp -p "$f" "$B/$(echo "$f" | tr / _)"
+          sed -i -E -e '/^[[:space:]]*Options/{s/[[:space:]]\+?Indexes([[:space:]]|$)/\1/g;s/^([[:space:]]*Options)[[:space:]]*$/\1 -Indexes/}' "$f"
+          MUDOU="$MUDOU $f"; echo "tirado Indexes de $f"
+        done
+        if ! apache2ctl configtest; then
+          echo "configtest falhou — a repor as cópias"
+          for f in $MUDOU; do cp -p "$B/$(echo "$f" | tr / _)" "$f"; done
+          exit 1
+        fi
+        SHELL;
+
+        return $limpar."\n".$regras;
     }
 
     /** As nossas regras de Apache, num ficheiro só nosso. Correr outra vez não faz mal. */

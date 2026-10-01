@@ -16,14 +16,22 @@
 @endphp
 
 <x-filament-panels::page>
+    <div @if ($record->estado === 'pendente' || $record->temCorreccoesACorrer()) wire:poll.5s="refrescar" @endif>
 
     <x-filament::section>
         <x-slot name="heading">{{ $record->server?->name }} — {{ $record->server?->host }}</x-slot>
         <x-slot name="description">
-            {{ $record->comecou_em?->format('d/m/Y H:i') }} ·
-            {{ $record->falhas }} por corrigir, {{ $record->avisos }} avisos, de {{ $record->total }} verificações
-            @if ($record->server?->hasPlesk())
-                · <em>máquina com Plesk: as verificações de Apache e firewall ficam de fora, porque a configuração é do painel</em>
+            @if ($record->estado === 'pendente')
+                A auditar em segundo plano desde {{ $record->comecou_em?->format('H:i') }}… (esta página actualiza sozinha)
+                @if ($record->comecou_em && $record->comecou_em->lt(now()->subMinutes(15)))
+                    <br><span style="color: rgb(190 18 60);">Há mais de 15 minutos sem resultado: o worker da fila (laravel-queue) está a correr no servidor?</span>
+                @endif
+            @else
+                {{ $record->comecou_em?->format('d/m/Y H:i') }} ·
+                {{ $record->falhas }} por corrigir, {{ $record->avisos }} avisos, de {{ $record->total }} verificações
+                @if ($record->server?->hasPlesk())
+                    · <em>máquina com Plesk: as verificações de Apache e firewall ficam de fora, porque a configuração é do painel</em>
+                @endif
             @endif
         </x-slot>
 
@@ -53,10 +61,19 @@
                             @elseif (filled($r['detalhe']))
                                 <p class="text-sm text-gray-500" style="margin-top: .35rem;">{{ \Illuminate\Support\Str::limit($r['detalhe'], 120) }}</p>
                             @endif
+
+                            @if (filled($r['saida'] ?? null))
+                                <details style="margin-top: .5rem;">
+                                    <summary class="text-sm text-gray-600" style="cursor: pointer;">Saída da última correcção ({{ $r['corrigido_em'] ?? '' }}{{ isset($r['saida_codigo']) ? ', código '.$r['saida_codigo'] : '' }})</summary>
+                                    <pre style="white-space: pre-wrap; word-break: break-all; font-size: .72rem; background: rgb(248 250 252); padding: .5rem .6rem; border-radius: .375rem; margin-top: .35rem; max-height: 20rem; overflow: auto;">{{ $r['saida'] }}</pre>
+                                </details>
+                            @endif
                         </div>
 
                         <div>
-                            @if (filled($r['correcao'] ?? null) && $r['estado'] !== 'ok')
+                            @if (! empty($r['a_correr']))
+                                <span class="text-sm" style="color: rgb(180 83 9);">A corrigir…</span>
+                            @elseif (filled($r['correcao'] ?? null) && $r['estado'] !== 'ok')
                                 {{ ($this->corrigirAction)(['chave' => $r['chave']]) }}
                             @elseif (blank($r['correcao'] ?? null) && $r['estado'] === 'falha')
                                 <span class="text-sm text-gray-500">à mão</span>
@@ -67,6 +84,8 @@
             @endforeach
         </div>
     </x-filament::section>
+
+    </div>
 
     <x-filament-actions::modals />
 

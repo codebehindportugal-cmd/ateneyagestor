@@ -769,6 +769,7 @@ class CatalogoVelocidade
                 return ['estado' => 'falha', 'detalhe' => 'Nenhum plugin de cache de página activo.' . $woo];
             },
             correcao: self::script($site, <<<'SH'
+            WP_ERROS=1
             activos=" $(WP plugin list --status=active --field=name | tr '\n' ' ') "
             for p in wp-super-cache w3-total-cache wp-fastest-cache litespeed-cache wp-rocket breeze sg-cachepress comet-cache; do
               case "$activos" in *" $p "*) echo "Já há outro plugin de cache activo ($p): não instalo um segundo."; exit 1;; esac
@@ -915,6 +916,7 @@ class CatalogoVelocidade
                     : 'Sem object cache. Liga primeiro o Redis na máquina (verificação "Redis").'];
             },
             correcao: self::script($site, <<<'SH'
+            WP_ERROS=1
             systemctl is-active --quiet redis-server || { echo 'O Redis não está a correr: corrige primeiro a verificação "Redis" da máquina.'; exit 1; }
             WP config set WP_REDIS_PREFIX '{{DOM}}:' --type=constant
             WP config set WP_CACHE_KEY_SALT '{{DOM}}:' --type=constant
@@ -948,6 +950,7 @@ class CatalogoVelocidade
                 };
             },
             correcao: self::script($site, <<<'SH'
+            WP_ERROS=1
             (crontab -u "$U" -l 2>/dev/null | grep -v -- "--path=$P"; echo "*/5 * * * * $PHPBIN_ $WPBIN_ --path=$P cron event run --due-now --quiet >/dev/null 2>&1") | crontab -u "$U" - || exit 1
             WP config set DISABLE_WP_CRON true --raw --type=constant
             echo "cron do sistema de 5 em 5 min para $P (utilizador $U)"
@@ -971,7 +974,10 @@ class CatalogoVelocidade
                     return $r;
                 }
                 $v = self::chaves($s);
-                $kb = (int) ($v['total_kb'] ?? 0);
+                if (! is_numeric($v['total_kb'] ?? null)) {
+                    return ['estado' => 'aviso', 'detalhe' => 'O WP-CLI não conseguiu ler a base de dados deste site — vê a verificação "Plugins activos" para o erro.'];
+                }
+                $kb = (int) $v['total_kb'];
                 $det = "{$kb} KB em autoload. Maiores:\n" . trim(preg_replace('/^total_kb=.*$/m', '', $s));
 
                 return match (true) {
@@ -989,10 +995,10 @@ class CatalogoVelocidade
             severidade: 'info',
             porque: 'Cada plugin corre em cada página que não vem da cache. Muitos plugins (ou construtores pesados) pesam no tempo de resposta.',
             comando: self::script($site, <<<'SH'
-            WP plugin list --status=active --field=name | tr '\n' ' '
+            r=$(WP_ERROS=1 WP plugin list --status=active --field=name) && echo "$r" | grep -v '^\(PHP \)\?\(Warning\|Notice\|Deprecated\)' | tr '\n' ' ' || { echo 'WP-FALHOU'; echo "$r" | tail -5; }
             SH),
             avaliar: function (string $s): array {
-                if ($r = self::semWp($s)) {
+                if ($r = self::semWp($s) ?? self::wpFalhou($s)) {
                     return $r;
                 }
                 $nomes = preg_split('/\s+/', trim($s), -1, PREG_SPLIT_NO_EMPTY) ?: [];
@@ -1040,7 +1046,16 @@ class CatalogoVelocidade
             U=$(stat -c %U "$P")
             WPBIN_=$(command -v wp)
             PHPBIN_=$(command -v php 2>/dev/null || ls -1 /opt/plesk/php/*/bin/php 2>/dev/null | sort -V | tail -1)
-            WP() { runuser -u "$U" -- env HOME=/tmp "$PHPBIN_" "$WPBIN_" --path="$P" --allow-root "$@" 2>/dev/null; }
+            # Nas verificações o stderr do WP-CLI vai fora (avisos de plugins sujavam a
+            # saída). Nas correcções e quando se põe WP_ERROS=1 aparece — sem isto uma
+            # correcção falhava com "código 1" sem se saber porquê (01/10/2026).
+            WP() {
+              if [ -n "$WP_ERROS" ]; then
+                runuser -u "$U" -- env HOME=/tmp "$PHPBIN_" "$WPBIN_" --path="$P" --allow-root "$@" 2>&1
+              else
+                runuser -u "$U" -- env HOME=/tmp "$PHPBIN_" "$WPBIN_" --path="$P" --allow-root "$@" 2>/dev/null
+              fi
+            }
             SH;
         }
 
@@ -1059,6 +1074,20 @@ class CatalogoVelocidade
             str_contains($s, 'SEM-WP')    => ['estado' => 'aviso', 'detalhe' => 'Não encontrei o WordPress deste site na máquina. Preenche o "wp_root" na ficha do site.'],
             default                       => null,
         };
+    }
+
+    /**
+     * O WP-CLI correu mas o WordPress não arrancou (erro de PHP, base de dados,
+     * versão do PHP da linha de comandos diferente da do site…). Antes isto
+     * aparecia como "0 plugins activos — Bem".
+     */
+    private static function wpFalhou(string $s): ?array
+    {
+        if (! str_contains($s, 'WP-FALHOU')) {
+            return null;
+        }
+
+        return ['estado' => 'falha', 'detalhe' => "O WordPress não arranca pelo WP-CLI, por isso nenhuma verificação nem correcção deste site funciona:\n" . trim(str_replace('WP-FALHOU', '', $s))];
     }
 
     /** Lê linhas "chave=valor" da saída. */

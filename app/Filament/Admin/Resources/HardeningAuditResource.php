@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources;
 use App\Filament\Admin\Resources\HardeningAuditResource\Pages;
 use App\Models\HardeningAudit;
 use App\Models\Server;
+use App\Jobs\CorrerAuditoriaEndurecimento;
 use App\Services\Seguranca\AuditoriaEndurecimento;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -87,26 +88,20 @@ class HardeningAuditResource extends Resource
     }
 
     /** Usada pela listagem e pela ficha do servidor. */
+    /**
+     * Cria a auditoria "a correr" e manda-a para a fila. Antes corria dentro do
+     * pedido web e, com o apt-get update de algumas máquinas, dava 504.
+     */
     public static function auditar(Server $servidor, string $lancadaPor = 'painel'): HardeningAudit
     {
-        // As verificações passam por um apt-get update; num VPS lento isso
-        // ultrapassa à vontade o tempo normal de um pedido web.
-        @set_time_limit(0);
+        $auditoria = AuditoriaEndurecimento::nova($servidor, $lancadaPor);
+        CorrerAuditoriaEndurecimento::dispatch($servidor, $lancadaPor, $auditoria);
 
-        $auditoria = app(AuditoriaEndurecimento::class)->correr($servidor, $lancadaPor);
-
-        if ($auditoria->estado === 'erro') {
-            Notification::make()
-                ->title("Não deu para auditar {$servidor->name}")
-                ->body($auditoria->erro)
-                ->danger()
-                ->send();
-        } else {
-            Notification::make()
-                ->title("{$servidor->name}: {$auditoria->falhas} por corrigir, {$auditoria->avisos} avisos")
-                ->color($auditoria->falhas > 0 ? 'danger' : 'success')
-                ->send();
-        }
+        Notification::make()
+            ->title("{$servidor->name} na fila")
+            ->body('A página actualiza sozinha quando a auditoria acabar.')
+            ->info()
+            ->send();
 
         return $auditoria;
     }

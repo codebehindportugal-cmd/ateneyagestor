@@ -3,7 +3,7 @@
 namespace App\Filament\Admin\Resources\HardeningAuditResource\Pages;
 
 use App\Filament\Admin\Resources\HardeningAuditResource;
-use App\Services\Seguranca\AuditoriaEndurecimento;
+use App\Jobs\CorrigirEndurecimento;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
@@ -20,18 +20,22 @@ class ViewHardeningAudit extends ViewRecord
         return 'Endurecimento — '.($this->record->server?->name ?? '');
     }
 
+    /** Enquanto a auditoria ou uma correcção corre na fila, a página vai-se refrescando. */
+    public function refrescar(): void
+    {
+        $this->record->refresh();
+    }
+
     protected function getHeaderActions(): array
     {
         return [
             Actions\Action::make('reauditar')
                 ->label('Auditar outra vez')
                 ->icon('heroicon-m-arrow-path')
+                ->disabled(fn () => $this->record->estado === 'pendente')
                 ->action(function () {
                     $nova = HardeningAuditResource::auditar($this->record->server);
-
-                    if ($nova->estado !== 'erro') {
-                        $this->redirect(HardeningAuditResource::getUrl('view', ['record' => $nova]));
-                    }
+                    $this->redirect(HardeningAuditResource::getUrl('view', ['record' => $nova]));
                 }),
         ];
     }
@@ -70,32 +74,19 @@ class ViewHardeningAudit extends ViewRecord
             })
             ->modalSubmitActionLabel('Correr no servidor')
             ->action(function (array $arguments) {
-                @set_time_limit(0);
+                $chave = $arguments['chave'];
+                $linha = $this->record->resultado($chave) ?? [];
 
-                try {
-                    $resposta = app(AuditoriaEndurecimento::class)
-                        ->corrigir($this->record->server, $arguments['chave']);
-                } catch (\Throwable $e) {
-                    Notification::make()
-                        ->title('A correcção falhou')
-                        ->body($e->getMessage())
-                        ->danger()
-                        ->persistent()
-                        ->send();
-
-                    return;
-                }
-
-                $this->record->substituirResultado($arguments['chave'], $resposta['resultado']);
+                // Marca a linha como "a corrigir" e manda para a fila; a página
+                // actualiza-se sozinha e mostra a saída quando acabar.
+                $this->record->substituirResultado($chave, ['a_correr' => true] + $linha);
+                CorrigirEndurecimento::dispatch($this->record->fresh(), $chave);
                 $this->record->refresh();
 
-                $ficouBem = $resposta['resultado']['estado'] === 'ok';
-
                 Notification::make()
-                    ->title($ficouBem ? 'Corrigido' : 'Correu, mas continua a falhar')
-                    ->body(str($resposta['saida'])->limit(400)->toString())
-                    ->color($ficouBem ? 'success' : 'warning')
-                    ->persistent()
+                    ->title('A corrigir em segundo plano')
+                    ->body('A linha actualiza sozinha quando acabar, com a saída completa do servidor.')
+                    ->info()
                     ->send();
             });
     }

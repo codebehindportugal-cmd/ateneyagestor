@@ -52,4 +52,7 @@ return [
     /* O resumo diario avisa dos certificados que expiram dentro de N dias (0 desliga). */
     'certificados_dias_aviso' => (int) env('NTFY_CERTIFICADOS_DIAS', 14),
 
+    /* Um backup com menos do que esta percentagem da copia anterior do mesmo site gera aviso. */
+    'backup_encolhe_percent' => (int) env('NTFY_BACKUP_ENCOLHE_PERCENT', 50),
+
 ];

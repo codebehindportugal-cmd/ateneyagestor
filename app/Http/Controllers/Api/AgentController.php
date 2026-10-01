@@ -104,6 +104,8 @@ class AgentController extends Controller
 
         $stored = 0;
         $skipped = [];
+        $encolhidos = [];
+        $limite = max(1, min(99, (int) config('ntfy.backup_encolhe_percent', 50))) / 100;
 
         foreach ($data['results'] as $result) {
             $site = Site::where('name', $result['name'])->first();
@@ -115,12 +117,40 @@ class AgentController extends Controller
                 continue;
             }
 
+            // 29/09/2026: um backup que caia de 5,6 GB para 50 MB contava
+            // como Sucesso e ninguem dava por isso. Compara-se com a ultima
+            // copia boa do mesmo site; fica Sucesso (o ficheiro chegou), mas
+            // com a razao escrita no erro e um aviso no telemovel. Como a
+            // comparacao e sempre com a anterior, um site que fique pequeno
+            // de proposito so avisa uma vez.
+            $erro = $result['error'] ?? null;
+            $tamanho = (int) ($result['size_bytes'] ?? 0);
+
+            if ($result['success'] && $site && $tamanho > 0) {
+                $anterior = BackupRun::query()
+                    ->where('site_id', $site->id)
+                    ->where('status', BackupStatus::Success)
+                    ->where('size_bytes', '>', 0)
+                    ->latest('id')
+                    ->value('size_bytes');
+
+                if ($anterior && $tamanho < $anterior * $limite) {
+                    $aviso = sprintf(
+                        'Aviso: copia com %s, a anterior tinha %s',
+                        $this->tamanhoLegivel($tamanho),
+                        $this->tamanhoLegivel((int) $anterior),
+                    );
+                    $erro = trim($aviso . ($erro ? " | {$erro}" : ''));
+                    $encolhidos[] = "{$site->name}: " . $this->tamanhoLegivel((int) $anterior) . ' -> ' . $this->tamanhoLegivel($tamanho);
+                }
+            }
+
             BackupRun::create([
                 'server_id'   => $server?->id,
                 'site_id'     => $site?->id,
                 'agent_id'    => $agent->id,
                 'status'      => $result['success'] ? BackupStatus::Success : BackupStatus::Failed,
-                'error'       => $result['error'] ?? null,
+                'error'       => $erro,
                 'started_at'  => $result['started_at'] ?? null,
                 'finished_at' => $result['finished_at'] ?? null,
                 'size_bytes'  => $result['size_bytes'] ?? null,
@@ -148,6 +178,15 @@ class AgentController extends Controller
         ])->save();
 
         $this->avisar($agent, $falhasAnteriores, $failed, $total, $data['results']);
+
+        if ($encolhidos) {
+            Ntfy::falhou(
+                'backups',
+                count($encolhidos) === 1 ? 'Backup muito mais pequeno' : count($encolhidos) . ' backups muito mais pequenos',
+                implode("\n", array_slice($encolhidos, 0, 5)) . "\nConfirmar se a copia esta completa.",
+                rtrim((string) config('app.url'), '/') . '/admin/backup-runs',
+            );
+        }
 
         if ($failed > 0) {
             Log::warning("Agent '{$agent->slug}' reportou {$failed} de {$total} backups falhados");
@@ -200,6 +239,13 @@ class AgentController extends Controller
         $agent->markOnline();
 
         return response()->json(['status' => 'ok']);
+    }
+
+    private function tamanhoLegivel(int $bytes): string
+    {
+        return $bytes >= 1073741824
+            ? number_format($bytes / 1073741824, 1, ',', '') . ' GB'
+            : number_format($bytes / 1048576, 1, ',', '') . ' MB';
     }
 
     /**

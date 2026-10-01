@@ -29,7 +29,8 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             // Perfil: é aqui que cada pessoa muda a sua password. Sem isto, um
             // estagiário ficava preso à password temporária com que foi criado.
-            ->profile(isSimple: false)
+            // 29/09/2026: pagina propria, com o botao da chave da API de faturas.
+            ->profile(\App\Filament\Admin\Pages\Auth\EditProfile::class, isSimple: false)
             ->brandName('Gestao Ateneya')
             ->brandLogo(asset('images/ateneya-logo.jpg'))
             ->brandLogoHeight('2.5rem')

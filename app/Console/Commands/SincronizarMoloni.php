@@ -59,7 +59,7 @@ class SincronizarMoloni extends Command
         ], $empresas));
 
         $empresa = $cliente->empresaId();
-        $this->line("A usar a empresa {$empresa}".(config('moloni.company_id') ? '' : ' (a primeira; fixa com MOLONI_COMPANY_ID)').'.');
+        $this->line("A usar a empresa {$empresa}".((\App\Services\Moloni\MoloniConfig::todas()['company_id'] ?? null) ? '' : ' (a primeira; fixa-a em Contabilidade > Moloni)').'.');
 
         $this->table(['document_set_id', 'Serie'], array_map(fn ($s) => [
             $s['document_set_id'] ?? '', $s['name'] ?? '',

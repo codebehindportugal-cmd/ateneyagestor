@@ -31,7 +31,7 @@
             <p class="text-xs text-gray-500 dark:text-gray-400 ml-auto">
                 @if (! $moloniLigado)
                     <span class="text-warning-600 dark:text-warning-400">Moloni não configurado — as vendas estão a zero.</span>
-                    Ver <code>MOLONI_*</code> no .env.
+                    <a href="{{ \App\Filament\Admin\Pages\MoloniPage::getUrl() }}" class="text-primary-600 hover:underline">Ligar o Moloni</a>.
                 @elseif ($ultimaSync)
                     Moloni sincronizado {{ $ultimaSync->diffForHumans() }} ({{ $ultimaSync->format('d/m H:i') }}).
                 @else

@@ -501,8 +501,16 @@ entregar, com filtro por ano e por marca.
   confirma contra `gross_value - descontos` e corrige se vier sem IVA, para o
   IVA nunca contar duas vezes. Testes em `tests/Unit/ResultadosTest.php`.
 
-Credenciais no `.env` do servidor (`MOLONI_*`, ver `.env.example`), nunca na
-base de dados. O token (1 h) e o refresh (14 dias) ficam na cache.
+Credenciais na pagina **Contabilidade > Moloni** (`MoloniPage`, so' admin),
+guardadas em `settings` com o client secret e a password cifrados com a
+`APP_KEY` — quem tem so' a base de dados nao as le. O `.env` (`MOLONI_*`) fica
+como reserva: so' vale para o que a pagina tiver vazio, por isso um servidor
+que ja tinha tudo no `.env` continua igual. Tudo passa por
+`App\Services\Moloni\MoloniConfig::todas()` — nunca ler `config('moloni.…')`
+direto para credenciais ou para o `enabled`. Mudar a APP_KEY obriga a voltar a
+pôr os dois segredos na pagina. Gravar limpa os tokens em cache.
+
+O token (1 h) e o refresh (14 dias) ficam na cache.
 
 ```bash
 php artisan moloni:sincronizar --teste          # liga, lista empresas e series

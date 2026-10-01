@@ -201,5 +201,5 @@ Schedule::command('faturas:importar-email')
 Schedule::command('moloni:sincronizar')
     ->cron($safeCron('cron.moloni.cron', '20 */2 * * *'))
     ->withoutOverlapping(30)
-    ->skip(fn () => ! config('moloni.enabled'))
+    ->skip(fn () => ! \App\Services\Moloni\MoloniConfig::ligado())
     ->name('moloni:sincronizar');

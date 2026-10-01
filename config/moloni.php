@@ -10,9 +10,12 @@ return [
     | O painel vai ao Moloni buscar as faturas emitidas (so' leitura) para as
     | pôr ao lado das despesas em Contabilidade > Resultados.
     |
-    | As credenciais ficam no .env do servidor, nunca na base de dados. O
-    | client_id e o client_secret sao os de programador (moloni.pt/dev); o
-    | utilizador e a password sao os de uma conta com acesso a empresa.
+    | 01/10/2026: as credenciais poem-se na pagina Contabilidade > Moloni
+    | (tabela settings, segredos cifrados com a APP_KEY). Os valores daqui
+    | (.env) ficam como reserva: so' valem para o que a pagina tiver vazio.
+    | Ver App\Services\Moloni\MoloniConfig. O client_id e o client_secret
+    | sao os de programador (moloni.pt/dev); o utilizador e a password sao os
+    | de uma conta com acesso a empresa.
     |
     */
 

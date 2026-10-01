@@ -8,6 +8,7 @@ use App\Models\MoloniDocumento;
 use App\Models\Setting;
 use App\Services\Contabilidade\Resultados;
 use App\Services\Moloni\MoloniClient;
+use App\Services\Moloni\MoloniConfig;
 use App\Services\Moloni\MoloniException;
 use App\Services\Moloni\SincronizadorMoloni;
 use Filament\Actions\Action;
@@ -71,7 +72,7 @@ class ResultadosPage extends Page
             'marcas'         => Brand::selectOptions(),
             'categorias'     => AccountingDocument::categories(),
             'meses'          => array_map(fn ($m) => AccountingDocument::monthName($m), range(1, 12)),
-            'moloniLigado'   => (bool) config('moloni.enabled') && MoloniClient::daConfig()->configurado(),
+            'moloniLigado'   => MoloniConfig::ligado() && MoloniClient::daConfig()->configurado(),
             'ultimaSync'     => $ultima ? Carbon::parse($ultima)->timezone('Europe/Lisbon') : null,
             'seriesSemMarca' => array_diff_key($series, $mapa),
         ];
@@ -179,7 +180,7 @@ class ResultadosPage extends Page
         $series = MoloniDocumento::seriesConhecidas();
 
         $cliente = MoloniClient::daConfig();
-        if (config('moloni.enabled') && $cliente->configurado()) {
+        if (MoloniConfig::ligado() && $cliente->configurado()) {
             try {
                 foreach ($cliente->series($cliente->empresaId()) as $s) {
                     $id = (int) ($s['document_set_id'] ?? 0);

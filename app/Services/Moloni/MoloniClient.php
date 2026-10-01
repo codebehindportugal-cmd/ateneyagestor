@@ -23,7 +23,8 @@ class MoloniClient
 
     public static function daConfig(): self
     {
-        return new self((array) config('moloni'));
+        // A página Contabilidade > Moloni por cima do .env (ver MoloniConfig).
+        return new self(MoloniConfig::todas());
     }
 
     public function configurado(): bool
@@ -96,7 +97,7 @@ class MoloniClient
     public function chamar(string $endpoint, array $parametros = []): array
     {
         if (! $this->configurado()) {
-            throw new MoloniException('Faltam as credenciais do Moloni no .env (MOLONI_CLIENT_ID, MOLONI_CLIENT_SECRET, MOLONI_USERNAME, MOLONI_PASSWORD).');
+            throw new MoloniException('Faltam as credenciais do Moloni: preenche-as em Contabilidade > Moloni.');
         }
 
         $resposta = $this->pedido($endpoint, $parametros, $this->accessToken());

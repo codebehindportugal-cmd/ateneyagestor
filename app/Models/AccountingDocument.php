@@ -43,6 +43,10 @@ class AccountingDocument extends Model
         'email_assunto',
         'email_recebido_em',
         'ficheiro_hash',
+        'viatura',
+        'enviado_marca_em',
+        'enviado_marca_ref',
+        'enviado_marca_erro',
     ];
 
     protected function casts(): array
@@ -58,6 +62,7 @@ class AccountingDocument extends Model
             'image_names'  => 'array',
             'importado_contabilidade' => 'boolean',
             'importado_em'      => 'datetime',
+            'enviado_marca_em'  => 'datetime',
             'email_recebido_em' => 'datetime',
         ];
     }
@@ -133,6 +138,19 @@ class AccountingDocument extends Model
                 $model->year  = $model->date->year;
                 $model->month = $model->date->month;
             }
+
+            if ($model->isDirty('viatura')) {
+                $model->viatura = filled($model->viatura) ? strtoupper(trim($model->viatura)) : null;
+            }
+        });
+
+        // 01/10/2026: quando sai de "por rever" e a marca tem painel próprio
+        // (Horta da Maria → gestao.hortadamaria.com), segue para lá como
+        // despesa. Depois da transacção, para o job ver o documento gravado.
+        static::saved(function (self $model) {
+            if (\App\Services\Contabilidade\EnvioDespesaMarca::deveSeguir($model->loadMissing('brand'))) {
+                \App\Jobs\EnviarDespesaParaMarca::dispatch($model)->afterCommit();
+            }
         });
     }
 
@@ -202,6 +220,7 @@ class AccountingDocument extends Model
             'formacao'       => 'Formação',
             'mercadorias'    => 'Mercadorias para revenda',
             'rph'            => 'Rec. Honorários',
+            'ordenados'      => 'Ordenados (recibos de vencimento)',
             'outros'         => 'Outros',
         ];
     }

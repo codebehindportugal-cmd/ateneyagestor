@@ -139,6 +139,12 @@ class AccountingDocumentResource extends Resource
                         ->default('outros')
                         ->required(),
 
+                    Forms\Components\TextInput::make('viatura')
+                        ->label('Viatura (matrícula)')
+                        ->maxLength(20)
+                        ->placeholder('AL-71-JG')
+                        ->helperText('Combustível, portagens, reparações: o custo vai para esse carro no painel da marca.'),
+
                     Forms\Components\Select::make('currency')
                         ->label('Moeda')
                         ->options(['EUR' => 'EUR €', 'USD' => 'USD $', 'GBP' => 'GBP £'])
@@ -330,6 +336,15 @@ class AccountingDocumentResource extends Resource
                     ->badge()
                     ->color('primary')
                     ->placeholder('—')
+                    // Se a marca tem painel próprio, diz se a despesa já lá chegou.
+                    ->description(fn (AccountingDocument $record) => match (true) {
+                        $record->brand?->recebeDespesas() !== true => null,
+                        $record->enviado_marca_em !== null        => 'No painel da marca ' . $record->enviado_marca_em->format('d/m'),
+                        filled($record->enviado_marca_erro)       => 'Envio falhou',
+                        $record->estado === 'por_rever'           => 'Segue depois de revista',
+                        default                                   => 'A enviar…',
+                    })
+                    ->tooltip(fn (AccountingDocument $record) => $record->enviado_marca_erro)
                     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('importado_contabilidade')
@@ -447,6 +462,25 @@ class AccountingDocumentResource extends Resource
                     ->modalDescription('Passa a Pendente e fica visível para o contabilista. Confirma que os valores estão certos.')
                     ->visible(fn (AccountingDocument $record) => $record->estado === 'por_rever')
                     ->action(fn (AccountingDocument $record) => $record->update(['estado' => 'pendente'])),
+
+                // Volta a mandar para o painel da marca: depois de uma falha,
+                // ou quando se corrigiu o documento. Do outro lado o mesmo
+                // documento não entra duas vezes.
+                Tables\Actions\Action::make('enviarMarca')
+                    ->label('Enviar para a marca')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->color('gray')
+                    ->visible(fn (AccountingDocument $record) => $record->brand?->recebeDespesas() === true
+                        && $record->estado !== 'por_rever'
+                        && ($record->enviado_marca_em === null || filled($record->enviado_marca_erro)))
+                    ->action(function (AccountingDocument $record) {
+                        try {
+                            app(\App\Services\Contabilidade\EnvioDespesaMarca::class)->enviar($record->loadMissing('brand'));
+                            Notification::make()->title('Enviada para ' . $record->brand->name)->success()->send();
+                        } catch (\Throwable $e) {
+                            Notification::make()->title('Não deu para enviar')->body($e->getMessage())->danger()->persistent()->send();
+                        }
+                    }),
 
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),

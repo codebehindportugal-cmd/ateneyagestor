@@ -519,3 +519,23 @@ php artisan moloni:sincronizar --ano=2025 --ano=2026   # primeira carga
 
 E' uma vista de gestao, nao a contabilidade: sem salarios, amortizacoes nem
 despesas sem fatura, e assume que todo o IVA das despesas se deduz.
+
+## Despesas que seguem para o painel da marca
+
+Uma fatura da Horta da Maria entra aqui (email, API, à mão) e, quando deixa de
+estar `por_rever`, segue sozinha para a **gestao.hortadamaria.com** como
+despesa — não se lança duas vezes. Serve para qualquer marca:
+
+| | |
+|---|---|
+| Ficha da marca | **Despesas para o painel da marca**: endereço e chave da API de faturas do painel dela (`despesas_api_token`, cifrado com a APP_KEY). Vazio = fica só aqui |
+| Quando | `AccountingDocument::saved` → `EnvioDespesaMarca::deveSeguir()` → job `EnviarDespesaParaMarca` na fila (4 tentativas: 1 min, 10 min, 1 h) |
+| O quê | `POST /api/v1/faturas` com uma linha (total sem IVA à taxa que o IVA dá, e o total com IVA à parte) e depois o PDF em `/faturas/{id}/ficheiro` |
+| Duplicados | vai com `origem=gestao.ateneya.com` e `origem_ref=<id>`; lá o mesmo par devolve a despesa existente. Os recibos de vencimento não têm número — é por isso |
+| Categorias | `EnvioDespesaMarca::CATEGORIAS` traduz para as da `Despesa` de lá; `viaturas` de fornecedores de portagens (Via Verde, Brisa…) vai como `portagens` |
+| Viatura | campo `viatura` (matrícula) no documento; lá encontra o carro escrito de qualquer maneira e soma no custo dele |
+
+Na tabela dos documentos a coluna Marca diz se já chegou ("No painel da marca
+dd/mm", "Envio falhou" com a razão no tooltip) e há o botão **Enviar para a
+marca** para repetir. Depois de enviado, editar o documento aqui **não** muda a
+despesa de lá — corrige-se lá.

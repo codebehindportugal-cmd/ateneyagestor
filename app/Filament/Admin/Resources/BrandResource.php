@@ -49,6 +49,30 @@ class BrandResource extends Resource
                         ->default(true),
                 ]),
 
+            // 01/10/2026: as faturas desta marca seguem para o painel dela
+            // (Horta da Maria → gestao.hortadamaria.com) quando saem de
+            // "por rever". Ver App\Services\Contabilidade\EnvioDespesaMarca.
+            Forms\Components\Section::make('Despesas para o painel da marca')
+                ->description('Se a marca tem painel próprio, as faturas dela seguem para lá como despesas quando deixam de estar "Por rever". Vazio = ficam só aqui.')
+                ->columns(2)
+                ->collapsible()
+                ->schema([
+                    Forms\Components\TextInput::make('despesas_api_url')
+                        ->label('Endereço do painel')
+                        ->url()
+                        ->placeholder('https://gestao.hortadamaria.com')
+                        ->helperText('Só o endereço; o caminho /api/v1/faturas é posto pelo painel.'),
+                    Forms\Components\TextInput::make('despesas_api_token')
+                        ->label('Chave da API')
+                        ->password()
+                        ->revealable()
+                        ->autocomplete('new-password')
+                        ->formatStateUsing(fn () => null)
+                        ->dehydrated(fn ($state) => filled($state))
+                        ->placeholder(fn ($record) => filled($record?->despesas_api_token) ? '•••••••• (guardada — deixa vazio para manter)' : '')
+                        ->helperText('O token da API de faturas do painel da marca. Fica cifrado.'),
+                ]),
+
             Forms\Components\Section::make('Logo')
                 ->schema([
                     Forms\Components\FileUpload::make('logo_path')

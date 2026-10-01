@@ -14,11 +14,27 @@ class Brand extends Model
         'color',
         'is_active',
         'parent_brand_id',
+        'despesas_api_url',
+        'despesas_api_token',
     ];
+
+    protected $hidden = ['despesas_api_token'];
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return [
+            'is_active'          => 'boolean',
+            'despesas_api_token' => 'encrypted',
+        ];
+    }
+
+    /**
+     * Esta marca tem painel próprio que recebe as despesas dela (01/10/2026)?
+     * Ver App\Services\Contabilidade\EnvioDespesaMarca.
+     */
+    public function recebeDespesas(): bool
+    {
+        return filled($this->despesas_api_url) && filled($this->despesas_api_token);
     }
 
     public function parent(): BelongsTo

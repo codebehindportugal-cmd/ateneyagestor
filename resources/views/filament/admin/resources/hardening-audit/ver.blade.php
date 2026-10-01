@@ -7,6 +7,11 @@
         ->sortBy(fn ($r) => ($ordem[$r['estado']] ?? 9).'-'.($r['severidade'] === 'critica' ? '0' : '1'))
         ->values();
 
+    // 01/10/2026: o que está bem vai para uma lista compacta no fim — eram
+    // catorze cartões iguais a empurrar para baixo o que interessa.
+    $bem = $resultados->filter(fn ($r) => $r['estado'] === 'ok' && empty($r['saida']) && empty($r['a_correr']))->values();
+    $resultados = $resultados->reject(fn ($r) => $r['estado'] === 'ok' && empty($r['saida']) && empty($r['a_correr']))->values();
+
     $cores = [
         'falha' => ['rgb(190 18 60)', 'Por corrigir'],
         'aviso' => ['rgb(180 83 9)', 'Aviso'],
@@ -83,6 +88,18 @@
                 </div>
             @endforeach
         </div>
+
+        @if ($bem->isNotEmpty())
+            <details class="ad-bem" style="margin-top: 1rem;">
+                <summary>Bem — {{ $bem->count() }} {{ $bem->count() === 1 ? 'verificação' : 'verificações' }}</summary>
+                @foreach ($bem as $r)
+                    <div class="ad-bem-linha">
+                        <span>{{ $r['label'] }}</span>
+                        <span>{{ \Illuminate\Support\Str::limit($r['detalhe'] ?? '', 80) }}</span>
+                    </div>
+                @endforeach
+            </details>
+        @endif
     </x-filament::section>
 
     </div>

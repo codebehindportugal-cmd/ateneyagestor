@@ -34,7 +34,7 @@ class ServerResource extends Resource
 
     protected static ?string $pluralModelLabel = 'servidores';
 
-    protected static ?string $navigationGroup = 'Operação';
+    protected static ?string $navigationGroup = 'Infraestrutura';
 
     protected static ?int $navigationSort = 1;
 

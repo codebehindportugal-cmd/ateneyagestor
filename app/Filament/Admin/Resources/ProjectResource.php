@@ -19,7 +19,7 @@ class ProjectResource extends Resource
 
     protected static ?string $navigationIcon  = 'heroicon-o-folder-open';
     protected static ?string $navigationLabel = 'Projectos';
-    protected static ?string $navigationGroup = 'Projectos';
+    protected static ?string $navigationGroup = 'Trabalho';
     protected static ?int    $navigationSort  = 1;
     protected static ?string $modelLabel      = 'projecto';
     protected static ?string $pluralModelLabel = 'projectos';

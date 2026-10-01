@@ -37,8 +37,9 @@ class HardeningAudit extends Model
     public static function estadoLabels(): array
     {
         return [
-            'pendente' => 'A correr',
-            'ok'       => 'Tudo bem',
+            'pendente'   => 'A correr',
+            'incompleta' => 'Incompleta',
+            'ok'         => 'Tudo bem',
             'avisos'   => 'Com avisos',
             'falhas'   => 'Por corrigir',
             'erro'     => 'Erro',
@@ -48,8 +49,9 @@ class HardeningAudit extends Model
     public static function estadoCores(): array
     {
         return [
-            'pendente' => 'gray',
-            'ok'       => 'success',
+            'pendente'   => 'gray',
+            'incompleta' => 'warning',
+            'ok'         => 'success',
             'avisos'   => 'warning',
             'falhas'   => 'danger',
             'erro'     => 'danger',
@@ -107,10 +109,23 @@ class HardeningAudit extends Model
             'avisos'     => count(array_filter($resultados, fn ($r) => ($r['estado'] ?? '') === 'aviso')),
         ]);
 
-        $this->update(['estado' => match (true) {
-            $this->falhas > 0 => 'falhas',
-            $this->avisos > 0 => 'avisos',
-            default           => 'ok',
-        }]);
+        $this->update(['estado' => self::estadoPara($resultados)]);
+    }
+
+    /**
+     * O estado geral a partir das linhas. Falhas primeiro; depois "incompleta"
+     * quando alguma verificação ficou por ler (resposta cortada) — senão uma
+     * máquina meio lida passava por "Tudo bem".
+     */
+    public static function estadoPara(array $resultados): string
+    {
+        $tem = fn (callable $f) => count(array_filter($resultados, $f)) > 0;
+
+        return match (true) {
+            $tem(fn ($r) => ($r['estado'] ?? '') === 'falha') => 'falhas',
+            $tem(fn ($r) => ! empty($r['cortada']))           => 'incompleta',
+            $tem(fn ($r) => ($r['estado'] ?? '') === 'aviso') => 'avisos',
+            default                                           => 'ok',
+        };
     }
 }

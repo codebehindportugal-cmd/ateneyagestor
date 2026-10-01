@@ -31,7 +31,7 @@ class SiteProvisionResource extends Resource
 
     protected static ?string $navigationGroup = 'Infraestrutura';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 9;
 
     /** O formulário do "Criar site" — usado na acção do cabeçalho da lista. */
     public static function camposDoPedido(): array

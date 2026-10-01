@@ -20,9 +20,9 @@ class ProductivityEventResource extends Resource
 
     protected static ?string $pluralModelLabel = 'eventos de produtividade';
 
-    protected static ?string $navigationGroup = 'Operação';
+    protected static ?string $navigationGroup = 'Sistema';
 
-    protected static ?int $navigationSort = 20;
+    protected static ?int $navigationSort = 3;
 
     public static function canCreate(): bool
     {

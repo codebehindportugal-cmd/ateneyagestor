@@ -30,12 +30,11 @@ class CofrePessoal extends Page implements HasForms
 
     protected static ?string $navigationLabel = 'Cofre pessoal';
 
-    protected static ?string $navigationGroup = 'Infraestrutura';
+    protected static ?string $navigationGroup = 'Cofre';
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 2;
 
     protected static string $view = 'filament.admin.pages.cofre-pessoal';
-
 
     public ?array $dadosCriar = [];
 

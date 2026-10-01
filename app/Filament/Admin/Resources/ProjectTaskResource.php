@@ -30,7 +30,7 @@ class ProjectTaskResource extends Resource
 
     protected static ?string $navigationIcon  = 'heroicon-o-clipboard-document-check';
     protected static ?string $navigationLabel = 'Tarefas';
-    protected static ?string $navigationGroup = 'Projectos';
+    protected static ?string $navigationGroup = 'Trabalho';
     protected static ?int    $navigationSort  = 0;
     protected static ?string $modelLabel      = 'tarefa';
     protected static ?string $pluralModelLabel = 'tarefas';

@@ -25,14 +25,13 @@ class ImportarKeePass extends Page
 
     protected static ?string $navigationLabel = 'Importar do KeePass';
 
-    protected static ?string $navigationGroup = 'Infraestrutura';
+    protected static ?string $navigationGroup = 'Cofre';
 
-    protected static ?int $navigationSort = 8;
+    protected static ?int $navigationSort = 4;
 
     protected static bool $shouldRegisterNavigation = false;
 
     protected static string $view = 'filament.admin.pages.importar-keepass';
-
 
     public function mount(): void
     {

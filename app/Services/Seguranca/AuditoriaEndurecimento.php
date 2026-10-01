@@ -59,8 +59,20 @@ class AuditoriaEndurecimento
         $resultados = [];
 
         foreach ($verificacoes as $chave => $verificacao) {
+            // A marca da verificação nunca chegou: a resposta veio cortada
+            // antes dela (01/10/2026, contabo-d). Avaliar '' dava "Bem" a
+            // coisas que ninguém leu — fica como aviso e marca-se a linha.
+            if (! array_key_exists($chave, $saidas)) {
+                $resultados[] = $verificacao->paraArray([
+                    'estado'  => 'aviso',
+                    'detalhe' => 'Não deu para ler: a resposta do servidor veio cortada antes desta verificação.',
+                ]) + ['cortada' => true];
+
+                continue;
+            }
+
             $resultados[] = $verificacao->paraArray(
-                $verificacao->avaliar($saidas[$chave] ?? '')
+                $verificacao->avaliar($saidas[$chave])
             );
         }
 
@@ -68,11 +80,7 @@ class AuditoriaEndurecimento
         $avisos = count(array_filter($resultados, fn ($r) => $r['estado'] === 'aviso'));
 
         $auditoria->update([
-            'estado'     => match (true) {
-                $falhas > 0 => 'falhas',
-                $avisos > 0 => 'avisos',
-                default     => 'ok',
-            },
+            'estado'     => HardeningAudit::estadoPara($resultados),
             'total'      => count($resultados),
             'falhas'     => $falhas,
             'avisos'     => $avisos,

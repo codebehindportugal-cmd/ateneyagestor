@@ -38,8 +38,11 @@ class AdminPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->maxContentWidth(MaxWidth::Full)
             ->darkMode(false)
+            ->font('IBM Plex Sans')
+            // 01/10/2026: o laranja da Ateneya, um tom abaixo do do logótipo para
+            // o texto branco dos botões ter contraste (o Color::Orange não chega).
             ->colors([
-                'primary' => Color::Indigo,
+                'primary' => Color::hex('#C2410C'),
                 'info' => Color::Sky,
                 'success' => Color::Emerald,
                 'warning' => Color::Amber,
@@ -51,13 +54,12 @@ class AdminPanelProvider extends PanelProvider
             // "Operacao" e "Operação" como dois grupos diferentes, e era isso
             // que fazia o menu aparecer com grupos repetidos.
             ->navigationGroups([
-                NavigationGroup::make('Projectos'),
-                NavigationGroup::make('Operação'),
+                NavigationGroup::make('Trabalho'),
                 NavigationGroup::make('Infraestrutura'),
+                NavigationGroup::make('Cofre'),
                 NavigationGroup::make('Integrações'),
                 NavigationGroup::make('Contabilidade'),
                 NavigationGroup::make('Clientes'),
-                NavigationGroup::make('Administração'),
                 NavigationGroup::make('Sistema')
                     ->collapsed(),
             ])
@@ -71,11 +73,17 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::STYLES_AFTER,
                 fn (): \Illuminate\Contracts\View\View => view('filament.estilos-tarefas'),
             )
+            // O tema (barra lateral escura, tipografia, o painel "Hoje"). CSS
+            // à mão pela mesma razão do de cima: não há build de Tailwind.
+            ->renderHook(
+                PanelsRenderHook::STYLES_AFTER,
+                fn (): \Illuminate\Contracts\View\View => view('filament.tema-ateneya'),
+            )
             ->discoverResources(in: app_path('Filament/Admin/Resources'), for: 'App\\Filament\\Admin\\Resources')
             ->discoverPages(in: app_path('Filament/Admin/Pages'), for: 'App\\Filament\\Admin\\Pages')
-            ->pages([
-                Pages\Dashboard::class,
-            ])
+            // "Hoje" substitui o painel por omissão (mesma rota, /admin) e é
+            // encontrado pelo discoverPages acima.
+            ->pages([])
             ->discoverWidgets(in: app_path('Filament/Admin/Widgets'), for: 'App\\Filament\\Admin\\Widgets')
             ->middleware([
                 EncryptCookies::class,

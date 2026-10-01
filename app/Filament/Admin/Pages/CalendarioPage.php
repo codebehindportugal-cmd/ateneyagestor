@@ -31,8 +31,8 @@ class CalendarioPage extends Page
 
     protected static ?string $navigationIcon  = 'heroicon-o-calendar-days';
     protected static ?string $navigationLabel = 'Calendário';
-    protected static ?string $navigationGroup = 'Operação';
-    protected static ?int    $navigationSort  = 0;
+    protected static ?string $navigationGroup = 'Trabalho';
+    protected static ?int    $navigationSort  = 2;
     protected static string  $view            = 'filament.pages.calendario-page';
 
     /** Mês a ver, no formato Y-m. Fica no URL para o link ser partilhável. */

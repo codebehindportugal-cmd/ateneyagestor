@@ -19,13 +19,13 @@ class SecurityScanResource extends Resource
 
     protected static ?string $navigationLabel = 'Scans de Segurança';
 
-    protected static ?string $navigationGroup = 'Operação';
+    protected static ?string $navigationGroup = 'Infraestrutura';
 
     protected static ?string $modelLabel = 'scan de segurança';
 
     protected static ?string $pluralModelLabel = 'scans de segurança';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 8;
 
     public static function canCreate(): bool
     {

@@ -24,7 +24,7 @@ class AgentResource extends Resource
 
     protected static ?string $pluralModelLabel = 'agentes';
 
-    protected static ?string $navigationGroup = 'Operação';
+    protected static ?string $navigationGroup = 'Sistema';
 
     protected static ?int $navigationSort = 2;
 

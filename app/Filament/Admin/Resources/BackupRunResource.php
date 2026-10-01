@@ -20,15 +20,15 @@ class BackupRunResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-clock';
 
-    protected static ?string $navigationLabel = 'Historico de backups';
+    protected static ?string $navigationLabel = 'Backups';
 
     protected static ?string $modelLabel = 'execucao de backup';
 
     protected static ?string $pluralModelLabel = 'execucoes de backup';
 
-    protected static ?string $navigationGroup = 'Operação';
+    protected static ?string $navigationGroup = 'Infraestrutura';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 4;
 
     public static function canCreate(): bool
     {

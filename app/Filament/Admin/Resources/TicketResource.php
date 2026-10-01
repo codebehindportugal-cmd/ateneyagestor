@@ -22,6 +22,10 @@ class TicketResource extends Resource
 
     protected static ?string $navigationLabel = 'Tickets';
 
+    protected static ?string $navigationGroup = 'Trabalho';
+
+    protected static ?int $navigationSort = 3;
+
     protected static ?string $modelLabel = 'ticket';
 
     protected static ?string $pluralModelLabel = 'tickets';

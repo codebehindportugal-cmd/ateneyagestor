@@ -22,15 +22,15 @@ class SiteUpdateResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-path';
 
-    protected static ?string $navigationGroup = 'Operação';
+    protected static ?string $navigationGroup = 'Infraestrutura';
 
-    protected static ?string $navigationLabel = 'Actualizacoes';
+    protected static ?string $navigationLabel = 'Actualizações';
 
     protected static ?string $modelLabel = 'actualizacao';
 
     protected static ?string $pluralModelLabel = 'actualizacoes';
 
-    protected static ?int $navigationSort = 40;
+    protected static ?int $navigationSort = 5;
 
     public static function canCreate(): bool
     {

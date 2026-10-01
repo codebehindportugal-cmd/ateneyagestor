@@ -24,7 +24,9 @@ class UserResource extends Resource
 
     protected static ?string $pluralModelLabel = 'equipa';
 
-    protected static ?string $navigationGroup = 'Administração';
+    protected static ?string $navigationGroup = 'Sistema';
+
+    protected static ?int $navigationSort = 0;
 
     public static function getEloquentQuery(): Builder
     {

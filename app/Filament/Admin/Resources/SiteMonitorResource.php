@@ -26,9 +26,9 @@ class SiteMonitorResource extends Resource
 
     protected static ?string $pluralModelLabel = 'monitores';
 
-    protected static ?string $navigationGroup = 'Operação';
+    protected static ?string $navigationGroup = 'Infraestrutura';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {

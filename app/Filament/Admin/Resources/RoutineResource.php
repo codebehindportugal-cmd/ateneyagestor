@@ -16,8 +16,8 @@ class RoutineResource extends Resource
     protected static ?string $model = Routine::class;
     protected static ?string $navigationIcon  = 'heroicon-o-arrow-path-rounded-square';
     protected static ?string $navigationLabel = 'Rotinas & Pagamentos';
-    protected static ?string $navigationGroup = 'Operação';
-    protected static ?int    $navigationSort  = 1;
+    protected static ?string $navigationGroup = 'Trabalho';
+    protected static ?int    $navigationSort  = 4;
     protected static ?string $modelLabel = 'rotina';
     protected static ?string $pluralModelLabel = 'rotinas';
 

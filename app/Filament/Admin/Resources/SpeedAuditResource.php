@@ -21,7 +21,7 @@ class SpeedAuditResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-bolt';
 
-    protected static ?string $navigationLabel = 'Velocidade';
+    protected static ?string $navigationLabel = 'Auditorias — velocidade';
 
     protected static ?string $modelLabel = 'auditoria de velocidade';
 
@@ -29,7 +29,7 @@ class SpeedAuditResource extends Resource
 
     protected static ?string $navigationGroup = 'Infraestrutura';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 7;
 
     public static function table(Table $table): Table
     {
@@ -65,6 +65,17 @@ class SpeedAuditResource extends Resource
                     ->sortable(),
             ])
             ->filters([
+                // Uma linha por servidor, a mais recente: com "Auditar todos" a
+                // listagem enchia-se de repetidas e a de há 6 dias aparecia ao
+                // lado da de hoje. O histórico fica a um clique — desliga-se o filtro.
+                Tables\Filters\Filter::make('mais_recente')
+                    ->label('Só a mais recente de cada servidor')
+                    ->toggle()
+                    ->default()
+                    ->query(fn ($query) => $query->whereIn('id', fn ($sub) => $sub
+                        ->selectRaw('max(id)')
+                        ->from((new SpeedAudit)->getTable())
+                        ->groupBy('server_id'))),
                 Tables\Filters\SelectFilter::make('server_id')
                     ->label('Servidor')
                     ->relationship('server', 'name'),

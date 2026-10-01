@@ -24,7 +24,7 @@ class HardeningAuditResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-shield-check';
 
-    protected static ?string $navigationLabel = 'Endurecimento';
+    protected static ?string $navigationLabel = 'Auditorias — segurança';
 
     protected static ?string $modelLabel = 'auditoria';
 
@@ -32,12 +32,15 @@ class HardeningAuditResource extends Resource
 
     protected static ?string $navigationGroup = 'Infraestrutura';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 6;
 
     public static function table(Table $table): Table
     {
         return $table
             ->defaultSort('created_at', 'desc')
+            // As auditorias correm na fila: enquanto houver alguma a correr, a
+            // listagem vai-se actualizando sozinha.
+            ->poll(fn () => HardeningAudit::where('estado', 'pendente')->exists() ? '5s' : null)
             ->columns([
                 Tables\Columns\TextColumn::make('server.name')
                     ->label('Servidor')
@@ -72,6 +75,17 @@ class HardeningAuditResource extends Resource
                     ->sortable(),
             ])
             ->filters([
+                // Uma linha por servidor, a mais recente: com "Auditar todos" a
+                // listagem enchia-se de repetidas e a de há 6 dias aparecia ao
+                // lado da de hoje. O histórico fica a um clique — desliga-se o filtro.
+                Tables\Filters\Filter::make('mais_recente')
+                    ->label('Só a mais recente de cada servidor')
+                    ->toggle()
+                    ->default()
+                    ->query(fn ($query) => $query->whereIn('id', fn ($sub) => $sub
+                        ->selectRaw('max(id)')
+                        ->from((new HardeningAudit)->getTable())
+                        ->groupBy('server_id'))),
                 Tables\Filters\SelectFilter::make('server_id')
                     ->label('Servidor')
                     ->relationship('server', 'name'),

@@ -22,6 +22,10 @@ class InvoiceResource extends Resource
 
     protected static ?string $navigationLabel = 'Pré-faturas';
 
+    protected static ?string $navigationGroup = 'Contabilidade';
+
+    protected static ?int $navigationSort = 4;
+
     protected static ?string $modelLabel = 'pré-fatura';
 
     protected static ?string $pluralModelLabel = 'pré-faturas';

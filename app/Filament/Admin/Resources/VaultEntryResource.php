@@ -36,9 +36,9 @@ class VaultEntryResource extends Resource
 
     protected static ?string $pluralModelLabel = 'senhas privadas';
 
-    protected static ?string $navigationGroup = 'Infraestrutura';
+    protected static ?string $navigationGroup = 'Cofre';
 
-    protected static ?int $navigationSort = 7;
+    protected static ?int $navigationSort = 3;
 
     public static function getEloquentQuery(): Builder
     {

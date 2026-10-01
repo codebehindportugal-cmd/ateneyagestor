@@ -16,15 +16,15 @@ class CredentialResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-key';
 
-    protected static ?string $navigationLabel = 'Cofre de Passwords';
+    protected static ?string $navigationLabel = 'Senhas da equipa';
 
     protected static ?string $modelLabel = 'credencial';
 
     protected static ?string $pluralModelLabel = 'credenciais';
 
-    protected static ?string $navigationGroup = 'Infraestrutura';
+    protected static ?string $navigationGroup = 'Cofre';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
     {

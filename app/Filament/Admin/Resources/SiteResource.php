@@ -35,7 +35,7 @@ class SiteResource extends Resource
 
     protected static ?string $pluralModelLabel = 'sites';
 
-    protected static ?string $navigationGroup = 'Operação';
+    protected static ?string $navigationGroup = 'Infraestrutura';
 
     protected static ?int $navigationSort = 2;
 
